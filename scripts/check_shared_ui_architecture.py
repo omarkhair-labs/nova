@@ -61,7 +61,8 @@ MIGRATED_COMPONENT_SEAMS = {
     "NovaTextField.kt": ("MaterialTheme.shapes.medium",),
     "NovaHeader.kt": ("NovaType.pageTitle", "NovaType.subtitle", "NovaSpacing.sm", "NovaBackButton"),
     "NovaBottomBar.kt": (
-        "NovaElevation.floating",
+        "NovaElevation.flat",
+        "HorizontalDivider(color = PlantupiaColors.border)",
         "NovaType.navigationLabel",
         "NovaType.badge",
         "NovaIconAsset.Today",

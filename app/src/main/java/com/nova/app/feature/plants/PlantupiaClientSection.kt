@@ -1108,8 +1108,7 @@ private fun PlantupiaAccountClientSection(
             if (activeChapter == PlantupiaDetailChapter.OVERVIEW ||
                 openDetailMode == PlantupiaCreateMode.QUESTION
             ) {
-            BrandEyebrow(if (openDetailMode == PlantupiaCreateMode.QUESTION)
-                "ASK THE CIRCLE" else "MY PLANTS")
+            if (openDetailMode == PlantupiaCreateMode.QUESTION) BrandEyebrow("ASK THE CIRCLE")
             if (openDetailMode == PlantupiaCreateMode.QUESTION) {
                 Text(
                     "Choose what to share. Your care records and place stay private.",
@@ -1174,16 +1173,12 @@ private fun PlantupiaAccountClientSection(
                         ) {
                             Text("Add your first plant photo", color = deepGreen)
                             Text(
-                                "Choose an actual photo from your device",
+                                "Private photo",
                                 style = PlantupiaText.supporting,
                             )
                         }
                         Text("↗", color = deepGreen)
                     }
-                    Text(
-                        "Your plant is connected. Start with a real photograph, then use Care to record what you notice. This photo is not a shared moment.",
-                        style = PlantupiaText.supporting,
-                    )
                 } else {
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
@@ -2131,15 +2126,13 @@ private fun PlantupiaAccountClientSection(
             if (openDetailMode != PlantupiaCreateMode.QUESTION &&
                 activeChapter == PlantupiaDetailChapter.HISTORY
             ) {
-            Text("Your plant's living record", style = PlantupiaText.editorialHeading)
-            Text("Only saved care, observations, concerns, outcomes and their real photos.",
-                style = PlantupiaText.supporting)
+            Text(selectedPlant.name, style = PlantupiaText.editorialHeading)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                BrandEyebrow(if (showFullHistory) "LIVING HISTORY" else "RECENT ACTIVITY")
+                Text(if (showFullHistory) "All records" else "Recent activity", style = PlantupiaText.itemTitle)
                 if (!detailLoading && !historyLoadFailed && events.isNotEmpty()) {
                     TextButton(onClick = { showFullHistory = !showFullHistory }) {
                         Text(if (showFullHistory) "Show recent only ↑" else "See all history →", color = deepGreen)
@@ -2222,11 +2215,6 @@ private fun PlantupiaAccountClientSection(
                 }
             }
             PlantupiaHistoryDisplayState.RECORDED -> {
-                Text(
-                    if (showFullHistory) "Your saved observations, care and follow-ups"
-                    else "Your latest saved observations and care",
-                    color = muted, fontSize = 12.sp,
-                )
                 if (showFullHistory) key(selectedPlant.id, repository) {
                     PlantupiaPhotoIndex(
                         events = events,

@@ -56,7 +56,9 @@ internal fun PlantupiaCareGuidePanel(
             loading = false
         }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Surface(
+            PlantupiaActionRow(
+                icon = com.nova.app.ui.icons.NovaIconAsset.Info,
+                title = "Care guide",
                 onClick = {
                     if (!open) {
                         loading = true
@@ -65,73 +67,40 @@ internal fun PlantupiaCareGuidePanel(
                         expandedTopic = null
                         narrativeOpen = false
                         provenanceOpen = false
+                        legacyOpen = false
                     }
                     open = !open
                 },
-                modifier = Modifier.fillMaxWidth().heightIn(min = 92.dp),
-                color = Color(0xFFE6EDE3),
-                shape = RoundedCornerShape(22.dp),
-                border = BorderStroke(1.dp, PlantupiaColors.border),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 13.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Surface(shape = RoundedCornerShape(17.dp), color = Color(0xFFFFF1CC)) {
-                        CareChapterIllustration(
-                            "light", Color(0xFF966019),
-                            Modifier.padding(10.dp).size(51.dp),
-                        )
-                    }
-                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                        Text("THE FIELD GUIDE", style = PlantupiaText.sectionLabel)
-                        Text(
-                            "Care guide",
-                            style = PlantupiaText.editorialHeading,
-                        )
-                        Text(
-                            "Water, light and the details that matter.",
-                            style = PlantupiaText.supporting,
-                        )
-                    }
-                    Text("Read →", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                }
-            }
+            )
             if (open) {
                 Dialog(
                     onDismissRequest = { open = false },
                     properties = DialogProperties(usePlatformDefaultWidth = false),
                 ) {
                     Surface(
-                        modifier = Modifier.fillMaxWidth(0.96f)
-                            .widthIn(max = 620.dp)
-                            .fillMaxHeight(0.91f),
-                        color = PlantupiaColors.cream,
-                        shape = RoundedCornerShape(18.dp),
+                        modifier = Modifier.fillMaxSize(),
+                        color = PlantupiaColors.paper,
                     ) {
                         Column(
-                            modifier = Modifier.fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 18.dp, vertical = 17.dp),
-                            verticalArrangement = Arrangement.spacedBy(15.dp),
+                            modifier = Modifier.fillMaxSize().safeDrawingPadding(),
+                            verticalArrangement = Arrangement.spacedBy(0.dp),
                         ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                Column {
-                                    Text("THE FIELD GUIDE", style = PlantupiaText.sectionLabel)
-                                    Text("Reviewed care", style = PlantupiaText.editorialHeading)
-                                }
+                                Text("Reviewed care", style = PlantupiaText.itemTitle,
+                                    modifier = Modifier.weight(1f))
                                 TextButton(onClick = { open = false },
                                     modifier = Modifier.heightIn(min = 48.dp)) {
                                     Text("Close", color = PlantupiaColors.forest)
                                 }
                             }
-                            Text("Read about this plant type. Nothing here records an action.",
-                                style = PlantupiaText.supporting)
+                            HorizontalDivider(color = PlantupiaColors.border)
+                            Column(Modifier.fillMaxWidth().weight(1f)
+                                .verticalScroll(rememberScrollState()).padding(18.dp),
+                                verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 if (loading) {
                     LinearProgressIndicator(Modifier.fillMaxWidth())
                     Text("Loading care guidance…", style = PlantupiaText.supporting)
@@ -155,8 +124,7 @@ internal fun PlantupiaCareGuidePanel(
                                         "inspection", Color(0xFF966019), Modifier.size(64.dp),
                                     )
                                     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                                        Text("THE GUIDE IS GROWING", style = PlantupiaText.sectionLabel)
-                                        Text("No reviewed guide yet", style = PlantupiaText.editorialHeading)
+                                        Text("No reviewed guide yet", style = PlantupiaText.itemTitle)
                                         Text(
                                             if (value.verifiedIdentity) "This type has no published, reviewed guide yet."
                                             else if (value.identityBasis == "user_selected")
@@ -184,10 +152,10 @@ internal fun PlantupiaCareGuidePanel(
                             )
                             Text(
                                 when {
-                                    pilotPending -> "PILOT REFERENCE · BOTANICAL APPROVAL PENDING"
-                                    value.topics.isEmpty() -> "SINGLE REFERENCE NOTE"
-                                    value.verifiedIdentity -> "PUBLISHED CARE CHAPTERS"
-                                    else -> "PUBLISHED GENERAL CARE CHAPTERS"
+                                    pilotPending -> "Pilot reference · approval pending"
+                                    value.topics.isEmpty() -> "Reference note"
+                                    value.verifiedIdentity -> "Reviewed chapters"
+                                    else -> "General care chapters"
                                 },
                                 style = PlantupiaText.sectionLabel,
                             )
@@ -212,7 +180,6 @@ internal fun PlantupiaCareGuidePanel(
                                                 Modifier.size(56.dp),
                                             )
                                             Column {
-                                                Text("CARE REFERENCE", style = PlantupiaText.sectionLabel)
                                                 Text("Care notes", style = PlantupiaText.editorialHeading)
                                             }
                                         }
@@ -239,10 +206,6 @@ internal fun PlantupiaCareGuidePanel(
                                     style = PlantupiaText.supporting,
                                 )
                             } else {
-                                Text(
-                                    "Explore care by topic. These are reviewed instructions, not automatic reminders.",
-                                    style = PlantupiaText.supporting,
-                                )
                                 PlantupiaCareChapterGallery(
                                     topics = value.topics,
                                     selectedTopic = expandedTopic,
@@ -303,7 +266,8 @@ internal fun PlantupiaCareGuidePanel(
                         Text("Record what I actually noticed", color = PlantupiaColors.forest)
                     }
                 }
-            } // focused reading body
+            } // scrollable source document
+            } // fixed reader shell
         } // reader surface
     } // native modal
 } // open reader

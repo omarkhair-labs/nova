@@ -54,22 +54,15 @@ internal fun PlantupiaPhotoTimeLens(
             modifier = Modifier.fillMaxWidth().padding(15.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("TWO MOMENTS / ONE LIVING PLANT",
-                style = PlantupiaText.sectionLabel)
-            Text("See it at another point in time",
-                style = PlantupiaText.body.copy(
-                    fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                ))
-            Text("Two photographs you actually recorded. Switch dates to examine them; " +
-                "this is not a measured growth or health comparison.",
-                style = PlantupiaText.supporting)
+            Text("See it at another point in time", style = PlantupiaText.itemTitle)
+            Text("Recorded photos, not a health measurement.", style = PlantupiaText.supporting)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 listOf(false, true).forEach { later ->
                     val entry = if (later) pair.later else pair.earlier
-                    val active = showLater == later
+                    val active = !sideBySide && showLater == later
                     Surface(
                         onClick = { showLater = later; sideBySide = false },
                         color = if (active) PlantupiaColors.forest else PlantupiaColors.softSage,
@@ -103,7 +96,7 @@ internal fun PlantupiaPhotoTimeLens(
             }
             TextButton(onClick = { sideBySide = !sideBySide },
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text(if (sideBySide) "Switch one photo at a time" else "View both photographs", color = PlantupiaColors.forest)
+                Text(if (sideBySide) "Single photo" else "Compare photos", color = PlantupiaColors.forest)
             }
             if (sideBySide) {
                 BoxWithConstraints(Modifier.fillMaxWidth()) {

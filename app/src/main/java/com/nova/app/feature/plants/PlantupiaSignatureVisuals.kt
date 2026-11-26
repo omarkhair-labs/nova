@@ -1,5 +1,6 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -29,26 +30,14 @@ internal fun PlantupiaSignatureIdentity(
     identity: String,
     qa: Boolean,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text(name, style = PlantupiaText.pageHeading)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(name, style = PlantupiaText.display.copy(fontSize = 28.sp, lineHeight = 34.sp))
         if (context.isNotBlank()) Text(context, style = PlantupiaText.body)
-        Surface(
-            color = PlantupiaColors.softSage,
-            shape = RoundedCornerShape(12.dp),
-            border = BorderStroke(1.dp, PlantupiaColors.border),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(
-                Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                PlantupiaEditorialMark("plant", Modifier.size(30.dp))
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text("PLANT IDENTITY", style = PlantupiaText.sectionLabel)
-                    Text(signatureIdentityLabel(identity, qa), style = PlantupiaText.supporting)
-                }
-            }
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            PlantupiaEditorialMark("plant", Modifier.size(18.dp))
+            Text(signatureIdentityLabel(identity, qa), style = PlantupiaText.supporting,
+                modifier = Modifier.weight(1f))
         }
     }
 }
@@ -67,8 +56,6 @@ internal fun PlantupiaSignatureFieldPlate(topic: String) {
             Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            Text("FIELD PLATE / " + palette.label.uppercase(),
-                style = PlantupiaText.sectionLabel.copy(color = palette.ink))
             val resource = when (topic) {
                 "water" -> R.drawable.plantupia_signature_plate_water
                 "light" -> R.drawable.plantupia_signature_plate_light
@@ -92,8 +79,7 @@ internal fun PlantupiaSignatureFieldPlate(topic: String) {
                     CareChapterIllustration(topic, palette.ink, Modifier.size(80.dp).clearAndSetSemantics { })
                 }
             }
-            Text("Topic illustration · read the reviewed instructions below",
-                style = PlantupiaText.supporting.copy(color = palette.ink))
+            Text("Illustration", style = PlantupiaText.supporting.copy(color = palette.ink))
         }
     }
 }

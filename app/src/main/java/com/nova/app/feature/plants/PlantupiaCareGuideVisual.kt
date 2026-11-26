@@ -84,7 +84,7 @@ internal fun PlantupiaCareChapterGallery(
         }
     }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-        Text("THE FIELD GUIDE / CHAPTER INDEX", style = PlantupiaText.sectionLabel)
+        Text("Topics", style = PlantupiaText.itemTitle)
         androidx.compose.foundation.lazy.LazyRow(
             horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
@@ -95,8 +95,8 @@ internal fun PlantupiaCareChapterGallery(
                 Surface(
                     onClick = { chooseChapter(item.topic) },
                     modifier = Modifier
-                        .widthIn(min = 134.dp)
-                        .heightIn(min = 100.dp)
+                        .widthIn(min = 88.dp)
+                        .heightIn(min = 72.dp)
                         .semantics {
                             selected = active
                             contentDescription = "Read reviewed " + palette.label + " chapter"
@@ -110,18 +110,14 @@ internal fun PlantupiaCareChapterGallery(
                 ) {
                     Column(
                         modifier = Modifier.padding(horizontal = 15.dp, vertical = 13.dp),
-                        verticalArrangement = Arrangement.SpaceBetween,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         CareChapterIllustration(
-                            item.topic, palette.ink, Modifier.size(36.dp).clearAndSetSemantics { },
+                            item.topic, palette.ink, Modifier.size(27.dp).clearAndSetSemantics { },
                         )
                         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(palette.label, fontSize = 15.sp,
                                 fontWeight = FontWeight.SemiBold, color = palette.ink)
-                            Text(if (active) "Reading this chapter" else "Explore chapter",
-                                style = PlantupiaText.supporting.copy(
-                                    color = palette.ink, fontSize = 11.sp,
-                                ))
                         }
                     }
                 }
@@ -134,14 +130,13 @@ internal fun PlantupiaCareChapterGallery(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = PlantupiaColors.paper,
-                shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, palette.ink.copy(alpha = 0.28f)),
+                shape = RoundedCornerShape(8.dp),
             ) {
                 Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(13.dp),
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
-                    Text("${chapterIndex + 1} / ${topics.size}  ·  " + palette.label.uppercase(),
+                    Text("${chapterIndex + 1} of ${topics.size} · " + palette.label,
                         modifier = Modifier.bringIntoViewRequester(readingAnchor),
                         style = PlantupiaText.sectionLabel.copy(color = palette.ink))
                     Text(item.title, style = PlantupiaText.editorialHeading)

@@ -1,5 +1,10 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -93,17 +98,16 @@ private fun PlantupiaDetailChapterTab(
             role = Role.Tab
             selected = active
         },
-        color = if (active) PlantupiaColors.forest else Color(0xFFE8EDE3),
-        border = BorderStroke(1.dp,
-            if (active) PlantupiaColors.forest else PlantupiaColors.border),
-        shape = RoundedCornerShape(10.dp),
+        color = if (active) PlantupiaColors.softSage else Color.Transparent,
+        shape = RoundedCornerShape(8.dp),
     ) {
-        Text(
-            text = chapter.title,
-            modifier = Modifier.padding(vertical = 14.dp, horizontal = 5.dp),
-            color = if (active) Color.White else PlantupiaColors.forest,
-            style = labelStyle.copy(fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium),
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(chapter.title, modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 5.dp),
+                color = if (active) PlantupiaColors.forest else PlantupiaColors.secondaryText,
+                style = labelStyle.copy(fontWeight = if (active) FontWeight.SemiBold else FontWeight.Medium),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            Spacer(Modifier.fillMaxWidth().height(2.dp)
+                .background(if (active) PlantupiaColors.forest else PlantupiaColors.border))
+        }
     }
 }

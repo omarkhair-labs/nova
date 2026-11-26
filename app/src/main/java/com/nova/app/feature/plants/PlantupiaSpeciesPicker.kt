@@ -71,11 +71,7 @@ internal fun PlantupiaSpeciesPicker(
         if (repository.isCurrentSession()) busy = false
     }
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        Text("Which plant do you have?", fontWeight = FontWeight.SemiBold, color = forest, fontSize = 16.sp)
-        Text(
-            "Choose from reviewed plant types, or add yours without knowing its species.",
-            color = quiet, fontSize = 12.sp,
-        )
+        Text("Plant type", style = PlantupiaText.itemTitle)
         if (selectedKey != null) {
             Surface(
                 color = sage, shape = RoundedCornerShape(14.dp),
@@ -83,8 +79,7 @@ internal fun PlantupiaSpeciesPicker(
             ) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                     Text(selectedName, color = forest, fontWeight = FontWeight.SemiBold)
-                    Text("Based on your selection · Your individual plant is not verified.",
-                        color = quiet, fontSize = 12.sp)
+                    Text("Self-identified · not verified", style = PlantupiaText.supporting)
                     TextButton(enabled = enabled, onClick = onBrowse) {
                         Text("Change plant type", color = forest)
                     }
@@ -94,8 +89,7 @@ internal fun PlantupiaSpeciesPicker(
             Surface(color = sage, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("Type not confirmed", color = forest, fontWeight = FontWeight.SemiBold)
-                    Text("You can still name your plant and keep its care history. No species-specific guide will be assumed.",
-                        color = quiet, fontSize = 12.sp)
+                    Text("No species-specific guide assumed.", style = PlantupiaText.supporting)
                     TextButton(enabled = enabled, onClick = onBrowse) {
                         Text("Browse plant library instead", color = forest)
                     }
@@ -143,7 +137,7 @@ internal fun PlantupiaSpeciesPicker(
                                 modifier = Modifier.width(38.dp).heightIn(min = 38.dp),
                                 color = sage, shape = RoundedCornerShape(10.dp),
                             ) {
-                                Text("✳", modifier = Modifier.padding(9.dp), color = forest)
+                                PlantupiaEditorialMark("plant", Modifier.padding(8.dp).width(22.dp).heightIn(min = 22.dp))
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(item.scientificName, color = forest, fontWeight = FontWeight.Medium)

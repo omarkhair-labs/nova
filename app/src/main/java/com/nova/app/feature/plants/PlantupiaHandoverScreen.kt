@@ -1,5 +1,6 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.foundation.layout.height
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -153,37 +154,34 @@ internal fun PlantupiaHandoverScreen(
                     }
                 }
 
-                Text("DELIVERY / PRIVATE CONNECTION", style = PlantupiaText.sectionLabel)
                 Text(
                     when (stage) {
-                        SignatureDeliveryStage.SCAN -> "Connect what arrived."
-                        SignatureDeliveryStage.REVIEW -> "Review before you connect."
-                        SignatureDeliveryStage.CONNECTED -> "A new space in your life."
+                        SignatureDeliveryStage.SCAN -> "Connect delivery"
+                        SignatureDeliveryStage.REVIEW -> "Review delivery"
+                        SignatureDeliveryStage.CONNECTED -> "Delivery connected"
                     },
                     style = PlantupiaText.pageHeading,
                     modifier = Modifier.semantics { heading() },
                 )
                 Text(
                     when (stage) {
-                        SignatureDeliveryStage.SCAN -> "Scan the delivery QR or enter its code. Nothing is added to your account until you review and confirm it."
-                        SignatureDeliveryStage.REVIEW -> "Check the space and plant count first. Confirmation is the moment these plants become part of your private Plantupia space."
-                        SignatureDeliveryStage.CONNECTED -> "Plantupia has confirmed the connection. Your living records are ready to open."
+                        SignatureDeliveryStage.SCAN -> "Scan or enter the code. Review before connecting."
+                        SignatureDeliveryStage.REVIEW -> "Confirm the account, space and plant count."
+                        SignatureDeliveryStage.CONNECTED -> "Your plants are ready to open."
                     },
                     style = PlantupiaText.body,
                 )
 
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = PlantupiaColors.softSage,
-                    shape = PlantupiaShapes.inset,
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        HandoverStep("01", "SCAN", active = stage == SignatureDeliveryStage.SCAN, modifier = Modifier.weight(1f))
-                        HandoverStep("02", "REVIEW", active = stage == SignatureDeliveryStage.REVIEW, modifier = Modifier.weight(1f))
-                        HandoverStep("03", "CONNECT", active = stage == SignatureDeliveryStage.CONNECTED, modifier = Modifier.weight(1f))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                    val step = when (stage) {
+                        SignatureDeliveryStage.SCAN -> 1
+                        SignatureDeliveryStage.REVIEW -> 2
+                        SignatureDeliveryStage.CONNECTED -> 3
+                    }
+                    repeat(3) { index ->
+                        Surface(Modifier.weight(1f).height(4.dp),
+                            color = if (index < step) PlantupiaColors.forest else PlantupiaColors.border,
+                            shape = PlantupiaShapes.badge) { }
                     }
                 }
 
@@ -213,7 +211,7 @@ internal fun PlantupiaHandoverScreen(
                         shape = PlantupiaShapes.inset,
                     ) { Text("Scan delivery QR") }
 
-                    Text("OR ENTER THE DELIVERY CODE", style = PlantupiaText.sectionLabel)
+                    Text("Or enter code", style = PlantupiaText.supporting)
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         color = PlantupiaColors.paper,
@@ -284,7 +282,7 @@ internal fun PlantupiaHandoverScreen(
                     ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text(
-                                if (connected) "CONNECTED / PRIVATE DELIVERY" else "READY TO CONFIRM",
+                                if (connected) "Connected" else "Ready to confirm",
                                 style = PlantupiaText.sectionLabel.copy(color = receiptInk),
                             )
                             if (connected) PlantupiaEditorialMark("plant", Modifier.size(52.dp), ink = PlantupiaColors.sage)
@@ -296,7 +294,7 @@ internal fun PlantupiaHandoverScreen(
 
                     if (connected) {
                         Text(
-                            "Next, open a plant in My Plants and add its first real photo. Care and Living History begin only when you record something that actually happened.",
+                            "Add a real photo when you're ready.",
                             style = PlantupiaText.supporting,
                         )
                         Button(
@@ -311,7 +309,7 @@ internal fun PlantupiaHandoverScreen(
                         ) { Text("Open My Plants") }
                     } else {
                         Text(
-                            "Reviewing does not add anything yet. Confirm only after checking the account, space and plant count.",
+                            "Nothing is added until you confirm.",
                             style = PlantupiaText.supporting,
                         )
                         Surface(

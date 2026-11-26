@@ -330,8 +330,6 @@ private fun PlantupiaAccountSelfServiceForms(
             Surface(color = paper, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text("New plant", modifier = Modifier.bringIntoViewRequester(creationEditorHeading), style = PlantupiaText.pageHeading)
-                    Text("A living record begins with one plant.", style = PlantupiaText.body)
-                    Text("01 / KNOW ITS TYPE", style = PlantupiaText.sectionLabel)
                     PlantupiaSpeciesPicker(
                         repository = repository,
                         selectedKey = selectedSpeciesKey,
@@ -355,8 +353,8 @@ private fun PlantupiaAccountSelfServiceForms(
                         },
                     )
                     if (signatureTypeChosen(selectedSpeciesKey, unknownPlantType)) {
-                    Text("02 / MAKE IT YOURS", style = PlantupiaText.sectionLabel)
-                    Text("Name and place are yours to choose. A photo can be added later.", style = PlantupiaText.supporting)
+                    androidx.compose.material3.HorizontalDivider(color = PlantupiaColors.border)
+                    Text("Plant details", style = PlantupiaText.itemTitle)
                     OutlinedButton(
                         onClick = { spaceMenuOpen = true },
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
@@ -394,11 +392,13 @@ private fun PlantupiaAccountSelfServiceForms(
                         label = { Text("Placement within the space") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
-                    Text("03 / ITS REAL PORTRAIT", style = PlantupiaText.sectionLabel)
-                    OutlinedButton(
-                        onClick = { photoPickerOrigin = repository; photoPicker.launch("image/*") }, enabled = !saving,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text(if (plantPhoto == null) "+ Real plant photo (optional)" else "Change photo", color = ink) }
+                    PlantupiaActionRow(
+                        icon = com.nova.app.ui.icons.NovaIconAsset.Photo,
+                        title = if (plantPhoto == null) "Add photo" else "Change photo",
+                        detail = if (plantPhoto == null) "Optional · actual plant" else null,
+                        enabled = !saving,
+                        onClick = { photoPickerOrigin = repository; photoPicker.launch("image/*") },
+                    )
                     plantPhoto?.let { uri ->
                         AsyncImage(
                             model = uri, contentDescription = "Selected plant photo",
