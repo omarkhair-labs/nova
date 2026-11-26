@@ -343,7 +343,15 @@ class PlantupiaCoreRootsInstrumentedTest {
         clickText("Month")
         val locale = InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.locales[0]
         val dayLabel = day.format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", locale))
-        awaitNode(hasContentDescription("$dayLabel,", substring = true)).performScrollTo().performClick()
+        val chooseDate = hasText("Choose date ·", substring = true) and hasClickAction()
+        val compact = compose.onAllNodes(chooseDate).fetchSemanticsNodes().isNotEmpty()
+        val shortDay = day.format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM yyyy", locale))
+        if (compact) {
+            awaitNode(chooseDate).performScrollTo().performClick()
+            clickText(shortDay)
+        } else {
+            awaitNode(hasContentDescription("$dayLabel,", substring = true)).performScrollTo().performClick()
+        }
         clickText("Observation recorded")
         awaitText("Records from $day")
         scrollToText(marker)
@@ -353,7 +361,8 @@ class PlantupiaCoreRootsInstrumentedTest {
         scrollToText(marker)
         clickText("← Back to calendar")
         awaitText("My care schedule")
-        awaitNode(hasContentDescription("$dayLabel,", substring = true)).assertIsSelected()
+        if (compact) awaitText("Choose date · $shortDay")
+        else awaitNode(hasContentDescription("$dayLabel,", substring = true)).assertIsSelected()
         scrollToText("Observation recorded")
         capture("25-calendar-visit-return")
     }
