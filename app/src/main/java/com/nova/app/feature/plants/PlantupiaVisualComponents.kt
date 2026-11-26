@@ -326,6 +326,15 @@ internal fun PlantupiaHistoryEventCard(
                     onOpenPhoto = onPhotoClick,
                 )
             }
+            if (event.captureFlags.isNotEmpty()) {
+                val guidance = when {
+                    "predominantly_dark" in event.captureFlags -> "For the next comparison, photograph the plant in brighter, even light."
+                    "predominantly_bright" in event.captureFlags -> "For the next comparison, move the camera away from glare."
+                    "low_resolution" in event.captureFlags -> "For the next comparison, attach the original full-size photograph."
+                    else -> "For the next comparison, steady the camera and focus on the same leaves."
+                }
+                Text(guidance, color = muted, fontSize = 12.sp)
+            }
             if (event.note.isNotBlank()) {
                 Text(event.note, color = ink, fontSize = 13.sp, lineHeight = 20.sp)
             } else {

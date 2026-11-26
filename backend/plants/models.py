@@ -418,6 +418,7 @@ class PlantEvent(models.Model):
     evidence_type = models.CharField(max_length=10, choices=Evidence.choices, default=Evidence.OBSERVED)
     note = models.TextField(blank=True)
     photo = models.ImageField(upload_to="plantupia/events/%Y/%m/", blank=True)
+    capture_quality = models.JSONField(null=True, blank=True, editable=False)
     # A deliberate human check-in, not a watering prediction or notification.
     follow_up_on = models.DateField(null=True, blank=True)
     follow_up_completed_at = models.DateTimeField(null=True, blank=True)
@@ -430,6 +431,43 @@ class PlantEvent(models.Model):
 
     class Meta:
         ordering = ["-observed_at", "-created_at"]
+
+
+class RoomRevision(models.Model):
+    space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="room_revisions")
+    revision = models.PositiveIntegerField()
+    geometry = models.JSONField()
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["space", "revision"], name="plant_room_revision_unique")]
+
+
+class TracedRegion(models.Model):
+    event = models.ForeignKey(PlantEvent, on_delete=models.CASCADE, related_name="traced_regions")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    submission_id = models.UUIDField()
+    source_sha256 = models.CharField(max_length=64)
+    annotation = models.JSONField()
+    measurements = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["event", "author", "submission_id"], name="plant_trace_submission_unique")]
+
+
+class EvidenceReview(models.Model):
+    event = models.ForeignKey(PlantEvent, on_delete=models.CASCADE, related_name="evidence_reviews")
+    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    submission_id = models.UUIDField()
+    finding = models.CharField(max_length=24)
+    rationale = models.CharField(max_length=1000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["event", "reviewer", "submission_id"], name="plant_review_submission_unique")]
+        permissions = [("review_visual_evidence", "Review private plant observations as a specialist")]
 
 
 class PlantDiscussion(models.Model):

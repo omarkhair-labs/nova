@@ -1,15 +1,21 @@
 from rest_framework import serializers
 from django.utils import timezone
+from django.conf import settings
 from .models import BotanicalSpecies, PlantEvent, PlantUnit, Space, SpaceMember
 
 
 class SpaceSerializer(serializers.ModelSerializer):
     # Create permission is distinct from read access and from recording care.
+    living_systems_enabled = serializers.SerializerMethodField()
+
+    def get_living_systems_enabled(self, space):
+        return settings.PLANTUPIA_LIVING_SYSTEMS_ENABLED
+
     can_add_plant = serializers.SerializerMethodField()
 
     class Meta:
         model = Space
-        fields = ("id", "name", "description", "location_note", "can_add_plant")
+        fields = ("id", "name", "description", "location_note", "can_add_plant", "living_systems_enabled")
 
     def get_can_add_plant(self, space):
         request = self.context.get("request")
@@ -172,10 +178,10 @@ class PlantEventSerializer(serializers.ModelSerializer):
     class Meta:
         model = PlantEvent
         fields = (
-            "id", "kind", "evidence_type", "note", "photo", "observed_at", "created_at",
+            "id", "kind", "evidence_type", "note", "photo", "capture_quality", "observed_at", "created_at",
             "follow_up_on", "follow_up_completed_at", "follow_up_for",
         )
-        read_only_fields = ("id", "created_at", "follow_up_completed_at")
+        read_only_fields = ("id", "created_at", "follow_up_completed_at", "capture_quality")
 
     def validate(self, attrs):
         follow_up_on = attrs.get("follow_up_on")

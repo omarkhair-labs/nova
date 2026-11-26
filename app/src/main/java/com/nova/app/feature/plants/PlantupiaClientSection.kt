@@ -814,6 +814,11 @@ private fun PlantupiaAccountClientSection(
                 }
                 // Editing site context belongs with its actual chosen space,
                 // not beneath unrelated AI/Create controls and the social feed.
+                if (featured.livingSystemsEnabled) {
+                    PlantupiaRoomPlan(featured, plants.filter { it.spaceId == featured.id && it.active }, repository) { plant ->
+                        scope.launch { openPlant(plant) }
+                    }
+                }
                 PlantupiaSpaceDetailsEditor(
                     space = featured,
                     repository = repository,
@@ -2291,6 +2296,9 @@ private fun PlantupiaAccountClientSection(
                         }
                     },
                 )
+                if (spaces.any { it.id == selectedPlant.spaceId && it.livingSystemsEnabled }) {
+                    PlantupiaFieldInspection(repository, selectedPlant, moment.event)
+                }
             }
             if (showFullHistory && historyReady && nextHistoryOffset != null) {
                 OutlinedButton(
