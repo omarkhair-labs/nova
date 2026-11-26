@@ -34,6 +34,7 @@ import com.nova.app.feature.plants.data.PlantupiaRoom
 import com.nova.app.feature.plants.data.RoomDaylightSample
 import com.nova.app.feature.plants.data.RoomDaylightScenario
 import com.nova.app.feature.plants.data.daylightSampleTimes
+import com.nova.app.feature.plants.data.inDirectSunFootprint
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -101,11 +102,16 @@ internal fun PlantupiaDaylightStudy(
         ) RoomDaylightScenario(room.revision, windowId, position.first, position.second, planeHeight,
             orientation, openingWidth, bottom, top, lat, lon, times) else null
     } else null
-    var samples by remember(scenario) { mutableStateOf(emptyList<RoomDaylightSample>()) }
-    var message by remember(scenario) { mutableStateOf("") }
-    var index by remember(scenario) { mutableIntStateOf(0) }
+    // The footprint depends on the aperture and plane, not the chosen point.
+    val simulation = scenario?.copy(x = 0.0, y = 0.0)
+    var samples by remember(simulation) { mutableStateOf(emptyList<RoomDaylightSample>()) }
+    var submittedPoint by remember(simulation) { mutableStateOf<Pair<Double, Double>?>(null) }
+    var message by remember(simulation) { mutableStateOf("") }
+    var index by remember(simulation) { mutableIntStateOf(0) }
     var editing by remember { mutableStateOf(true) }
     val active = samples.getOrNull(index)
+    fun reaches(sample: RoomDaylightSample): Boolean =
+        position?.let { if (it == submittedPoint) sample.direct else inDirectSunFootprint(it, sample.footprint) } == true
     Text("Light in this room", style = PlantupiaText.editorialHeading)
     PlantupiaRoomDrawing(
         width, length, room.plants, room.windows,
@@ -121,7 +127,7 @@ internal fun PlantupiaDaylightStudy(
         val clock = active.at.format(DateTimeFormatter.ofPattern("HH:mm xxx"))
         val status = when {
             active.elevation <= 0 -> "Sun below the horizon"
-            active.direct -> "Direct sun reaches this point"
+            reaches(active) -> "Direct sun reaches this point"
             else -> "No direct ray at this point"
         }
         Text("$clock · $status", style = PlantupiaText.itemTitle)
@@ -130,7 +136,7 @@ internal fun PlantupiaDaylightStudy(
         Canvas(Modifier.fillMaxWidth().height(10.dp)) {
             val tick = size.width / samples.size
             samples.forEachIndexed { i, sample ->
-                val color = if (sample.direct) ink else PlantupiaColors.softSage
+                val color = if (reaches(sample)) ink else PlantupiaColors.softSage
                 drawRect(color, Offset(i * tick, 0f), Size(tick, size.height))
             }
         }
@@ -148,8 +154,8 @@ internal fun PlantupiaDaylightStudy(
             style = PlantupiaText.supporting)
         TextButton(onClick = { editing = !editing }) { Text(if (editing) "Hide scenario inputs" else "Change date or placement") }
     } else if (!editing) {
-        Text("Point moved. Run the scenario to see sunlight here.", style = PlantupiaText.supporting)
-        Button(enabled = scenario != null && !busy, onClick = { editing = true }) { Text("Show scenario inputs") }
+        Text("Run the updated scenario to see sunlight here.", style = PlantupiaText.supporting)
+        Button(enabled = !busy, onClick = { editing = true }) { Text("Show scenario inputs") }
     }
     if (!editing) return
 
@@ -191,6 +197,7 @@ internal fun PlantupiaDaylightStudy(
                     is ApiResult.Failure -> message = result.message
                     is ApiResult.Success -> if (repository.isCurrentSession()) {
                         samples = result.value
+                        submittedPoint = requested.x to requested.y
                         index = samples.indexOfFirst { it.direct }.takeIf { it >= 0 }
                             ?: samples.indices.maxByOrNull { samples[it].elevation } ?: 0
                         editing = false

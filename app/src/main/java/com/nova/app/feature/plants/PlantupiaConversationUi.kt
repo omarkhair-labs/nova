@@ -1,6 +1,8 @@
 package com.nova.app.feature.plants
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -121,6 +123,18 @@ internal fun PlantupiaConversationMessage(
     sender: String,
     detail: String = "",
 ) {
+    if (!mine && sender == "Plantupia AI") {
+        Column(
+            Modifier.fillMaxWidth().background(PlantupiaColors.cream).padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(sender, style = PlantupiaText.sectionLabel)
+            HorizontalDivider(color = PlantupiaColors.border)
+            Text(plantupiaReadableAssistantText(body), style = PlantupiaText.body)
+            if (detail.isNotBlank()) Text(detail, style = PlantupiaText.supporting)
+        }
+        return
+    }
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start,
@@ -145,8 +159,7 @@ internal fun PlantupiaConversationMessage(
                     color = if (mine) PlantupiaColors.cream else PlantupiaColors.secondaryText,
                 )
                 Text(
-                    if (!mine && sender == "Plantupia AI") plantupiaReadableAssistantText(body)
-                    else AnnotatedString(body),
+                    body,
                     style = PlantupiaText.body.copy(
                         color = if (mine) PlantupiaColors.paper else PlantupiaColors.forestText,
                     ),

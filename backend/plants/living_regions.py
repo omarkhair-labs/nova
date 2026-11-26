@@ -1,5 +1,6 @@
 """Measure explicitly traced visible regions in the upright source image."""
 from io import BytesIO
+from math import hypot
 
 from PIL import Image, ImageDraw
 
@@ -43,6 +44,9 @@ def measure_trace(data, points, reference=None):
     buf = BytesIO()
     mask.save(buf, "PNG")
     geometry = projected_region(buf.getvalue(), reference=reference)
+    geometry["traced_outline_length_px"] = round(sum(
+        hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(shape, shape[1:] + shape[:1])
+    ), 2)
     box = mask.getbbox()
     crop = image.crop(box).convert("RGB")
     crop.thumbnail((384, 384))

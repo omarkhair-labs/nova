@@ -15,6 +15,7 @@ readonly remote_images='files/craft-evidence'
 readonly output='artifacts/native-craft'
 readonly entrance='com.nova.app.feature.auth.PlantupiaEntranceInstrumentedTest'
 readonly drafts='com.nova.app.feature.plants.PlantupiaCreationDraftInstrumentedTest'
+readonly time_lens='com.nova.app.feature.plants.PlantupiaPhotoTimeLensInstrumentedTest'
 readonly keyboard='com.nova.app.feature.auth.PlantupiaEntranceKeyboardInstrumentedTest'
 mkdir -p "$output/test-results" "$output/craft-evidence" "$output/diagnostics"
 
@@ -187,7 +188,7 @@ if pull_status != 0:
     errors.append(f"Required app-private screenshot collection failed with exit {pull_status}.")
 
 names = ["welcome", "create-account", "create-profile", "login", "login-error"]
-if expected_tests == 9:
+if font == "1.0":
     names.append("login-keyboard")
 captures = []
 for name in names:
@@ -249,6 +250,6 @@ PY
 
 # No backend-fixture journeys or actual account actions. The first pass also
 # exercises the real Android software keyboard with a stub login callback.
-run_pass nominal-390dp 390 1.0 "$entrance,$drafts,$keyboard" 9 9m
+run_pass nominal-390dp 390 1.0 "$entrance,$drafts,$keyboard,$time_lens" 10 10m
 run_pass large-text-320dp 320 2.0 "$entrance" 5 5m
 exit "$overall_status"

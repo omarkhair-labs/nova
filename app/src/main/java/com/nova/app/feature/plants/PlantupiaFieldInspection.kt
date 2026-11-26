@@ -47,75 +47,67 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                 }
             }
             PlantupiaLivingWorkspace("FIELD NOTES", plant.name, "Recorded " + event.observedAt.take(10), busy, { expanded = false }) {
-            Text("Observe what is visible; a photograph alone does not establish a diagnosis.", style = PlantupiaText.supporting)
-            if (feedback.isNotBlank()) Text(feedback, color = MaterialTheme.colorScheme.error)
-            if (record == null && feedback.isBlank()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            TextButton(enabled = !busy, onClick = { generation++ }) { Text("Refresh inspection") }
-            record?.let { data ->
-                val quality = data.optJSONObject("quality")
-                val width = quality?.optInt("width") ?: 0
-                val height = quality?.optInt("height") ?: 0
-                if (event.photoUrl.isNotBlank()) {
-                    if (width > 0 && height > 0) {
-                        PlantupiaRegionStudy(
-                            url = event.photoUrl,
-                            width = width,
-                            height = height,
-                            regions = fieldRegions(data.optJSONArray("regions"), width, height),
-                            totalRegions = data.optInt("region_count"),
-                            canTrace = plant.canRecord && plant.active,
-                            busy = busy,
-                            revision = generation,
-                        ) { body -> submit("regions/", body) { generation++ } }
-                        CaptureNotes(quality)
-                    } else {
-                        PlantupiaEvidencePhoto(event.photoUrl, "Original recorded plant photograph",
-                            Modifier.fillMaxWidth().height(260.dp), framing = PlantupiaPhotoFraming.FULL_RECORD)
-                        Text("Image dimensions are unavailable for tracing.", style = PlantupiaText.supporting)
-                    }
-                }
-                val reviews = data.optJSONArray("reviews") ?: JSONArray()
-                if (reviews.length() > 0) Text("Specialist findings", style = PlantupiaText.editorialHeading)
-                for (index in 0 until reviews.length()) {
-                    val review = reviews.getJSONObject(index)
-                    Text(review.getString("finding").replace('_', ' '), style = PlantupiaText.itemTitle)
-                    Text(review.getString("rationale"), style = PlantupiaText.supporting)
-                }
-                HorizontalDivider(color = PlantupiaColors.border)
-                Text("What do you notice?", style = PlantupiaText.editorialHeading)
-                var symptom by remember { mutableStateOf("uncertain") }
-                var substrate by remember { mutableStateOf("unknown") }
-                var advice by remember(symptom, substrate) { mutableStateOf("") }
-                InspectionChoice("Visible observation", symptom, listOf("uncertain", "wilting", "spots", "discoloration", "damage"), !busy) { symptom = it }
-                if (symptom == "wilting")
-                    InspectionChoice("Reported substrate condition", substrate, listOf("unknown", "wet", "dry"), !busy) { substrate = it }
-                TextButton(enabled = !busy && symptom != "uncertain", onClick = {
-                    submit("", JSONObject().put("symptom", symptom).put("substrate_report", substrate)) { answer ->
-                        val options = answer.optJSONArray("inspection_options") ?: JSONArray()
-                        advice = (0 until options.length()).joinToString("\n") {
-                            val option = options.getJSONObject(it)
-                            val cause = option.optString("hypothesis").takeUnless { v -> v.isEmpty() || v == "null" }
-                            val contradiction = option.optString("contradictory_report").takeUnless { v -> v.isEmpty() || v == "null" }
-                            (cause?.let { c -> "Possible ${c.replace('_', ' ')}. " }.orEmpty()) +
-                                (contradiction?.let { c -> "Your $c substrate report weighs against this. " }.orEmpty()) +
-                                option.getString("inspection")
+                Text("Observe what is visible; a photograph alone does not establish a diagnosis.", style = PlantupiaText.supporting)
+                if (feedback.isNotBlank()) Text(feedback, color = MaterialTheme.colorScheme.error)
+                if (record == null && feedback.isBlank()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                TextButton(enabled = !busy, onClick = { generation++ }) { Text("Refresh inspection") }
+                record?.let { data ->
+                    val quality = data.optJSONObject("quality")
+                    val width = quality?.optInt("width") ?: 0
+                    val height = quality?.optInt("height") ?: 0
+                    if (event.photoUrl.isNotBlank()) {
+                        if (width > 0 && height > 0) {
+                            PlantupiaRegionStudy(
+                                url = event.photoUrl,
+                                width = width,
+                                height = height,
+                                regions = fieldRegions(data.optJSONArray("regions"), width, height),
+                                totalRegions = data.optInt("region_count"),
+                                canTrace = plant.canRecord && plant.active,
+                                busy = busy,
+                                revision = generation,
+                            ) { body -> submit("regions/", body) { generation++ } }
+                            CaptureNotes(quality)
+                        } else {
+                            PlantupiaEvidencePhoto(event.photoUrl, "Original recorded plant photograph",
+                                Modifier.fillMaxWidth().height(260.dp), framing = PlantupiaPhotoFraming.FULL_RECORD)
+                            Text("Image dimensions are unavailable for tracing.", style = PlantupiaText.supporting)
                         }
                     }
-                }) { Text("Show inspection steps") }
-                if (advice.isNotBlank()) Text(advice)
-                if (data.optBoolean("can_review")) {
-                    var finding by remember { mutableStateOf("insufficient_evidence") }
-                    var rationale by remember { mutableStateOf("") }
-                    val submission = remember(finding, rationale, generation) { UUID.randomUUID().toString() }
-                    InspectionChoice("Specialist review", finding, listOf("insufficient_evidence", "corrected_observation", "supported_observation"), !busy) { finding = it }
-                    OutlinedTextField(rationale, { rationale = it.take(1000) }, enabled = !busy, label = { Text("Reason for this finding") })
-                    TextButton(enabled = !busy && rationale.isNotBlank(), onClick = {
-                        submit("reviews/", JSONObject().put("submission_id", submission).put("finding", finding).put("rationale", rationale)) {
-                            rationale = ""; generation++
+                    val reviews = data.optJSONArray("reviews") ?: JSONArray()
+                    if (reviews.length() > 0) Text("Specialist findings", style = PlantupiaText.editorialHeading)
+                    for (index in 0 until reviews.length()) {
+                        val review = reviews.getJSONObject(index)
+                        Text(review.getString("finding").replace('_', ' '), style = PlantupiaText.itemTitle)
+                        Text(review.getString("rationale"), style = PlantupiaText.supporting)
+                    }
+                    HorizontalDivider(color = PlantupiaColors.border)
+                    Text("What do you notice?", style = PlantupiaText.editorialHeading)
+                    var symptom by remember { mutableStateOf("uncertain") }
+                    var substrate by remember { mutableStateOf("unknown") }
+                    var advice by remember(symptom, substrate) { mutableStateOf<JSONObject?>(null) }
+                    InspectionChoice("Visible observation", symptom, listOf("uncertain", "wilting", "spots", "discoloration", "damage"), !busy) { symptom = it }
+                    if (symptom == "wilting")
+                        InspectionChoice("Reported substrate condition", substrate, listOf("unknown", "wet", "dry"), !busy) { substrate = it }
+                    TextButton(enabled = !busy && symptom != "uncertain", onClick = {
+                        submit("", JSONObject().put("symptom", symptom).put("substrate_report", substrate)) { answer ->
+                            advice = answer
                         }
-                    }) { Text("Save review to this record") }
+                    }) { Text("Show inspection steps") }
+                    advice?.let { InspectionEvidence(it, symptom) }
+                    if (data.optBoolean("can_review")) {
+                        var finding by remember { mutableStateOf("insufficient_evidence") }
+                        var rationale by remember { mutableStateOf("") }
+                        val submission = remember(finding, rationale, generation) { UUID.randomUUID().toString() }
+                        InspectionChoice("Specialist review", finding, listOf("insufficient_evidence", "corrected_observation", "supported_observation"), !busy) { finding = it }
+                        OutlinedTextField(rationale, { rationale = it.take(1000) }, enabled = !busy, label = { Text("Reason for this finding") })
+                        TextButton(enabled = !busy && rationale.isNotBlank(), onClick = {
+                            submit("reviews/", JSONObject().put("submission_id", submission).put("finding", finding).put("rationale", rationale)) {
+                                rationale = ""; generation++
+                            }
+                        }) { Text("Save review to this record") }
+                    }
                 }
-            }
             }
         }
     }
@@ -148,5 +140,37 @@ private fun CaptureNotes(quality: JSONObject?) {
     if (notes.isNotEmpty()) {
         Text("For your next photograph", style = PlantupiaText.itemTitle)
         notes.forEach { Text(it, style = PlantupiaText.supporting) }
+    }
+}
+
+@Composable
+private fun InspectionEvidence(result: JSONObject, symptom: String) {
+    Text("Reported · $symptom", style = PlantupiaText.itemTitle)
+    val options = result.optJSONArray("inspection_options") ?: JSONArray()
+    if (options.length() == 0) Text("No inspection steps for this report.", style = PlantupiaText.supporting)
+    for (index in 0 until options.length()) {
+        val option = options.optJSONObject(index) ?: continue
+        fun known(key: String) = option.optString(key).takeUnless { it.isBlank() || it == "null" }
+        known("hypothesis")?.let { Text("Possible ${it.replace('_', ' ')}", style = PlantupiaText.editorialHeading) }
+        known("supporting_report")?.let { Text("Supports this possibility · reported $it substrate", style = PlantupiaText.supporting) }
+        known("contradictory_report")?.let { Text("Weighs against it · reported $it substrate", style = PlantupiaText.supporting) }
+        Text(option.optString("inspection"), style = PlantupiaText.body)
+    }
+    val care = result.optJSONArray("recent_care") ?: JSONArray()
+    Text("Recorded context", style = PlantupiaText.itemTitle)
+    if (result.optString("species_basis") == "unknown") {
+        Text("Plant type is unknown.", style = PlantupiaText.supporting)
+    }
+    result.optInt("guide_version").takeIf { it > 0 }?.let {
+        Text("Reviewed guide available · revision $it", style = PlantupiaText.supporting)
+    }
+    if (care.length() == 0) {
+        Text("No earlier care entry is recorded here.", style = PlantupiaText.supporting)
+    }
+    for (index in 0 until care.length()) {
+        val record = care.optJSONObject(index) ?: continue
+        val date = record.optString("observed_at").take(10)
+        val note = record.optString("note")
+        Text(listOf(date, note).filter(String::isNotBlank).joinToString(" · "), style = PlantupiaText.supporting)
     }
 }

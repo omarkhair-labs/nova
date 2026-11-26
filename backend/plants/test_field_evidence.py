@@ -69,6 +69,7 @@ class FieldWorkflowTests(TestCase):
             self.assertEqual(result.status_code, 201)
             geometry = result.data["measurements"]["geometry"]
             self.assertEqual(geometry["projected_area_px2"], 100)
+            self.assertEqual(geometry["traced_outline_length_px"], 36)
             self.assertIsNone(geometry["projected_area_cm2"])
             self.assertEqual(self.client.post(url, trace, format="json").status_code, 200)
             self.assertEqual(self.client.post(url, {**trace, "part": "pot"}, format="json").status_code, 409)

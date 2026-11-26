@@ -32,59 +32,59 @@ internal fun PlantupiaRoomPlan(
             }
         }
         PlantupiaLivingWorkspace("LIVING SPACE", space.name, "A map of recorded placements", saving, { expanded = false }) {
-        TextButton(enabled = !saving, onClick = { editing = false; generation++ }) { Text("Refresh floor plan") }
-        if (message.isNotBlank()) Text(message)
-        val current = room
-        if (current != null) {
-            val width = current.width
-            val length = current.length
-            if (width != null && length != null) {
-                Text("Reported room · $width × $length m · revision ${current.revision}")
-                var focusedId by remember(current.revision) { mutableStateOf<String?>(null) }
-                var daylight by remember(current.revision) { mutableStateOf(false) }
-                TextButton(enabled = !saving && current.windows.isNotEmpty(), onClick = { daylight = !daylight }) {
-                    Text(if (daylight) "Return to placements" else "Explore direct sunlight")
-                }
-                if (daylight) {
-                    PlantupiaDaylightStudy(space.id, current, width, length, repository)
-                } else {
-                    PlantupiaRoomDrawing(width, length, current.plants, current.windows,
-                        selectedPlant = focusedId, onSelectPlant = { focusedId = it })
-                Text("Tap a plant marker, or choose from the list below. Dimensions are reported, not camera measurements.", style = PlantupiaText.supporting)
-                current.plants.firstOrNull { it.id == focusedId }?.let { point ->
-                    plants.find { it.id == point.id }?.let { plant ->
-                        Text(plant.name, style = PlantupiaText.editorialHeading)
-                        Button(onClick = { expanded = false; openPlant(plant) }, enabled = !saving) { Text("Open plant") }
+            TextButton(enabled = !saving, onClick = { editing = false; generation++ }) { Text("Refresh floor plan") }
+            if (message.isNotBlank()) Text(message)
+            val current = room
+            if (current != null) {
+                val width = current.width
+                val length = current.length
+                if (width != null && length != null) {
+                    Text("Reported room · $width × $length m · revision ${current.revision}")
+                    var focusedId by remember(current.revision) { mutableStateOf<String?>(null) }
+                    var daylight by remember(current.revision) { mutableStateOf(false) }
+                    TextButton(enabled = !saving && current.windows.isNotEmpty(), onClick = { daylight = !daylight }) {
+                        Text(if (daylight) "Return to placements" else "Explore direct sunlight")
                     }
-                }
-                HorizontalDivider(color = PlantupiaColors.border)
-                Text("In this room", style = PlantupiaText.itemTitle)
-                current.plants.forEach { point ->
-                    plants.find { it.id == point.id }?.let { plant ->
-                        TextButton(enabled = !saving, onClick = { expanded = false; openPlant(plant) }) {
-                            Text("${plant.name} · ${point.x}, ${point.y} m" +
-                                if (point.latest.isEmpty()) "" else " · last record ${point.latest.take(10)}")
+                    if (daylight) {
+                        PlantupiaDaylightStudy(space.id, current, width, length, repository)
+                    } else {
+                        PlantupiaRoomDrawing(width, length, current.plants, current.windows,
+                            selectedPlant = focusedId, onSelectPlant = { focusedId = it })
+                        Text("Tap a plant marker, or choose from the list below. Dimensions are reported, not camera measurements.", style = PlantupiaText.supporting)
+                        current.plants.firstOrNull { it.id == focusedId }?.let { point ->
+                            plants.find { it.id == point.id }?.let { plant ->
+                                Text(plant.name, style = PlantupiaText.editorialHeading)
+                                Button(onClick = { expanded = false; openPlant(plant) }, enabled = !saving) { Text("Open plant") }
+                            }
+                        }
+                        HorizontalDivider(color = PlantupiaColors.border)
+                        Text("In this room", style = PlantupiaText.itemTitle)
+                        current.plants.forEach { point ->
+                            plants.find { it.id == point.id }?.let { plant ->
+                                TextButton(enabled = !saving, onClick = { expanded = false; openPlant(plant) }) {
+                                    Text("${plant.name} · ${point.x}, ${point.y} m" +
+                                        if (point.latest.isEmpty()) "" else " · last record ${point.latest.take(10)}")
+                                }
+                            }
+                        }
+                    }
+                } else Text("This space has no recorded room dimensions.")
+                if (space.canAddPlant) {
+                    TextButton(enabled = !saving, onClick = { editing = !editing }) {
+                        Text(if (editing) "Cancel edit" else "Record dimensions or placement")
+                    }
+                    if (editing) RoomEditor(current, plants, saving) { w, l, positions, openings ->
+                        saving = true
+                        scope.launch {
+                            when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings))) {
+                                is ApiResult.Failure -> message = result.message
+                                is ApiResult.Success -> { editing = false; generation++ }
+                            }
+                            saving = false
                         }
                     }
                 }
-                }
-            } else Text("This space has no recorded room dimensions.")
-            if (space.canAddPlant) {
-                TextButton(enabled = !saving, onClick = { editing = !editing }) {
-                    Text(if (editing) "Cancel edit" else "Record dimensions or placement")
-                }
-                if (editing) RoomEditor(current, plants, saving) { w, l, positions, openings ->
-                    saving = true
-                    scope.launch {
-                        when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings))) {
-                            is ApiResult.Failure -> message = result.message
-                            is ApiResult.Success -> { editing = false; generation++ }
-                        }
-                        saving = false
-                    }
-                }
-            }
-        } else if (message.isEmpty()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            } else if (message.isEmpty()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
     }
 }

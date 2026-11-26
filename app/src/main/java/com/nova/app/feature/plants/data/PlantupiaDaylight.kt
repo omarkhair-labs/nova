@@ -74,3 +74,25 @@ internal fun parseDaylight(body: JSONObject, scenario: RoomDaylightScenario): Li
         )
     }
 }
+
+
+/** The server projects a convex polygon. Test the same plane at another point in metres. */
+internal fun inDirectSunFootprint(
+    point: Pair<Double, Double>,
+    polygon: List<Pair<Double, Double>>,
+): Boolean {
+    if (polygon.size < 3) return false
+    val (x, y) = point
+    var followsClockwise = false
+    var followsCounterclockwise = false
+    var twiceArea = 0.0
+    polygon.forEachIndexed { index, a ->
+        val b = polygon[(index + 1) % polygon.size]
+        val cross = (b.first - a.first) * (y - a.second) - (b.second - a.second) * (x - a.first)
+        twiceArea += a.first * b.second - b.first * a.second
+        if (cross > 1e-10) followsClockwise = true
+        if (cross < -1e-10) followsCounterclockwise = true
+        if (followsClockwise && followsCounterclockwise) return false
+    }
+    return kotlin.math.abs(twiceArea) > 1e-10
+}
