@@ -48,6 +48,27 @@ def grabcut(rgb):
     return (labels & 1) == 1
 
 
+def guided_grabcut(rgb, prior, annotation):
+    """A saliency refinement with one oracle foreground and one background click.
+
+    The trimap is used only to place two clean point prompts. This is an
+    assisted benchmark, not an automatic system or a user-study result.
+    """
+    foreground = annotation == 1
+    background = annotation == 3
+    if not foreground.any() or not background.any():
+        return prior
+    labels = np.where(prior, cv2.GC_PR_FGD, cv2.GC_PR_BGD).astype(np.uint8)
+    for region, label in ((foreground, cv2.GC_FGD), (background, cv2.GC_BGD)):
+        distance = cv2.distanceTransform(region.astype(np.uint8), cv2.DIST_L2, 5)
+        y, x = np.unravel_index(distance.argmax(), distance.shape)
+        radius = min(3, max(0, int(distance[y, x]) - 1))
+        cv2.circle(labels, (int(x), int(y)), radius, label, -1)
+    cv2.setRNGSeed(42)
+    cv2.grabCut(rgb, labels, None, None, None, 3, cv2.GC_INIT_WITH_MASK)
+    return (labels & 1) == 1
+
+
 def read_image(archive, name):
     with Image.open(BytesIO(archive.extractfile(name).read())) as im:
         return np.array(im if name.endswith(".png") else im.convert("RGB"))
@@ -57,6 +78,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("images", "trimaps", "weights", "output"):
         parser.add_argument(name, type=Path)
+    parser.add_argument("--point-prompts", action="store_true",
+                        help="evaluate assisted saliency refinement with two oracle point prompts")
     args = parser.parse_args()
     cv2.setNumThreads(1)
     net = cv2.dnn.readNetFromONNX(str(args.weights))
@@ -79,9 +102,16 @@ def main():
                 valid, fg = truth != 0, truth == 1
                 scale = min(1., 512/max(rgb.shape[:2]))
                 small = cv2.resize(rgb, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
-                for model, method in [("fixed_frame_grabcut", grabcut), ("u2netp_saliency", lambda x: salient(x, net))]:
+                methods = [("fixed_frame_grabcut", lambda: grabcut(small)),
+                           ("u2netp_saliency", lambda: salient(small, net))]
+                if args.point_prompts:
+                    scaled_truth = cv2.resize(truth, (small.shape[1], small.shape[0]),
+                                              interpolation=cv2.INTER_NEAREST)
+                    methods.append(("u2netp_with_two_oracle_points",
+                                    lambda: guided_grabcut(small, salient(small, net), scaled_truth)))
+                for model, method in methods:
                     start = time.perf_counter()
-                    pred = cv2.resize(method(small).astype("uint8"), (rgb.shape[1], rgb.shape[0]),
+                    pred = cv2.resize(method().astype("uint8"), (rgb.shape[1], rgb.shape[0]),
                                       interpolation=cv2.INTER_NEAREST).astype(bool)
                     elapsed = (time.perf_counter()-start)*1000
                     tp = int((pred & fg).sum())

@@ -219,6 +219,7 @@ private fun PlantupiaAccountClientSection(
     var pendingPrivateSaves by remember { mutableStateOf<List<com.nova.app.feature.plants.data.PlantupiaSubmission>>(emptyList()) }
     var carePhotoUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var carePhotoRequestGeneration by remember { mutableStateOf<Int?>(null) }
+    var captureRequestGeneration by remember { mutableStateOf<Int?>(null) }
     val carePhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (lifetime.isCurrent() && carePhotoRequestGeneration == detailRequestGeneration) carePhotoUri = uri
         carePhotoRequestGeneration = null
@@ -312,6 +313,7 @@ private fun PlantupiaAccountClientSection(
         careDetailsExpanded = false
         carePhotoUri = null
         carePhotoRequestGeneration = null
+        captureRequestGeneration = null
         checkAgainInDays = null
         customFollowUpDate = null
         reminderOptIn = false
@@ -1438,6 +1440,29 @@ private fun PlantupiaAccountClientSection(
                             if (carePhotoUri == null) "Add a photo of your observation" else "Change selected photo",
                             color = deepGreen,
                         )
+                    }
+                    if (spaces.any { it.id == selectedPlant.spaceId && it.livingSystemsEnabled }) {
+                        TextButton(
+                            enabled = !saving,
+                            onClick = { captureRequestGeneration = detailRequestGeneration },
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) { Text("Photograph this plant", color = deepGreen) }
+                        if (captureRequestGeneration == detailRequestGeneration) {
+                            val generation = detailRequestGeneration
+                            PlantupiaCaptureStudio(
+                                plantName = selectedPlant.name,
+                                onClose = { captureRequestGeneration = null },
+                                onCapture = { photo ->
+                                    val accepted = isCurrentRequest(selectedPlant.id, generation) &&
+                                        captureRequestGeneration == generation
+                                    if (accepted) {
+                                        carePhotoUri = photo
+                                        captureRequestGeneration = null
+                                    }
+                                    accepted
+                                },
+                            )
+                        }
                     }
                     carePhotoUri?.let { selectedPhoto ->
                         AsyncImage(

@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 
 
-def evaluate(path):
+def evaluate(path, *, whiten=False):
     rows = np.loadtxt(path, delimiter=",")
     if rows.ndim != 2 or rows.shape[1] != 16 or not np.isfinite(rows).all():
         raise ValueError("Expected complete UCI Leaf descriptor rows.")
@@ -31,6 +31,13 @@ def evaluate(path):
     descriptors = rows[:, 2:]
     scale = descriptors[train].std(axis=0)
     z = (descriptors-descriptors[train].mean(axis=0))/np.where(scale > 0, scale, 1)
+    if whiten:
+        # Fit only on reference specimens. Shrink correlations toward the
+        # identity so small-sample texture covariance stays invertible.
+        covariance = np.cov(z[train], rowvar=False)
+        regularized = 0.5 * covariance + 0.5 * np.eye(covariance.shape[0])
+        z = np.linalg.solve(np.linalg.cholesky(regularized), z.T).T
+
     def retrieve(i):
         distances = np.linalg.norm(z[train]-z[i], axis=1)
         candidates = sorted((float(distances[labels[train] == label].min()), int(label))
@@ -49,6 +56,7 @@ def evaluate(path):
     accepted = [v for v in known if v["accepted"]]
     correct = lambda v: v["species"] == v["candidate"]
     return dict(source="UCI Leaf, Silva and Marçal (2013), DOI 10.24432/C53C78",
+                metric="shrinkage_whitened" if whiten else "standardized_euclidean",
                 sha256=hashlib.sha256(path.read_bytes()).hexdigest(), numpy=np.__version__,
                 train_n=len(train), calibration_n=len(calibrate), held_out_species=sorted(map(int, unknown)),
                 known_test_n=len(known), unknown_test_n=len(unknown_rows), distance_cutoff=cutoff,
@@ -61,5 +69,6 @@ if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("leaf_csv", type=Path)
     p.add_argument("output", type=Path)
+    p.add_argument("--whiten", action="store_true", help="fit a shrinkage-whitened distance on the reference split")
     args = p.parse_args()
-    args.output.write_text(json.dumps(evaluate(args.leaf_csv), indent=2) + "\n", encoding="utf-8")
+    args.output.write_text(json.dumps(evaluate(args.leaf_csv, whiten=args.whiten), indent=2) + "\n", encoding="utf-8")

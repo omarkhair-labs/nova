@@ -4,6 +4,14 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -19,8 +27,7 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -40,7 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.ui.text.font.FontFamily
 import com.nova.app.R
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
@@ -273,12 +279,14 @@ private fun PlantupiaAccountSelfServiceForms(
 
         if (spaceOpen) {
             CreationChapter(
-                eyebrow = "A PLACE FOR LIFE / 0${spaceChapter + 1}",
+                section = "A place for life",
+                step = spaceChapter,
+                totalSteps = 2,
                 title = if (spaceChapter == 0) "New space" else "A little context",
                 description = if (spaceChapter == 0)
                     "Every plant lives somewhere. Begin with a place that belongs to you."
                 else "Add only the details you want to remember. This space stays private.",
-                artwork = R.drawable.plantupia_artlab_window,
+                artwork = R.drawable.plantupia_artlab_window.takeIf { spaceChapter == 0 },
                 busy = saving,
                 onClose = { spaceOpen = false; error = null; spaceChapter = 0 },
                 onBack = if (spaceChapter > 0) ({ spaceChapter--; error = null }) else null,
@@ -351,7 +359,9 @@ private fun PlantupiaAccountSelfServiceForms(
             val spaceLabel = writableSpaces.firstOrNull { it.id == selectedSpaceId }?.name
                 ?: justCreatedSpace?.takeIf { it.first == selectedSpaceId }?.second
             CreationChapter(
-                eyebrow = "A LIVING SPECIMEN / 0${currentChapter + 1}",
+                section = "A living specimen",
+                step = currentChapter,
+                totalSteps = 3,
                 title = when (currentChapter) {
                     0 -> "New plant"
                     1 -> "A name and a place"
@@ -362,8 +372,7 @@ private fun PlantupiaAccountSelfServiceForms(
                     1 -> "Make this particular plant recognizable in your own space."
                     else -> "Keep a real photograph, or begin without one. This is the beginning of its private history."
                 },
-                artwork = if (currentChapter == 0) R.drawable.plantupia_signature_plate_inspection
-                    else R.drawable.plantupia_artlab_courtyard,
+                artwork = if (currentChapter == 0) R.drawable.plantupia_signature_plate_inspection else null,
                 busy = saving,
                 onClose = { plantOpen = false; error = null; plantChapter = 0 },
                 onBack = if (currentChapter > 0) ({ plantChapter = currentChapter - 1; error = null }) else null,
@@ -406,17 +415,29 @@ private fun PlantupiaAccountSelfServiceForms(
                         label = { Text("Plant name *") }, singleLine = true,
                         modifier = Modifier.fillMaxWidth(), enabled = !saving,
                     )
-                    OutlinedButton(
-                        onClick = { spaceMenuOpen = true },
-                        modifier = Modifier.fillMaxWidth(), enabled = !saving,
-                    ) { Text(spaceLabel ?: "Choose a space", color = ink) }
-                    DropdownMenu(expanded = spaceMenuOpen, onDismissRequest = { spaceMenuOpen = false }) {
-                        writableSpaces.forEach { space ->
-                            DropdownMenuItem(text = { Text(space.name) }, onClick = {
-                                selectedSpaceId = space.id
-                                justCreatedSpace = null
-                                spaceMenuOpen = false
-                            })
+                    Text("Place", style = PlantupiaText.sectionLabel)
+                    PlantupiaActionRow(
+                        icon = com.nova.app.ui.icons.NovaIconAsset.Home,
+                        title = spaceLabel ?: "Choose a space",
+                        enabled = !saving,
+                        onClick = { spaceMenuOpen = !spaceMenuOpen },
+                    )
+                    if (spaceMenuOpen) {
+                        Column(
+                            Modifier.fillMaxWidth().heightIn(max = 220.dp).verticalScroll(rememberScrollState()),
+                        ) {
+                            writableSpaces.forEach { space ->
+                                HorizontalDivider(color = PlantupiaColors.border)
+                                TextButton(
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                    enabled = !saving,
+                                    onClick = {
+                                        selectedSpaceId = space.id
+                                        justCreatedSpace = null
+                                        spaceMenuOpen = false
+                                    },
+                                ) { Text(space.name, style = PlantupiaText.itemTitle) }
+                            }
                         }
                     }
                     if (unknownPlantType) {
@@ -506,10 +527,12 @@ private fun PlantupiaAccountSelfServiceForms(
 /** An authored, full-screen creation chapter, not a new route or separate data owner. */
 @Composable
 private fun CreationChapter(
-    eyebrow: String,
+    section: String,
+    step: Int,
+    totalSteps: Int,
     title: String,
     description: String,
-    artwork: Int,
+    artwork: Int?,
     busy: Boolean,
     onClose: () -> Unit,
     onBack: (() -> Unit)?,
@@ -529,24 +552,70 @@ private fun CreationChapter(
                     if (onBack != null) TextButton(enabled = !busy, onClick = onBack) { Text("Back", color = ink) }
                     TextButton(enabled = !busy, onClick = onClose) { Text("Cancel", color = ink) }
                 }
-                androidx.compose.runtime.key(eyebrow) {
+                key(section, step) {
                     Column(
                         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(bottom = 28.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        Text(eyebrow, color = textMuted, fontSize = 11.sp, letterSpacing = 1.5.sp)
-                        Text(title, color = ink, fontFamily = FontFamily.Serif, fontSize = 34.sp, lineHeight = 40.sp)
-                        Text(description, style = PlantupiaText.body)
-                        Image(
-                            painterResource(artwork), contentDescription = null,
-                            modifier = Modifier.fillMaxWidth().height(118.dp),
-                            contentScale = ContentScale.Fit,
-                        )
-                        androidx.compose.material3.HorizontalDivider(color = PlantupiaColors.border)
+                        CreationFrontispiece(section, step, totalSteps, title, description, artwork)
                         content()
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun CreationFrontispiece(
+    section: String,
+    step: Int,
+    totalSteps: Int,
+    title: String,
+    description: String,
+    artwork: Int?,
+) {
+    val tint = PlantupiaColors.forest
+    Text(section, style = PlantupiaText.sectionLabel)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        repeat(totalSteps) { position ->
+            Canvas(Modifier.weight(1f).height(3.dp)) {
+                val shade = when {
+                    position == step -> tint
+                    position < step -> PlantupiaColors.mutedSage
+                    else -> PlantupiaColors.border
+                }
+                drawLine(shade, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), size.height)
+            }
+        }
+    }
+    Text("Step ${step + 1} of $totalSteps", style = PlantupiaText.supporting)
+    val typeset: @Composable (Modifier) -> Unit = { modifier ->
+        Column(modifier, verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text(title, style = PlantupiaText.display)
+            Text(description, style = PlantupiaText.body)
+        }
+    }
+    if (artwork != null) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val painter = painterResource(artwork)
+            if (maxWidth / LocalDensity.current.fontScale >= 305.dp) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(15.dp)) {
+                    typeset(Modifier.weight(1f))
+                    Box(Modifier.size(112.dp, 132.dp).background(PlantupiaColors.softSage), contentAlignment = Alignment.Center) {
+                        Image(painter, contentDescription = null, modifier = Modifier.padding(8.dp).fillMaxSize(),
+                            contentScale = ContentScale.Fit)
+                    }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    typeset(Modifier.fillMaxWidth())
+                    Image(painter, contentDescription = null,
+                        modifier = Modifier.fillMaxWidth().height(92.dp).background(PlantupiaColors.softSage),
+                        contentScale = ContentScale.Fit)
+                }
+            }
+        }
+    } else typeset(Modifier.fillMaxWidth())
+    HorizontalDivider(color = PlantupiaColors.border)
 }

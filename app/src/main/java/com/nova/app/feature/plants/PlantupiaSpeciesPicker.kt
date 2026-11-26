@@ -1,14 +1,13 @@
 package com.nova.app.feature.plants
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -120,34 +119,28 @@ internal fun PlantupiaSpeciesPicker(
             }
             if (!busy && unavailable == null) {
                 species.take(10).forEach { item ->
-                    Surface(
-                        onClick = { onSelected(item.key, item.scientificName) },
-                        enabled = enabled,
-                        shape = RoundedCornerShape(13.dp),
-                        color = Color(0xFFFFFDF7),
-                        border = BorderStroke(1.dp, Color(0xFFD4D9CC)),
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 13.dp, vertical = 11.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    Column {
+                        HorizontalDivider(color = PlantupiaColors.border)
+                        Surface(
+                            onClick = { onSelected(item.key, item.scientificName) },
+                            enabled = enabled,
+                            color = Color.Transparent,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 60.dp),
                         ) {
-                            Surface(
-                                modifier = Modifier.width(38.dp).heightIn(min = 38.dp),
-                                color = sage, shape = RoundedCornerShape(10.dp),
+                            Row(
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                PlantupiaEditorialMark("plant", Modifier.padding(8.dp).width(22.dp).heightIn(min = 22.dp))
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(item.scientificName, color = forest, fontWeight = FontWeight.Medium)
-                                item.aliases.firstOrNull()?.let {
-                                    Text(it, color = quiet, fontSize = 12.sp)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(item.scientificName, style = PlantupiaText.editorialHeading)
+                                    val alias = item.aliases.firstOrNull()
+                                    if (!alias.isNullOrBlank()) Text(alias, style = PlantupiaText.supporting)
+                                    if (item.reviewedGuideAvailable) Text("Reviewed general guide",
+                                        style = PlantupiaText.supporting)
                                 }
-                                if (item.reviewedGuideAvailable) Text("Reviewed general guide",
-                                    color = quiet, fontSize = 11.sp)
+                                Text("→", color = forest)
                             }
-                            Text("→", color = forest)
                         }
                     }
                 }

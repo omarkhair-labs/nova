@@ -1,0 +1,245 @@
+package com.nova.app.feature.plants
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.SystemClock
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.view.CameraController
+import androidx.camera.view.LifecycleCameraController
+import androidx.camera.view.PreviewView
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Observer
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import java.io.File
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+
+private enum class CaptureView(val title: String, val guidance: String, val frameWidth: Float, val frameHeight: Float) {
+    WHOLE("Whole plant", "Include the whole plant and pot. For a future comparison, repeat this view at the same height.", .72f, .80f),
+    LEAF("Leaf detail", "Keep one leaf still and include its edges. Tap the leaf in the preview to focus.", .68f, .56f),
+    SOIL("Soil surface", "Hold the camera above the pot. Include the visible surface and a section of the rim.", .72f, .55f),
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun PlantupiaCaptureStudio(
+    plantName: String,
+    onClose: () -> Unit,
+    onCapture: (Uri) -> Boolean,
+) {
+    val context = LocalContext.current
+    var permission by remember {
+        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+    }
+    val requestPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { permission = it }
+    var view by remember { mutableStateOf(CaptureView.WHOLE) }
+    var writing by remember { mutableStateOf(false) }
+    PlantupiaLivingWorkspace("PRIVATE PHOTOGRAPH", plantName, view.guidance, writing, onClose) {
+        if (!permission) {
+            Text("Allow camera access to take a photo here. The existing photo picker is available when you go back.",
+                style = PlantupiaText.body)
+            Button(onClick = { requestPermission.launch(Manifest.permission.CAMERA) }) { Text("Allow camera") }
+        } else {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                CaptureView.entries.forEach { option ->
+                    FilterChip(selected = view == option, enabled = !writing, onClick = { view = option },
+                        label = { Text(option.title) })
+                }
+            }
+            PlantupiaCameraPreview(view, writing, { writing = it }, onCapture)
+        }
+    }
+}
+
+@Composable
+private fun PlantupiaCameraPreview(
+    view: CaptureView,
+    writing: Boolean,
+    onWriting: (Boolean) -> Unit,
+    onCapture: (Uri) -> Boolean,
+) {
+    val context = LocalContext.current
+    val owner = LocalLifecycleOwner.current
+    val haptics = LocalHapticFeedback.current
+    val latestCapture = rememberUpdatedState(onCapture)
+    val latestWriting = rememberUpdatedState(onWriting)
+    val main = remember(context) { ContextCompat.getMainExecutor(context) }
+    val controller = remember(context) { LifecycleCameraController(context.applicationContext) }
+    val preview = remember(context) {
+        PreviewView(context).apply {
+            implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+            scaleType = PreviewView.ScaleType.FILL_CENTER
+        }
+    }
+    var ready by remember { mutableStateOf(false) }
+    var quality by remember { mutableStateOf<PlantupiaCaptureQuality?>(null) }
+    var error by remember { mutableStateOf("") }
+    val active = remember(owner, controller) { AtomicBoolean(false) }
+    DisposableEffect(owner, controller, preview) {
+        active.set(true)
+        val analysis = Executors.newSingleThreadExecutor()
+        var lastReading = 0L
+        val stream = Observer<PreviewView.StreamState> {
+            ready = it == PreviewView.StreamState.STREAMING
+        }
+        preview.previewStreamState.observe(owner, stream)
+        try {
+            controller.setEnabledUseCases(CameraController.IMAGE_CAPTURE or CameraController.IMAGE_ANALYSIS)
+            controller.setImageAnalysisBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            controller.setImageAnalysisAnalyzer(analysis) { image ->
+                try {
+                    val now = SystemClock.elapsedRealtime()
+                    if (now - lastReading >= 300L && active.get()) {
+                        lastReading = now
+                        val plane = image.planes.first()
+                        val luma = plane.buffer
+                        val start = luma.position()
+                        val crop = image.cropRect
+                        val reading = captureQuality(crop.width(), crop.height()) { x, y ->
+                            val index = start + (y + crop.top) * plane.rowStride + (x + crop.left) * plane.pixelStride
+                            luma.get(index).toInt() and 0xff
+                        }
+                        main.execute { if (active.get()) quality = reading }
+                    }
+                } catch (_: IndexOutOfBoundsException) {
+                    // Some devices pad/limit Y buffers. Skip incomplete readings.
+                } finally {
+                    image.close()
+                }
+            }
+            preview.controller = controller
+            controller.bindToLifecycle(owner)
+            val initialized = controller.initializationFuture
+            initialized.addListener({
+                if (active.get() && runCatching { initialized.get() }.isFailure) {
+                    error = "A compatible rear camera is unavailable. Go back to choose a photo."
+                }
+            }, main)
+        } catch (_: IllegalStateException) {
+            error = "Camera preview could not start. Go back to choose a photo."
+        } catch (_: IllegalArgumentException) {
+            error = "This camera cannot run the preview and inspection together. Go back to choose a photo."
+        } catch (_: SecurityException) {
+            error = "Camera permission is unavailable. Go back to choose a photo."
+        }
+        onDispose {
+            active.set(false)
+            preview.previewStreamState.removeObserver(stream)
+            preview.controller = null
+            controller.clearImageAnalysisAnalyzer()
+            controller.unbind()
+            analysis.shutdown()
+        }
+    }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        Box(Modifier.fillMaxWidth().height((maxWidth * 1.16f).coerceIn(230.dp, 460.dp)).background(Color(0xFF192820))) {
+            AndroidView(factory = { preview }, modifier = Modifier.fillMaxSize())
+            Canvas(Modifier.fillMaxSize()) {
+                val width = size.width * view.frameWidth
+                val height = size.height * view.frameHeight
+                val corner = CornerRadius(18.dp.toPx())
+                val start = Offset((size.width - width) / 2f, (size.height - height) / 2f)
+                drawRoundRect(Color.Black.copy(alpha = 0.56f), start, Size(width, height), corner,
+                    style = Stroke(4.dp.toPx()))
+                drawRoundRect(PlantupiaColors.cream, start, Size(width, height), corner,
+                    style = Stroke(1.5.dp.toPx()))
+            }
+        }
+    }
+    val guidance = when {
+        error.isNotBlank() -> error
+        !ready -> "Opening camera…"
+        quality == PlantupiaCaptureQuality.DARK -> "Try brighter, even light."
+        quality == PlantupiaCaptureQuality.GLARE -> "Change your angle to reduce glare."
+        quality == PlantupiaCaptureQuality.LOW_DETAIL -> "Hold still and tap the subject to focus."
+        else -> "Keep the subject inside the guide."
+    }
+    Text(guidance, style = PlantupiaText.body)
+    Button(
+        enabled = ready && !writing,
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        onClick = {
+            val file = runCatching {
+                val directory = File(context.cacheDir, "plantupia-captures").apply { mkdirs() }
+                val expiry = System.currentTimeMillis() - 24 * 60 * 60 * 1000
+                directory.listFiles()?.filter { it.isFile && it.lastModified() < expiry }?.forEach { it.delete() }
+                File.createTempFile("care-", ".jpg", directory)
+            }.getOrNull()
+            if (file == null) {
+                error = "There is no space available for this photograph."
+                return@Button
+            }
+            error = ""
+            latestWriting.value(true)
+            try {
+                controller.takePicture(ImageCapture.OutputFileOptions.Builder(file).build(), main,
+                    object : ImageCapture.OnImageSavedCallback {
+                        override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                            if (!active.get()) {
+                                file.delete()
+                                return
+                            }
+                            latestWriting.value(false)
+                            if (file.length() in 1L..(10L * 1024 * 1024) && latestCapture.value(Uri.fromFile(file))) {
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            } else {
+                                file.delete()
+                                error = "This photograph couldn't be kept. Move back slightly and try again."
+                            }
+                        }
+
+                        override fun onError(exception: ImageCaptureException) {
+                            file.delete()
+                            if (active.get()) {
+                                latestWriting.value(false)
+                                error = "The camera couldn't take a photo. Try again or choose an existing one."
+                            }
+                        }
+                    },
+                )
+            } catch (_: IllegalStateException) {
+                file.delete()
+                latestWriting.value(false)
+                error = "The camera is no longer ready. Reopen the preview to try again."
+            }
+        },
+    ) { Text(if (writing) "Keeping photograph…" else "Take photograph") }
+    Text("The photo stays in this draft until you save the private record.", style = PlantupiaText.supporting)
+}

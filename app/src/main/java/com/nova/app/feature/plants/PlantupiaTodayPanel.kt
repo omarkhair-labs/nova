@@ -1,6 +1,8 @@
 package com.nova.app.feature.plants
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,7 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -69,31 +70,11 @@ internal fun PlantupiaTodayPanel(
     var visible by rememberSaveable { mutableIntStateOf(3) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("FIELD NOTES", style = PlantupiaText.sectionLabel)
-                Text(if (due.isNotEmpty()) "Check-ins" else "Upcoming",
-                    style = PlantupiaText.itemTitle)
-            }
-            Surface(
-                color = if (due.isNotEmpty()) PlantupiaColors.forest else PlantupiaColors.softSage,
-                shape = CircleShape,
-            ) {
-                Text(
-                    if (due.isNotEmpty()) {
-                        if (due.size == 1) "1 due" else "${due.size} due"
-                    } else {
-                        upcoming?.let { personalCheckInDateLabel(it.nextFollowUpOn, today) } ?: "Planned"
-                    },
-                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-                    style = PlantupiaText.sectionLabel.copy(
-                        color = if (due.isNotEmpty()) PlantupiaColors.cream else PlantupiaColors.forest,
-                    ),
-                )
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(if (due.isNotEmpty()) "Check-ins" else "Upcoming",
+                style = PlantupiaText.editorialHeading)
+            if (due.isNotEmpty()) {
+                Text(if (due.size == 1) "1 due" else "${due.size} due", style = PlantupiaText.supporting)
             }
         }
 
@@ -160,32 +141,36 @@ private fun PersonalCheckInHero(
     supporting: String,
     onOpen: () -> Unit,
 ) {
-    Surface(
-        onClick = onOpen,
-        modifier = Modifier.fillMaxWidth(),
-        color = PlantupiaColors.forest,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, PlantupiaColors.forest),
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            PlantupiaEvidencePhoto(
-                photoUrl = plant.coverPhoto,
-                photoDescription = "Uploaded photo of ${plant.name}",
-                modifier = Modifier.size(90.dp),
-                compact = true,
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+    Surface(onClick = onOpen, modifier = Modifier.fillMaxWidth(), color = PlantupiaColors.forest) {
+        Column {
+            if (plant.coverPhoto.isNotBlank()) {
+                PlantupiaEvidencePhoto(
+                    photoUrl = plant.coverPhoto,
+                    photoDescription = "Uploaded photo of ${plant.name}",
+                    modifier = Modifier.fillMaxWidth().height(136.dp),
+                    cornerRadius = 0.dp,
+                    framing = PlantupiaPhotoFraming.FULL_RECORD,
+                )
+            }
+            Row(
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text(eyebrow, style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
-                Text(plant.name, style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper))
-                Text(supporting, style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream))
-                Text("Review", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.paper))
+                Canvas(Modifier.size(14.dp, 20.dp)) {
+                    val inset = 3.dp.toPx()
+                    drawLine(PlantupiaColors.sage, Offset(size.width / 2, 0f),
+                        Offset(size.width / 2, size.height), 1.dp.toPx())
+                    drawCircle(PlantupiaColors.sage, inset, Offset(size.width / 2, size.height / 2))
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(eyebrow, style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
+                    Text(plant.name, style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper))
+                    Text(supporting, style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream))
+                    Text("Review →", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.paper))
+                }
             }
         }
     }
@@ -197,26 +182,24 @@ private fun PersonalCheckInRow(
     dateLabel: String,
     onOpen: () -> Unit,
 ) {
-    Surface(
-        onClick = onOpen,
-        modifier = Modifier.fillMaxWidth(),
-        color = PlantupiaColors.paper,
-        shape = PlantupiaShapes.inset,
-        border = BorderStroke(1.dp, PlantupiaColors.border),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    Column {
+        HorizontalDivider(color = PlantupiaColors.border)
+        Surface(
+            onClick = onOpen,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            color = PlantupiaColors.cream,
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(plant.name, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                Text(dateLabel, style = PlantupiaText.supporting)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(dateLabel, style = PlantupiaText.sectionLabel)
+                    Text(plant.name, style = PlantupiaText.itemTitle)
+                }
+                Text("→", style = PlantupiaText.itemTitle)
             }
-            Text("Review \u2192", style = PlantupiaText.sectionLabel)
         }
     }
 }
