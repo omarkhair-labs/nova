@@ -20,7 +20,7 @@ internal data class PlantupiaRoom(
         })
         .put("windows", JSONArray().apply {
             openings.forEach { put(JSONObject().put("id", it.id).put("x_m", it.x).put("y_m", it.y)) }
-        }, historical = body.optBoolean("historical"), revisions = revisions)
+        })
 }
 
 internal fun parseRoom(body: JSONObject, spaceId: String): PlantupiaRoom {
@@ -52,5 +52,5 @@ internal fun parseRoom(body: JSONObject, spaceId: String): PlantupiaRoom {
     }, List(windows.length()) { i ->
         val w = windows.getJSONObject(i)
         RoomWindow(requiredPlantupiaString(w, "id"), w.getDouble("x_m"), w.getDouble("y_m"))
-    })
+    }, historical = body.optBoolean("historical"), revisions = revisions)
 }
