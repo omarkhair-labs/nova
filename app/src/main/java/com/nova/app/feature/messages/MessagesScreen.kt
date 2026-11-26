@@ -7,6 +7,9 @@ import com.nova.app.feature.plants.PlantupiaActionRow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -43,6 +46,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -83,7 +90,7 @@ import com.nova.app.ui.theme.NovaSurface
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun MessagesScreen(
     onConversationClick: (NovaConversation) -> Unit,
@@ -184,88 +191,63 @@ fun MessagesScreen(
             )
         },
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(PlantupiaColors.cream)
-                .padding(innerPadding)
-                .statusBarsPadding()
-                .padding(horizontal = 20.dp),
+        // One scroll owner: neither the support entry nor the search controls can
+        // squeeze conversations out of the viewport at large text or with the IME.
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().background(PlantupiaColors.cream)
+                .padding(innerPadding).statusBarsPadding(),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 22.dp),
-            ) {
-                Text("Messages", style = PlantupiaText.pageHeading)
-                if (unreadCount > 0) {
-                    Text("$unreadCount unread", style = PlantupiaText.supporting)
+            item(key = "inbox-title") {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Messages", style = PlantupiaText.pageHeading)
+                    if (unreadCount > 0) Text("$unreadCount unread", style = PlantupiaText.supporting)
                 }
             }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            PlantupiaTeamEntry(
-                plants = teamPlants,
-                loading = teamPlantsLoading,
-                error = teamPlantsError,
-                onOpen = {
-                    when (teamPlants.size) {
-                        0 -> if (teamPlantsError != null) teamPlantsRefresh += 1
-                        1 -> selectedTeamPlant = teamPlants.first()
-                        else -> teamPickerOpen = true
+            item(key = "inbox-search") {
+                InboxSearchField(value = query, onValueChange = inboxViewModel::onQueryChanged,
+                    onClear = { inboxViewModel.onQueryChanged("") })
+            }
+            item(key = "inbox-filter") {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    InboxFilter.entries.forEach { filter ->
+                        InboxFilterTab(filter = filter, selected = state.filter == filter,
+                            onClick = { inboxViewModel.onFilterChanged(filter) })
                     }
-                },
-                onRetry = { teamPlantsRefresh += 1 },
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                InboxFilter.entries.forEach { filter ->
-                    InboxFilterTab(
-                        filter = filter,
-                        selected = state.filter == filter,
-                        onClick = { inboxViewModel.onFilterChanged(filter) },
-                        modifier = Modifier.weight(1f),
-                    )
                 }
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            InboxSearchField(
-                value = query,
-                onValueChange = inboxViewModel::onQueryChanged,
-                onClear = { inboxViewModel.onQueryChanged("") },
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
+            item(key = "private-plant-support") {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    HorizontalDivider(color = PlantupiaColors.border)
+                    PlantupiaTeamEntry(
+                        plants = teamPlants, loading = teamPlantsLoading, error = teamPlantsError,
+                        onOpen = {
+                            when (teamPlants.size) {
+                                0 -> if (teamPlantsError != null) teamPlantsRefresh += 1
+                                1 -> selectedTeamPlant = teamPlants.first()
+                                else -> teamPickerOpen = true
+                            }
+                        },
+                        onRetry = { teamPlantsRefresh += 1 },
+                    )
+                    HorizontalDivider(color = PlantupiaColors.border)
+                }
+            }
             when {
-                isLoading && conversations.isEmpty() -> {
-                    NovaLoadingState(
-                        message = "Loading conversations…",
-                        modifier = Modifier.weight(1f),
-                    )
+                isLoading && conversations.isEmpty() -> item(key = "inbox-loading") {
+                    NovaLoadingState(message = "Loading conversations…",
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp))
                 }
-
-                errorMessage != null && conversations.isEmpty() -> {
-                    NovaErrorState(
-                        title = "Couldn't load messages",
-                        message = errorMessage.orEmpty(),
-                        onRetry = inboxViewModel::retry,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .padding(top = 48.dp),
-                    )
+                errorMessage != null && conversations.isEmpty() -> item(key = "inbox-error") {
+                    NovaErrorState(title = "Couldn't load messages", message = errorMessage.orEmpty(),
+                        onRetry = inboxViewModel::retry, modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp))
                 }
-
-                conversations.isEmpty() -> {
+                conversations.isEmpty() -> item(key = "inbox-empty") {
                     NovaEmptyState(
                         title = when {
                             query.isNotBlank() -> "No matches"
@@ -274,68 +256,34 @@ fun MessagesScreen(
                             else -> "No conversations yet"
                         },
                         message = when {
-                            query.isNotBlank() -> "Try another name, username, or group name."
-                            state.filter == InboxFilter.Unread -> "New unread conversations will appear here."
-                            state.filter == InboxFilter.Mentions -> "Conversations that mention your username will appear here."
-                            else -> "People you message and groups you join will appear here. Plantupia Team stays separate above."
+                            query.isNotBlank() -> "Try another name, username, or group."
+                            state.filter == InboxFilter.Unread -> "Unread conversations will appear here."
+                            state.filter == InboxFilter.Mentions -> "Conversations that mention you will appear here."
+                            else -> "Your conversations and groups will appear here."
                         },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .padding(top = 48.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp),
                     )
                 }
-
                 else -> {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = if (query.isBlank()) "RECENT" else "RESULTS",
-                            color = NovaInk,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Spacer(Modifier.weight(1f))
-                        Text(
-                            text = "${conversations.size} ${if (conversations.size == 1) "conversation" else "conversations"}",
-                            color = NovaMuted,
-                            fontSize = 11.sp,
-                        )
+                    item(key = "inbox-results") {
+                        Text(if (query.isBlank()) "Conversations" else "Search results",
+                            style = PlantupiaText.itemTitle, modifier = Modifier.padding(top = 8.dp))
                     }
-
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(0.dp),
-                    ) {
-                        items(conversations, key = { it.id }) { conversation ->
-                            ConversationRow(
-                                conversation = conversation,
-                                onClick = { onConversationClick(conversation) },
-                            )
-                        }
-                        if (errorMessage != null) {
-                            item {
-                                NovaInlineRetry(
-                                    message = errorMessage.orEmpty(),
-                                    onRetry = {
-                                        if (nextCursor != null) inboxViewModel.loadMore() else inboxViewModel.retry()
-                                    },
-                                    modifier = Modifier.padding(vertical = 8.dp),
-                                )
-                            }
-                        }
-                        if (isLoadingMore) {
-                            item {
-                                NovaInlineLoading(message = "Loading older conversations…")
-                            }
-                        }
-                        item { Spacer(modifier = Modifier.height(12.dp)) }
+                    items(conversations, key = { it.id }) { conversation ->
+                        ConversationRow(conversation = conversation,
+                            onClick = { onConversationClick(conversation) })
+                    }
+                    if (errorMessage != null) item(key = "inbox-retry") {
+                        NovaInlineRetry(message = errorMessage.orEmpty(), onRetry = {
+                            if (nextCursor != null) inboxViewModel.loadMore() else inboxViewModel.retry()
+                        }, modifier = Modifier.padding(vertical = 8.dp))
+                    }
+                    if (isLoadingMore) item(key = "inbox-more") {
+                        NovaInlineLoading(message = "Loading older conversations…")
                     }
                 }
             }
+            item(key = "inbox-end") { Spacer(Modifier.height(12.dp)) }
         }
     }
 
@@ -448,14 +396,18 @@ private fun InboxFilterTab(
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = 48.dp),
-        shape = RoundedCornerShape(16.dp),
+        modifier = modifier.heightIn(min = 48.dp).semantics {
+            role = Role.Tab
+            this.selected = selected
+        },
+        shape = RoundedCornerShape(24.dp),
         color = if (selected) PlantupiaColors.forest else PlantupiaColors.paper,
         border = BorderStroke(1.dp, if (selected) PlantupiaColors.forest else PlantupiaColors.border),
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(
                 text = filter.label,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 color = if (selected) PlantupiaColors.cream else PlantupiaColors.forestText,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -493,7 +445,7 @@ private fun InboxSearchField(
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).semantics { contentDescription = "Search conversations" },
                 singleLine = true,
                 textStyle = androidx.compose.ui.text.TextStyle(
                     color = PlantupiaColors.forestText,
@@ -504,7 +456,7 @@ private fun InboxSearchField(
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (value.isBlank()) {
                             Text(
-                                text = "Search people, groups or conversations",
+                                text = "Search conversations",
                                 color = PlantupiaColors.secondaryText,
                                 fontSize = 13.sp,
                             )

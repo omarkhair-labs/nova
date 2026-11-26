@@ -67,10 +67,13 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
     LaunchedEffect(repository, accountId, retry) {
         state = PrivateSpacesSummary.Loading
         val spaceResponse = repository.spaces()
+        if (!repository.isCurrentSession()) return@LaunchedEffect
         if (spaceResponse !is ApiResult.Success) {
             state = PrivateSpacesSummary.Unavailable
         } else {
-            when (val plantResponse = repository.plants()) {
+            val plantResponse = repository.plants()
+            if (!repository.isCurrentSession()) return@LaunchedEffect
+            when (plantResponse) {
                 is ApiResult.Success -> {
                     state = PrivateSpacesSummary.Loaded(spaceResponse.value, plantResponse.value)
                 }
@@ -235,12 +238,21 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                                 }
                             }
                             Text(
-                                current.spaces.take(3).joinToString(" · ") { it.name } +
-                                    if (current.spaces.size > 3) " · +${current.spaces.size - 3}" else "",
-                                style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
+                                "Recorded places",
+                                style = PlantupiaText.sectionLabel,
                             )
+                            current.spaces.take(3).forEach { place ->
+                                androidx.compose.material3.HorizontalDivider(color = PlantupiaColors.border)
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text(place.name, style = PlantupiaText.itemTitle, modifier = Modifier.weight(1f))
+                                    val count = activePlants.count { it.spaceId == place.id }
+                                    Text(if (count == 1) "1 plant" else "$count plants",
+                                        style = PlantupiaText.supporting)
+                                }
+                            }
+                            if (current.spaces.size > 3) Text("+${current.spaces.size - 3} more",
+                                style = PlantupiaText.supporting)
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),

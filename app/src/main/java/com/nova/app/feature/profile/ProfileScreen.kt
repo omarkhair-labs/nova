@@ -160,7 +160,7 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
             PlantupiaProfileSectionHeading(
-                eyebrow = "Account",
+                eyebrow = "Services",
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             PlantupiaProfileActionCard(
@@ -221,7 +221,7 @@ fun ProfileScreen(
                 owner = profileContentOwner,
                 onPostClick = onPostClick,
                 emptyTitle = "Share your first moment",
-                emptyMessage = "Your intentionally shared moments will appear here.",
+                emptyMessage = "Your shared photos and posts appear here.",
                 plantupiaMomentsOnly = true,
             )
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
