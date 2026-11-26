@@ -18,7 +18,8 @@ import androidx.compose.ui.unit.dp
 @Composable
 internal fun PlantupiaAmountRow(label: String, amount: @Composable () -> Unit) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        if (maxWidth / LocalDensity.current.fontScale < 248.dp) {
+        val availableWidth = maxWidth
+        if (availableWidth / LocalDensity.current.fontScale < 248.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(label, style = PlantupiaText.body)
                 amount()
@@ -27,7 +28,7 @@ internal fun PlantupiaAmountRow(label: String, amount: @Composable () -> Unit) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(label, style = PlantupiaText.body, modifier = Modifier.weight(1f))
-                Box(Modifier.widthIn(max = maxWidth * .55f)) { amount() }
+                Box(Modifier.widthIn(max = availableWidth * .55f)) { amount() }
             }
         }
     }
