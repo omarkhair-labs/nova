@@ -18,6 +18,7 @@ from .living_regions import measure_trace, polygon
 from .living_segmentation import METHOD as OUTLINE_METHOD, NoOutline, VisionUnavailable, propose_outline, vision_available
 from .living_vision import _open
 from .living_daylight import window_scenario
+from .living_temporal import compare_projected_areas
 from .vision_evidence import MAX_BYTES, inspect_photo
 from .models import CareGuideVersion, EvidenceReview, PlantEvent, PlantUnit, RoomRevision, Space, SpaceMember, TracedRegion
 from .views import accessible_plants, accessible_spaces, can_record
@@ -352,6 +353,28 @@ class RegionView(FieldEvidenceView):
         trace, created = TracedRegion.objects.get_or_create(**lookup, defaults=dict(
             annotation=annotation, measurements=result, source_sha256=sha256(raw).hexdigest()))
         return Response({"id": trace.pk, "measurements": result}, status=201) if created else replay(trace)
+
+
+class ProjectedComparisonInput(serializers.Serializer):
+    earlier_trace_id = serializers.IntegerField(min_value=1, max_value=9223372036854775807)
+    later_trace_id = serializers.IntegerField(min_value=1, max_value=9223372036854775807)
+    same_part = serializers.BooleanField()
+    comparable_capture = serializers.BooleanField()
+
+
+class ProjectedComparisonView(ResearchView):
+    http_method_names = ["post", "options"]
+
+    def post(self, request, plant_id):
+        plant = get_object_or_404(accessible_plants(request.user), pk=plant_id)
+        data = ProjectedComparisonInput(data=request.data)
+        data.is_valid(raise_exception=True)
+        fields = data.validated_data
+        traces = TracedRegion.objects.filter(event__plant=plant).select_related("event")
+        earlier = get_object_or_404(traces, pk=fields["earlier_trace_id"])
+        later = get_object_or_404(traces, pk=fields["later_trace_id"])
+        return Response(compare_projected_areas(earlier, later,
+            same_part=fields["same_part"], comparable_capture=fields["comparable_capture"]))
 
 
 class ScenarioInput(serializers.Serializer):

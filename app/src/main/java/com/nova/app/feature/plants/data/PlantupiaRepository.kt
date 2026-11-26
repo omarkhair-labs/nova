@@ -429,6 +429,13 @@ class PlantupiaRepository(
                 method = if (data == null) "GET" else "POST", body = data, bearerToken = token)
         }
 
+    internal suspend fun compareProjectedAreas(plantId: String, earlier: Long, later: Long): ApiResult<JSONObject> =
+        authorized { token ->
+            api.requestJson(path = "plantupia/plants/$plantId/compare-regions/", method = "POST",
+                body = JSONObject().put("earlier_trace_id", earlier).put("later_trace_id", later)
+                    .put("same_part", true).put("comparable_capture", true), bearerToken = token)
+        }
+
     internal suspend fun room(spaceId: String, revision: Int? = null): ApiResult<PlantupiaRoom> = authorized { token ->
         val revisionQuery = revision?.let { "?revision=$it" }.orEmpty()
         when (val response = api.requestJson(path = "plantupia/spaces/$spaceId/room/$revisionQuery", bearerToken = token)) {

@@ -29,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.feature.plants.data.PlantupiaCareEvent
+import com.nova.app.feature.plants.data.PlantupiaRepository
+import androidx.compose.runtime.key
 
 /**
  * Field Notes: an evidence-based index of photos in already-loaded private events.
@@ -40,6 +42,8 @@ internal fun PlantupiaPhotoIndex(
     hasOlderPages: Boolean,
     onOpenPhoto: (PlantupiaCareEvent) -> Unit,
     alignmentEnabled: Boolean = false,
+    measurementRepository: PlantupiaRepository? = null,
+    measurementPlantId: String? = null,
 ) {
     val photos = recordedPlantPhotos(events)
     val defaultPair = plantupiaLoadedPhotoPair(events)
@@ -84,6 +88,11 @@ internal fun PlantupiaPhotoIndex(
                 onOpenPhoto = onOpenPhoto,
                 alignmentEnabled = alignmentEnabled,
             )
+            if (alignmentEnabled && measurementRepository != null && measurementPlantId != null) {
+                key(measurementPlantId, comparison.earlier.id, comparison.later.id, measurementRepository) {
+                    PlantupiaMeasuredVisits(measurementRepository, measurementPlantId, comparison)
+                }
+            }
         }
         if (photos.size != 2 || comparison == null) LazyRow(
             modifier = Modifier.fillMaxWidth(),
