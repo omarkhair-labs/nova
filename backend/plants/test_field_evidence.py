@@ -183,6 +183,28 @@ class FieldWorkflowTests(TestCase):
         with self.settings(PLANTUPIA_LIVING_SYSTEMS_ENABLED=False):
             self.assertEqual(self.client.get(self.room).status_code, 404)
 
+    def test_inspection_uses_the_placement_known_at_the_visit(self):
+        from datetime import timedelta
+        start = timezone.now() - timedelta(days=3)
+        self.client.post(self.room, self.geometry, format="json")
+        RoomRevision.objects.filter(space=self.site, revision=1).update(created_at=start)
+        moved = {**self.geometry, "base_revision": 1,
+                 "plants": [dict(plant_id=str(self.plant.pk), x_m=2, y_m=1)]}
+        self.client.post(self.room, moved, format="json")
+        for observed, revision in [(start - timedelta(days=1), None), (start + timedelta(days=1), 1), (timezone.now(), 2)]:
+            event = PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="issue", observed_at=observed)
+            url = reverse("plantupia-field-evidence", args=[self.plant.pk, event.pk])
+            result = self.client.post(url, {"symptom": "spots"}, format="json")
+            self.assertEqual(result.status_code, 200)
+            point = result.data["placement_at_observation"]
+            if revision is None:
+                self.assertIsNone(point)
+            else:
+                self.assertEqual((point["revision"], point["x_m"]), (revision, revision))
+                self.assertEqual(point["source"], "reported_layout")
+        self.client.force_authenticate(self.other)
+        self.assertEqual(self.client.post(url, {"symptom": "spots"}, format="json").status_code, 404)
+
     def test_reported_contradiction_and_specialist_correction(self):
         event = PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="issue", observed_at=timezone.now())
         args = [self.plant.pk, event.pk]

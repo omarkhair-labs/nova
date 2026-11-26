@@ -164,6 +164,11 @@ private fun InspectionEvidence(result: JSONObject, symptom: String) {
     }
     val care = result.optJSONArray("recent_care") ?: JSONArray()
     Text("Recorded context", style = PlantupiaText.itemTitle)
+    result.optJSONObject("placement_at_observation")?.let { place ->
+        Text("Room position at this visit · " + place.optString("x_m") + ", " +
+            place.optString("y_m") + " m · layout " + place.optInt("revision"),
+            style = PlantupiaText.supporting)
+    }
     if (result.optString("species_basis") == "unknown") {
         Text("Plant type is unknown.", style = PlantupiaText.supporting)
     }

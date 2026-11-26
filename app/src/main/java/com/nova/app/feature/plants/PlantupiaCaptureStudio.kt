@@ -76,6 +76,7 @@ internal fun PlantupiaCaptureStudio(
     onClose: () -> Unit,
     onCapture: (Uri) -> Boolean,
     reference: com.nova.app.feature.plants.data.PlantupiaCareEvent? = null,
+    saveAsPortrait: Boolean = false,
 ) {
     val context = LocalContext.current
     var permission by remember {
@@ -135,13 +136,14 @@ internal fun PlantupiaCaptureStudio(
                     rejected = true
                 }
             }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text("Use photograph")
+                Text(if (saveAsPortrait) "Save private portrait" else "Use photograph")
             }
             OutlinedButton(onClick = { discard() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Text(if (fromCamera) "Retake" else "Choose another photograph")
             }
             TextButton(onClick = { discard(); onClose() }) { Text("Cancel photograph") }
-            Text("Nothing is uploaded until you save the plant or care record.", style = PlantupiaText.supporting)
+            Text(if (saveAsPortrait) "Saving updates this plant’s private portrait."
+                else "This photo will be attached when you save the plant or care record.", style = PlantupiaText.supporting)
         } else if (!permission) {
             Text("Photograph your plant", style = PlantupiaText.editorialHeading)
             Text("Camera access is needed for a new photograph. You can still choose an existing photo instead.",

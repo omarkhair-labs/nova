@@ -180,9 +180,18 @@ class FieldEvidenceView(ResearchView):
         species_id = plant.verified_species_id or plant.selected_species_id
         guide = CareGuideVersion.objects.filter(species_id=species_id, published=True).order_by("-version").first()
         maintenance = plant.events.filter(kind=PlantEvent.Kind.CARE, observed_at__lte=event.observed_at)
+        layout = plant.space.room_revisions.filter(created_at__lte=event.observed_at).order_by("-revision").first()
+        placement = None
+        if layout:
+            # Only this plant in the layout recorded by the date of the visit.
+            point = next((p for p in layout.geometry["plants"] if p["plant_id"] == str(plant.pk)), None)
+            if point:
+                placement = {"source": "reported_layout", "revision": layout.revision,
+                             "recorded_at": layout.created_at, "x_m": point["x_m"], "y_m": point["y_m"]}
+
         return Response({"event_id": event.pk, "observed_at": event.observed_at, "input_source": "user_report",
                          "species_basis": "verified" if plant.verified_species_id else "selected" if species_id else "unknown",
-                         "guide_version": guide.version if guide else None,
+                         "guide_version": guide.version if guide else None, "placement_at_observation": placement,
                          "recent_care": list(maintenance.order_by("-observed_at", "-pk").values("id", "observed_at", "note")[:3]),
                          "inspection_options": inspection_options(data.validated_data["symptom"], data.validated_data["substrate_report"]),
                          "diagnosis": None, "model": "inspection-rules-01"})

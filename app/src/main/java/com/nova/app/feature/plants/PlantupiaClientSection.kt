@@ -1048,31 +1048,48 @@ private fun PlantupiaAccountClientSection(
             // Connected inventory from a handover often has no personal photo.
             // The user can add an actual specimen portrait right here, without
             // creating a duplicate plant or publishing a public Nova post.
-            val coverPhotoPicker = rememberLauncherForActivityResult(
-                ActivityResultContracts.GetContent(),
-            ) { uri ->
-                if (uri != null && selectedPlant.active && selectedPlant.canRecord &&
-                    currentPlantId == selectedPlant.id && lifetime.isCurrent()
-                ) {
-                    val plantId = selectedPlant.id
-                    val generation = detailRequestGeneration
-                    scope.launch {
+            var portraitRequest by remember(selectedPlant.id, repository) { mutableStateOf<Int?>(null) }
+            var portraitStudio by remember(selectedPlant.id, repository) { mutableStateOf(false) }
+            fun savePortrait(uri: Uri, generation: Int): Boolean {
+                val plantId = selectedPlant.id
+                if (!selectedPlant.active || !selectedPlant.canRecord || saving || !isCurrentRequest(plantId, generation))
+                    return false
+                scope.launch {
+                    try {
                         runPlantupiaMutation(
                             isAccountCurrent = lifetime::isCurrent,
-                            isDetailCurrent = {
-                                isCurrentRequest(plantId, generation)
-                            },
+                            isDetailCurrent = { isCurrentRequest(plantId, generation) },
                             request = { repository.updatePlantCoverPhoto(plantId, uri) },
                             onStarted = { saving = true },
-                            onSuccess = {
-                                error = null
-                                reloadPlantRecords(plantId)
-                            },
+                            onSuccess = { error = null; reloadPlantRecords(plantId) },
                             onFailure = { error = it.message },
                             onFinished = { saving = false },
                         )
+                    } finally {
+                        ownedCaptureFile(context.cacheDir, uri)?.delete()
                     }
                 }
+                return true
+            }
+            val coverPhotoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+                val generation = portraitRequest
+                portraitRequest = null
+                if (uri != null && generation != null) savePortrait(uri, generation)
+            }
+            fun selectPortrait() {
+                portraitRequest = detailRequestGeneration
+                if (spaces.any { it.id == selectedPlant.spaceId && it.livingSystemsEnabled }) portraitStudio = true
+                else coverPhotoPicker.launch("image/*")
+            }
+            if (portraitStudio && portraitRequest == detailRequestGeneration) {
+                val generation = detailRequestGeneration
+                PlantupiaCaptureStudio(plantName = selectedPlant.name, saveAsPortrait = true,
+                    onClose = { portraitStudio = false; portraitRequest = null },
+                    onCapture = { photo ->
+                        savePortrait(photo, generation).also { accepted ->
+                            if (accepted) { portraitStudio = false; portraitRequest = null }
+                        }
+                    })
             }
             val activeChapter = runCatching {
                 PlantupiaDetailChapter.valueOf(selectedDetailChapter)
@@ -1153,7 +1170,7 @@ private fun PlantupiaAccountClientSection(
                 )
                 if (selectedPlant.active && selectedPlant.canRecord) {
                     TextButton(
-                        onClick = { coverPhotoPicker.launch("image/*") },
+                        onClick = { selectPortrait() },
                         enabled = !saving,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                     ) {
@@ -1165,7 +1182,7 @@ private fun PlantupiaAccountClientSection(
                 // Real connected plants can have their first photo added later.
                 if (selectedPlant.active && selectedPlant.canRecord) {
                     OutlinedButton(
-                        onClick = { coverPhotoPicker.launch("image/*") },
+                        onClick = { selectPortrait() },
                         enabled = !saving,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 88.dp),
                         shape = RoundedCornerShape(18.dp),

@@ -123,7 +123,8 @@ internal fun PlantupiaDaylightStudy(
             else -> "No direct ray at this point"
         }
     }
-    Text(plantName?.let { "Light at $it" } ?: "Light in this room", style = PlantupiaText.editorialHeading)
+    val atRecordedPlant = initialPlacement != null && x == initialPlacement.x && y == initialPlacement.y
+    Text(if (atRecordedPlant && plantName != null) "Light at $plantName" else "Light in this room", style = PlantupiaText.editorialHeading)
     if (active != null && clock != null && status != null) {
         Text(clock, style = PlantupiaText.display)
         Text(status, style = PlantupiaText.itemTitle)
