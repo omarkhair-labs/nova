@@ -7,6 +7,10 @@ from .models import BotanicalSpecies, PlantEvent, PlantUnit, Space, SpaceMember
 class SpaceSerializer(serializers.ModelSerializer):
     # Create permission is distinct from read access and from recording care.
     living_systems_enabled = serializers.SerializerMethodField()
+    photo_identification_enabled = serializers.SerializerMethodField()
+
+    def get_photo_identification_enabled(self, space):
+        return bool(settings.PLANTUPIA_LIVING_SYSTEMS_ENABLED and settings.PLANTUPIA_SPECIES_MODEL_DIR)
 
     def get_living_systems_enabled(self, space):
         return settings.PLANTUPIA_LIVING_SYSTEMS_ENABLED
@@ -15,7 +19,7 @@ class SpaceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Space
-        fields = ("id", "name", "description", "location_note", "can_add_plant", "living_systems_enabled")
+        fields = ("id", "name", "description", "location_note", "can_add_plant", "living_systems_enabled", "photo_identification_enabled")
 
     def get_can_add_plant(self, space):
         request = self.context.get("request")

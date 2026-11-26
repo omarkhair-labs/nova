@@ -35,6 +35,25 @@ class FieldWorkflowTests(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(self.owner)
 
+    def test_measured_depth_faces_round_trip_and_reject_discontinuities(self):
+        face = [[0, 0, 0], [.1, 0, 0], [0, .1, 0]]
+        mesh = {**self.geometry, "survey_source": "arcore_depth_faces", "survey_points_m": face * 10}
+        self.assertEqual(self.client.post(self.room, mesh, format="json").status_code, 201)
+        survey = self.client.get(self.room, {"revision": 1}).data["room"]["survey"]
+        self.assertEqual(survey["points_m"], face * 10)
+        self.assertEqual(survey["source"], "arcore_depth_faces")
+        mesh["survey_points_m"][-1] = [1, 2, 3]
+        self.assertEqual(self.client.post(self.room, mesh, format="json").status_code, 400)
+
+    def test_identification_private_visit_authority_and_unconfigured_model(self):
+        event = PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="observation",
+                                          observed_at=timezone.now())
+        url = reverse("plantupia-visit-identification", args=[self.plant.pk, event.pk])
+        with self.settings(PLANTUPIA_SPECIES_MODEL_DIR=""):
+            self.assertEqual(self.client.post(url).status_code, 503)
+            self.client.force_authenticate(self.other)
+            self.assertEqual(self.client.post(url).status_code, 404)
+
     def test_existing_photo_submission_replay_and_older_history(self):
         with TemporaryDirectory() as media, self.settings(MEDIA_ROOT=media):
             params = dict(client_submission_id="d628c1db-4181-46b4-b13b-86bd5c8ff862",

@@ -385,6 +385,17 @@ private fun PlantupiaAccountSelfServiceForms(
                     PlantupiaCreationPhotograph(plantPhoto, saving, { cameraOpen = true }) {
                         replacePhoto(null)
                     }
+                    val whole = plantPhoto
+                    if (whole != null && writableSpaces.any { it.photoIdentificationEnabled }) {
+                        key(whole) {
+                            PlantupiaPhotoIdentification(repository, whole) { key, name ->
+                                selectedSpeciesKey = key
+                                species = name
+                                unknownPlantType = false
+                                plantChapter = 1
+                            }
+                        }
+                    }
                     HorizontalDivider(color = PlantupiaColors.border)
                     PlantupiaSpeciesPicker(
                         repository = repository,

@@ -179,6 +179,11 @@ internal class PlantupiaFloorRenderer(
             if (cmd == FloorCommand.FINISH && estimate != null) {
                 val points = FloatArray(featuresById.size * 3)
                 featuresById.values.forEachIndexed { index, xyz -> xyz.copyInto(points, index * 3) }
+                val mesh = depthSurvey.triangles()
+                if (mesh.isNotEmpty()) {
+                    completed(estimate, mesh, "arcore_depth_faces")
+                    return
+                }
                 val depth = depthSurvey.coordinates()
                 if (depth.isNotEmpty()) completed(estimate, depth, "arcore_raw_depth")
                 else completed(estimate, points, "arcore_features")

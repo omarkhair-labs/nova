@@ -341,7 +341,7 @@ fun PlantupiaQuestionsPanel(
 }
 
 @Composable
-fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
+fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit, onOpenAuthor: ((String) -> Unit)? = null) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repo = remember(context) { PlantupiaRepository(context.applicationContext) }
     var questions by remember { mutableStateOf<List<PlantupiaQuestion>>(emptyList()) }
@@ -351,6 +351,7 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
     val scope = rememberCoroutineScope()
     var pending by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var openOnly by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var refresh by remember { mutableStateOf(0) }
 
     LaunchedEffect(refresh) {
@@ -363,7 +364,7 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
         loadingMore = false
         olderPageError = null
         error = null
-        val result = repo.circle()
+        val result = repo.circle(openOnly = openOnly)
         if (!isCurrentCirclePageRequest(requestRevision, refresh)) return@LaunchedEffect
         when (result) {
             is ApiResult.Success -> {
@@ -391,6 +392,10 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
                 }
             }
         }
+        androidx.compose.material3.FilterChip(
+            selected = openOnly, onClick = { openOnly = !openOnly; refresh++ },
+            label = { Text("Open questions only") },
+        )
         if (pending) {
             Surface(color = parchment, shape = RoundedCornerShape(18.dp)) {
                 Row(
@@ -414,7 +419,7 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
                 ) {
                     PlantupiaEmptyCircleArt(modifier = Modifier.size(72.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("No questions yet", color = green, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                        Text(if (openOnly) "No open questions" else "No questions yet", color = green, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                         Text(
                             "Questions people choose to share appear here. You can start from a plant and preview exactly what's public.",
                             color = mutedGreen, fontSize = 12.sp, lineHeight = 19.sp,
@@ -423,7 +428,7 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
                 }
             }
         }
-        questions.forEach { q -> QuestionCard(q, onClick = { onOpenPost(q.postId) }) }
+        questions.forEach { q -> QuestionCard(q, onClick = { onOpenPost(q.postId) }, onOpenAuthor = onOpenAuthor) }
         if (olderPageError != null) {
             Text(
                 "Couldn't load older questions: " + olderPageError.orEmpty(),
@@ -439,7 +444,7 @@ fun PlantupiaCirclePanel(onOpenPost: (Long) -> Unit) {
                     val requestRevision = refresh
                     scope.launch {
                         loadingMore = true
-                        val result = repo.circle(cursor)
+                        val result = repo.circle(cursor, openOnly)
                         // A late response belongs to an older Circle list. Never
                         // append it to the freshly loaded questions or revive its cursor.
                         if (!isCurrentCirclePageRequest(requestRevision, refresh)) return@launch
@@ -479,7 +484,7 @@ internal fun canDisplayQuestionAuthorPortrait(entry: PlantupiaQuestion): Boolean
     entry.authorId > 0L && !entry.authorDeleted
 
 @Composable
-private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
+private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit, onOpenAuthor: ((String) -> Unit)? = null) {
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -497,7 +502,12 @@ private fun QuestionCard(entry: PlantupiaQuestion, onClick: () -> Unit) {
                 verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
             ) {
                 Row(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).then(
+                        if (onOpenAuthor != null && !entry.authorDeleted && entry.authorUsername.isNotBlank())
+                            Modifier.heightIn(min = 48.dp).clickable(onClickLabel = "Open member profile") {
+                                onOpenAuthor(entry.authorUsername)
+                            } else Modifier
+                    ),
                     horizontalArrangement = Arrangement.spacedBy(9.dp),
                     verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
                 ) {

@@ -94,6 +94,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 @Composable
 fun MessagesScreen(
     onConversationClick: (NovaConversation) -> Unit,
+    onNewMessage: () -> Unit,
     onHomeClick: () -> Unit,
     onOrbitClick: () -> Unit,
     onCreateClick: () -> Unit,
@@ -262,6 +263,18 @@ fun MessagesScreen(
                             else -> "Your conversations and groups will appear here."
                         },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp),
+                        actionLabel = when {
+                            query.isNotBlank() -> "Clear search"
+                            state.filter != InboxFilter.All -> "All conversations"
+                            else -> "Write a message"
+                        },
+                        onAction = {
+                            when {
+                                query.isNotBlank() -> inboxViewModel.onQueryChanged("")
+                                state.filter != InboxFilter.All -> inboxViewModel.onFilterChanged(InboxFilter.All)
+                                else -> onNewMessage()
+                            }
+                        },
                     )
                 }
                 else -> {

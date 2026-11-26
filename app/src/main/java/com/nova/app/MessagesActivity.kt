@@ -232,6 +232,7 @@ internal fun MessagesRoute(
         Box(modifier = Modifier.fillMaxSize()) {
             MessagesScreen(
                 onConversationClick = ::selectConversation,
+                onNewMessage = { showNewMessage = true },
                 onHomeClick = { finishToRoot(NovaRootTab.Home) },
                 onOrbitClick = { finishToRoot(NovaRootTab.Orbit) },
                 onCreateClick = { finishToRoot(NovaRootTab.Create) },

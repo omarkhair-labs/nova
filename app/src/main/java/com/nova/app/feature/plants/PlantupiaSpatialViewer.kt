@@ -86,7 +86,7 @@ internal fun PlantupiaSpatialViewer(spaceName: String, onBack: () -> Unit) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun PointCloudStage(points: List<SpatialPoint>, description: String = "Interactive reconstructed point cloud") {
+internal fun PointCloudStage(points: List<SpatialPoint>, description: String = "Interactive reconstructed point cloud", faces: Boolean = false) {
     var yaw by remember(points) { mutableFloatStateOf(0f) }
     var pitch by remember(points) { mutableFloatStateOf(0f) }
     var zoom by remember(points) { mutableFloatStateOf(1f) }
@@ -108,9 +108,27 @@ internal fun PointCloudStage(points: List<SpatialPoint>, description: String = "
             val depth = point.x * sy + point.z * cy
             val rotatedY = point.y * cp - depth * sp
             ProjectedSpatialPoint(point, rotatedX, rotatedY, point.y * sp + depth * cp)
-        }.sortedByDescending { it.depth }
+        }
         val scale = size.minDimension * .33f * zoom
-        for ((point, x, y, depth) in projected) {
+        if (faces) {
+            val triangles = projected.chunked(3).filter { it.size == 3 }.sortedByDescending { face ->
+                face.sumOf { it.depth }
+            }
+            for (triangle in triangles) {
+                val path = androidx.compose.ui.graphics.Path()
+                for ((index, p) in triangle.withIndex()) {
+                    val perspective = 4.5 / (4.5 + p.depth)
+                    val x = center.x + (p.x * perspective * scale).toFloat()
+                    val y = center.y + (p.y * perspective * scale).toFloat()
+                    if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                }
+                path.close()
+                val light = (.68 - .15 * triangle.first().depth).coerceIn(.30, .95).toFloat()
+                drawPath(path, Color(.50f * light, light, .74f * light))
+            }
+            return@Canvas
+        }
+        for ((point, x, y, depth) in projected.sortedByDescending { it.depth }) {
             val perspective = 4.5 / (4.5 + depth)
             val visualX = center.x + (x * perspective * scale).toFloat()
             val visualY = center.y + (y * perspective * scale).toFloat()

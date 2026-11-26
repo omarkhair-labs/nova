@@ -561,6 +561,8 @@ class PlantCircleView(APIView):
         from accounts.serializers import PostSerializer
 
         visible = public_post_queryset(request).filter(plantupia_discussion__isnull=False)
+        if request.query_params.get("open") == "1":
+            visible = visible.filter(plantupia_discussion__resolved_at__isnull=True)
         raw_cursor = request.query_params.get("cursor", "").strip()
         if raw_cursor:
             try:

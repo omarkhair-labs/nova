@@ -196,6 +196,18 @@ fun LoginScreen(
             onLogin(email.trim(), password)
         }
     }
+    val recovery = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            result.data?.getStringExtra(AccountSecurityActivity.EXTRA_RECOVERY_EMAIL)?.let {
+                email = it
+                onEmailChanged(it)
+                password = ""
+                attempted = false
+            }
+        }
+    }
     AuthPage(
         eyebrow = "",
         title = "Welcome back",
@@ -210,7 +222,7 @@ fun LoginScreen(
         secondaryActionText = "Forgot password?",
         onSecondaryAction = {
             focus.clearFocus()
-            context.startActivity(
+            recovery.launch(
                 Intent(context, AccountSecurityActivity::class.java)
                     .putExtra(AccountSecurityActivity.EXTRA_MODE, AccountSecurityActivity.MODE_RECOVERY)
                     .putExtra(AccountSecurityActivity.EXTRA_RECOVERY_EMAIL, email.trim())

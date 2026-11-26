@@ -63,7 +63,7 @@ internal fun parseRoom(body: JSONObject, spaceId: String): PlantupiaRoom {
         if (number < 1 || stamp.isBlank()) null else RoomRevisionStamp(number, stamp)
     }
     val scan = geometry.optJSONObject("survey")
-    val coords = if (scan != null && scan.optString("source") in setOf("arcore_features", "arcore_raw_depth") &&
+    val coords = if (scan != null && scan.optString("source") in setOf("arcore_features", "arcore_raw_depth", "arcore_depth_faces") &&
         scan.optString("frame") == "first_corner_anchor") scan.optJSONArray("points_m") else null
     val survey = buildList<Float> {
         if (coords != null && coords.length() in 30..1500) {

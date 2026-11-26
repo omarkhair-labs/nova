@@ -53,7 +53,7 @@ internal fun parsePlantupiaPointCloud(source: ByteArray): List<SpatialPoint> {
     return points
 }
 
-internal fun normalizePointCloud(points: List<SpatialPoint>): List<SpatialPoint> {
+internal fun normalizePointCloud(points: List<SpatialPoint>, faces: Boolean = false): List<SpatialPoint> {
     require(points.size >= 30) { "There are too few points to display." }
     fun median(coordinates: List<Double>) = coordinates.sorted()[coordinates.size / 2]
     val x = median(points.map { it.x })
@@ -63,15 +63,21 @@ internal fun normalizePointCloud(points: List<SpatialPoint>): List<SpatialPoint>
     val radii = centered.map { sqrt(it.x * it.x + it.y * it.y + it.z * it.z) }
     val radius = radii.sorted()[(radii.lastIndex * .97).toInt()]
     require(radius.isFinite() && radius > 1e-12) { "The reconstructed scene has no usable extent." }
-    return centered.filterIndexed { i, _ -> radii[i] <= radius * 2.5 }
+    val kept = if (faces) {
+        require(points.size % 3 == 0)
+        centered.chunked(3).filterIndexed { i, _ ->
+            (0..2).all { radii[i*3 + it] <= radius * 2.5 }
+        }.flatten()
+    } else centered.filterIndexed { i, _ -> radii[i] <= radius * 2.5 }
+    return kept
         .map { it.copy(x = it.x / radius, y = it.y / radius, z = it.z / radius) }
 }
 
 /** AR supplies geometry only. Uniform ink distinguishes tracked points from photographic RGB. */
-internal fun surveyPreviewPoints(sample: FloatArray?): List<SpatialPoint> {
+internal fun surveyPreviewPoints(sample: FloatArray?, faces: Boolean = false): List<SpatialPoint> {
     if (sample == null || sample.size !in 90..4500 || sample.size % 3 != 0 || sample.any { !it.isFinite() }) return emptyList()
     val points = (sample.indices step 3).map { i ->
         SpatialPoint(sample[i].toDouble(), -sample[i+1].toDouble(), sample[i+2].toDouble(), 172, 215, 185)
     }
-    return runCatching { normalizePointCloud(points) }.getOrDefault(emptyList())
+    return runCatching { normalizePointCloud(points, faces) }.getOrDefault(emptyList())
 }

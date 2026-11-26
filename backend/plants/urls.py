@@ -1,3 +1,4 @@
+from .species_recognition import SpeciesRecognitionView
 from .living_api import DaylightView, FieldEvidenceView, ProjectedComparisonView, RegionView, RegionSuggestionView, ReviewView, RoomView
 from django.urls import path
 from .visit_photographs import VisitPhotoView
@@ -48,6 +49,9 @@ urlpatterns = [
     path("commerce/orders/<uuid:order_id>/transfer-reference/", CommerceOrderTransferClaimView.as_view(), name="plantupia-real-commerce-transfer-reference"),
     path("commerce/orders/<uuid:order_id>/return/", CommerceOrderReturnView.as_view(), name="plantupia-real-commerce-return"),
     path("care-calendar/history/", PlantCareCalendarHistoryView.as_view(), name="plantupia-care-calendar-history"),
+    path("library/identify/", SpeciesRecognitionView.as_view(), name="plantupia-photo-identification"),
+    path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/identify/",
+         SpeciesRecognitionView.as_view(), name="plantupia-visit-identification"),
     path("library/species/", BotanicalSpeciesLibraryView.as_view(), name="plantupia-library-species"),
     path("library/species/<slug:key>/", BotanicalSpeciesLibraryDetailView.as_view(), name="plantupia-library-species-detail"),
     path("demo/access/", DemoAccessView.as_view(), name="plantupia-demo-access"),

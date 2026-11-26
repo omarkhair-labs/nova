@@ -115,9 +115,14 @@ internal fun PlantupiaRoomPlan(
                         Text(if (displayScan) "Show plant placements" else "View recorded survey")
                     }
                     if (displayScan) {
-                        val points = remember(current.survey) { surveyPreviewPoints(current.survey.toFloatArray()) }
-                        if (points.isNotEmpty()) PointCloudStage(points, "Recorded room survey")
-                        Text((if (current.surveySource == "arcore_raw_depth") "Depth survey" else "Tracked features") + " · layout ${current.revision}", style = PlantupiaText.supporting)
+                        val points = remember(current.survey) { surveyPreviewPoints(current.survey.toFloatArray(), current.surveySource == "arcore_depth_faces") }
+                        if (points.isNotEmpty()) PointCloudStage(points, "Recorded room survey", current.surveySource == "arcore_depth_faces")
+                        val surveyLabel = when (current.surveySource) {
+                            "arcore_depth_faces" -> "Measured surfaces"
+                            "arcore_raw_depth" -> "Depth survey"
+                            else -> "Tracked features"
+                        }
+                        Text("$surveyLabel · layout ${current.revision}", style = PlantupiaText.supporting)
                     } else PlantupiaRecordedSpatialPlan(current, width, length, focusedId) { focusedId = it }
                 } else if (spatialPlan) {
                     PlantupiaRecordedSpatialPlan(current, width, length, focusedId) { focusedId = it }
@@ -243,7 +248,7 @@ private fun RoomEditor(
                 arCandidate = w to l
                 val sample = result.data?.getFloatArrayExtra(PlantupiaFloorSurveyActivity.FEATURES)
                 surveySource = result.data?.getStringExtra(PlantupiaFloorSurveyActivity.SOURCE) ?: "arcore_features"
-                surveyPoints = surveyPreviewPoints(sample)
+                surveyPoints = surveyPreviewPoints(sample, surveySource == "arcore_depth_faces")
                 rawSurvey = sample?.takeIf { surveyPoints.isNotEmpty() }?.toList().orEmpty()
                 attachSurvey = false
                 showSurveyPoints = false
@@ -269,7 +274,7 @@ private fun RoomEditor(
         }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Measure floor with AR camera") }
         if (rawSurvey.isNotEmpty()) {
             FilterChip(selected = attachSurvey, enabled = !saving, onClick = { attachSurvey = !attachSurvey },
-                label = { Text("Save tracked points with this layout") })
+                label = { Text("Save this 3D survey with the layout") })
         }
         arCandidate?.let { (measuredWidth, measuredLength) ->
             Surface(color = PlantupiaColors.softSage, shape = PlantupiaShapes.inset, modifier = Modifier.fillMaxWidth()) {
@@ -278,11 +283,15 @@ private fun RoomEditor(
                     Text("AR estimate. Check both lengths with a physical measure before saving.", style = PlantupiaText.supporting)
                     if (surveyPoints.isNotEmpty()) {
                         TextButton(onClick = { showSurveyPoints = !showSurveyPoints }) {
-                            Text(if (showSurveyPoints) "Hide tracked points" else "View tracked points in 3D")
+                            Text(if (showSurveyPoints) "Hide survey" else "View survey in 3D")
                         }
                         if (showSurveyPoints) {
-                            Text((if (surveySource == "arcore_raw_depth") "Depth survey" else "Feature survey") + " · ${surveyPoints.size} visible points", style = PlantupiaText.supporting)
-                            PointCloudStage(surveyPoints, "Tracked room features from the floor survey")
+                            Text(when (surveySource) {
+                                "arcore_depth_faces" -> "${surveyPoints.size / 3} measured surface patches"
+                                "arcore_raw_depth" -> "${surveyPoints.size} depth points"
+                                else -> "${surveyPoints.size} tracked features"
+                            }, style = PlantupiaText.supporting)
+                            PointCloudStage(surveyPoints, "Measured geometry from the floor survey", surveySource == "arcore_depth_faces")
                         }
                     }
                     if (room.plants.isEmpty() && room.windows.isEmpty()) {

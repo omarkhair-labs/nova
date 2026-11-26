@@ -54,7 +54,7 @@ class Window(serializers.Serializer):
 
 
 class RoomInput(serializers.Serializer):
-    survey_source = serializers.ChoiceField(choices=["arcore_features", "arcore_raw_depth"], required=False)
+    survey_source = serializers.ChoiceField(choices=["arcore_features", "arcore_raw_depth", "arcore_depth_faces"], required=False)
     survey_points_m = serializers.ListField(required=False, min_length=30, max_length=1500,
         child=serializers.ListField(min_length=3, max_length=3,
             child=serializers.FloatField(min_value=-100, max_value=100)))
@@ -128,6 +128,13 @@ class RoomView(ResearchView):
             points = fields["survey_points_m"]
             if not all(isfinite(v) for point in points for v in point):
                 raise serializers.ValidationError("Invalid survey coordinates.")
+            if fields.get("survey_source") == "arcore_depth_faces":
+                from math import dist
+                if len(points) % 3 or any(
+                    max(dist(a, b), dist(b, c), dist(c, a)) > .201
+                    for a, b, c in zip(points[::3], points[1::3], points[2::3])
+                ):
+                    raise serializers.ValidationError("Depth faces require three adjacent measured vertices.")
             room["survey"] = {"source": fields.get("survey_source", "arcore_features"), "frame": "first_corner_anchor",
                               "points_m": points}
         ids = [row["plant_id"] for row in placements]
@@ -179,6 +186,7 @@ class FieldEvidenceView(ResearchView):
                 quality = None
         species = event.plant.verified_species or event.plant.selected_species
         return Response({"event_id": event.pk, "quality": quality,
+                         "photo_identification_enabled": bool(settings.PLANTUPIA_SPECIES_MODEL_DIR),
                          "visit_photos": list(event.visit_photographs.order_by("pk").values("id", "part", "created_at")[:6]),
                          "current_identity": {"scientific_name": species.scientific_name if species else None,
                                               "basis": "staff_verified" if event.plant.verified_species_id else

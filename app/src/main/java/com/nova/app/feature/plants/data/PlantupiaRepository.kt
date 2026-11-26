@@ -26,6 +26,7 @@ data class PlantupiaSpace(
     // Creation stays disabled until authority is confirmed by the server.
     val canAddPlantPermissionReported: Boolean = true,
     val livingSystemsEnabled: Boolean = false,
+    val photoIdentificationEnabled: Boolean = false,
 )
 
 /** A curated reference type; not evidence verifying a customer's physical plant. */
@@ -100,6 +101,7 @@ data class PlantupiaQuestion(
     val authorAvatarUrl: String = "",
     val authorAvatarVariant: Int = -1,
     val authorDeleted: Boolean = false,
+    val authorUsername: String = "",
 )
 
 /**
@@ -400,6 +402,7 @@ class PlantupiaRepository(
                     canAddPlant = raw.optBoolean("can_add_plant", false),
                     canAddPlantPermissionReported = raw.has("can_add_plant"),
                     livingSystemsEnabled = raw.optBoolean("living_systems_enabled"),
+                    photoIdentificationEnabled = raw.optBoolean("photo_identification_enabled"),
                 )
             }
         }
@@ -655,10 +658,11 @@ class PlantupiaRepository(
         return if (isCurrentSession()) result else changedSession()
     }
 
-    suspend fun circle(cursor: String? = null): ApiResult<PlantupiaCirclePage> =
+    suspend fun circle(cursor: String? = null, openOnly: Boolean = false): ApiResult<PlantupiaCirclePage> =
         authorized { token ->
             val safeCursor = cursor?.toLongOrNull()?.takeIf { it > 0L }?.toString()
-            val suffix = safeCursor?.let { "?cursor=$it" }.orEmpty()
+            val params = listOfNotNull(safeCursor?.let { "cursor=$it" }, "open=1".takeIf { openOnly })
+            val suffix = if (params.isEmpty()) "" else params.joinToString("&", prefix = "?")
             when (val response = api.requestJson(
                 path = "plantupia/circle/$suffix", bearerToken = token,
             )) {
@@ -695,6 +699,7 @@ class PlantupiaRepository(
             authorAvatarUrl = api.resolveMediaUrl(author.optString("avatar_url")),
             authorAvatarVariant = author.optInt("plantupia_avatar_variant", -1).takeIf { it in -1..7 } ?: -1,
             authorDeleted = author.optString("username") == "deleted",
+            authorUsername = author.optString("username"),
             comments = post.optInt("comments_count"),
             resolved = raw.optBoolean("resolved"),
             isMine = post.optBoolean("is_mine"),
@@ -781,6 +786,18 @@ class PlantupiaRepository(
                 body
             }
         }
+    }
+
+    internal suspend fun identifyPlantPhotos(whole: Uri, detail: Uri): ApiResult<JSONObject> = authorized { token ->
+        val photos = mutableMapOf<String, UploadFile>()
+        for ((field, uri) in mapOf("whole" to whole, "detail" to detail)) {
+            when (val loaded = loadPrivatePhoto(uri)) {
+                is ApiResult.Success -> photos[field] = loaded.value
+                is ApiResult.Failure -> return@authorized loaded
+            }
+        }
+        api.requestMultipart(path = "plantupia/library/identify/", method = "POST",
+            fields = emptyMap(), files = photos, bearerToken = token)
     }
 
     internal suspend fun visitPhoto(plantId: String, eventId: String, photoId: Long): ApiResult<ByteArray> = authorized { token ->

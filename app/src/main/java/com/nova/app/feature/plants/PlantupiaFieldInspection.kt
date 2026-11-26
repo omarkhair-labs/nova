@@ -65,6 +65,15 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                     data.optJSONArray("visit_photos")?.let { photos ->
                         PlantupiaVisitPhotographs(repository, plant, event, photos, busy,
                             onBusy = { busy = it }, onSaved = { generation++ })
+                        if (data.optBoolean("photo_identification_enabled") &&
+                            photos.length() + (if (event.photoUrl.isBlank()) 0 else 1) >= 2) {
+                            key(event.id, photos.length()) {
+                                PlantupiaSpeciesReview(
+                                    analyse = { repository.demoPost("plants/${plant.id}/events/${event.id}/evidence/identify/", JSONObject()) },
+                                    current = repository::isCurrentSession,
+                                )
+                            }
+                        }
                     }
                     val quality = data.optJSONObject("quality")
                     val width = quality?.optInt("width") ?: 0

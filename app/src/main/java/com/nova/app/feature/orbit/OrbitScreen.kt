@@ -232,7 +232,7 @@ fun OrbitScreen(
                     }
                 }
                 item(key = "circle-real-plant-questions") {
-                    PlantupiaCirclePanel(onOpenPost = onPostClick)
+                    PlantupiaCirclePanel(onOpenPost = onPostClick, onOpenAuthor = onPersonClick)
                 }
             } else {
             // Real Nova Stories are rendered through their existing authenticated
