@@ -11,6 +11,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .calendar_time import calendar_zone
 from .models import PlantEvent, PlantNickname
 from .views import accessible_plants
 
@@ -32,11 +33,10 @@ class PlantCareCalendarHistoryView(APIView):
         # Public post activity never leaks private plant history. Membership
         # and ownership are checked using the same My Plants ACL.
         visible = accessible_plants(request.user).values("pk")
+        zone = calendar_zone(request.query_params.get("calendar_zone"))
         rows = list(
-            PlantEvent.objects.filter(
-                plant_id__in=visible,
-                observed_at__date__range=(start, end),
-            ).annotate(day=TruncDate("observed_at"))
+            PlantEvent.objects.filter(plant_id__in=visible)
+            .annotate(day=TruncDate("observed_at", tzinfo=zone)).filter(day__range=(start, end))
             .values("day", "plant_id", "plant__label", "kind")
             .annotate(count=Count("id"))
             .order_by("day", "plant_id", "kind")

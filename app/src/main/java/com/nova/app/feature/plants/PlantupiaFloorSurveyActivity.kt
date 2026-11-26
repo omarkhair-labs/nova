@@ -102,7 +102,7 @@ class PlantupiaFloorSurveyActivity : ComponentActivity() {
                             TextButton(onClick={
                                 runCatching { startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://policies.google.com/privacy"))) }
                             }) { Text("Google Privacy Policy") }
-                            Text("The survey returns estimated dimensions and a temporary 3D preview of tracked points to your room draft. Camera frames stay on this device.",
+                            Text("The survey returns estimated dimensions and a 3D preview to your room draft. You can include the tracked points when saving a private layout. Camera frames stay on this device.",
                                 style=PlantupiaText.supporting)
                             Button(enabled=!checking,onClick={requestStart()},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
                                 Text(if(checking) "Checking AR support…" else "Start floor survey")

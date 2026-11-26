@@ -20,6 +20,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.db.models.functions import TruncDate
+from .calendar_time import calendar_zone
 from .living_calibration import METHOD as PLANAR_CALIBRATION
 from .models import EvidenceReview, PlantEvent, TracedRegion
 from .views import accessible_plants
@@ -139,7 +141,7 @@ def call_provider(message, plant_context, conversation=None):
     return answer.strip()
 
 
-def recorded_evidence(plant, events):
+def recorded_evidence(plant, events, zone):
     """Explicitly shared, bounded facts for the same observations as the notes."""
     ids = [row["pk"] for row in events]
     species = plant.verified_species or plant.selected_species
@@ -152,13 +154,13 @@ def recorded_evidence(plant, events):
         area = geometry.get("projected_area_cm2")
         if (calibration.get("method") == PLANAR_CALIBRATION and calibration.get("status") == "accepted"
                 and type(area) in (int, float) and isfinite(area) and area > 0):
-            areas.append({"observed_on": timezone.localdate(trace.event.observed_at).isoformat(),
+            areas.append({"observed_on": timezone.localdate(trace.event.observed_at, zone).isoformat(),
                           "operator_label": trace.annotation.get("part"), "projected_area_cm2": area})
     reviews = EvidenceReview.objects.filter(event_id__in=ids).order_by("-created_at", "-pk").values_list(
         "event__observed_at", "finding")[:6]
     return {"current_botanical_identity": {"basis": basis, "scientific_name": species.scientific_name if species else None},
             "accepted_projected_areas": areas,
-            "specialist_findings": [{"observed_on": timezone.localdate(stamp).isoformat(), "finding": finding}
+            "specialist_findings": [{"observed_on": timezone.localdate(stamp, zone).isoformat(), "finding": finding}
                                     for stamp, finding in reviews]}
 
 
@@ -185,6 +187,7 @@ class PlantAssistantView(APIView):
         share_evidence = raw.get("include_recorded_evidence", False)
         if not isinstance(share_evidence, bool):
             return Response({"detail": "Evidence consent must be a boolean."}, status=400)
+        zone = calendar_zone(raw.get("calendar_zone"))
         observed_on = None
         if include_context and "observed_on" in raw:
             try:
@@ -269,7 +272,7 @@ class PlantAssistantView(APIView):
             )
             observations = PlantEvent.objects.filter(plant=plant)
             if observed_on is not None:
-                observations = observations.filter(observed_at__date=observed_on)
+                observations = observations.annotate(local_day=TruncDate("observed_at", tzinfo=zone)).filter(local_day=observed_on)
             notes = list(
                 observations.order_by("-observed_at", "-created_at", "-pk")
                 .values("pk", "kind", "note", "observed_at")[:6]
@@ -282,14 +285,14 @@ class PlantAssistantView(APIView):
                     {
                         "kind": event["kind"],
                         "note": (event["note"] or "")[:450],
-                        "observed_on": timezone.localdate(event["observed_at"]).isoformat(),
+                        "observed_on": timezone.localdate(event["observed_at"], zone).isoformat(),
                     }
                     for event in notes
                 ],
             }
 
             if share_evidence and settings.PLANTUPIA_LIVING_SYSTEMS_ENABLED:
-                context.update(recorded_evidence(plant, notes))
+                context.update(recorded_evidence(plant, notes, zone))
             if observed_on is not None:
                 context["selected_history_date"] = observed_on.isoformat()
 

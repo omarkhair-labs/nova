@@ -70,10 +70,10 @@ internal fun PlantupiaRoomPlan(
             if (task == PlaceTask.EDIT && space.canAddPlant && !current.historical) {
                 Text("Record this room", style = PlantupiaText.editorialHeading)
                 TextButton(enabled = !saving, onClick = { returnToPlan() }) { Text("Cancel edit") }
-                RoomEditor(current, plants, saving, repository::isCurrentSession) { w, l, h, positions, openings ->
+                RoomEditor(current, plants, saving, repository::isCurrentSession) { w, l, h, positions, openings, scan ->
                     saving = true
                     scope.launch {
-                        when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings, h))) {
+                        when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings, h, scan))) {
                             is ApiResult.Failure -> message = result.message
                             is ApiResult.Success -> { returnToPlan(); generation++ }
                         }
@@ -109,7 +109,17 @@ internal fun PlantupiaRoomPlan(
                     FilterChip(selected = spatialPlan, onClick = { spatialPlan = true }, label = { Text("Perspective") })
                     if (current.revisions.size > 1) LayoutRevisionPicker(current, saving) { revision = it }
                 }
-                if (spatialPlan) {
+                if (spatialPlan && current.survey.isNotEmpty()) {
+                    var displayScan by remember(current.revision) { mutableStateOf(false) }
+                    TextButton(onClick = { displayScan = !displayScan }) {
+                        Text(if (displayScan) "Show plant placements" else "View recorded survey")
+                    }
+                    if (displayScan) {
+                        val points = remember(current.survey) { surveyPreviewPoints(current.survey.toFloatArray()) }
+                        if (points.isNotEmpty()) PointCloudStage(points, "Recorded room survey")
+                        Text("Tracked features · layout ${current.revision}", style = PlantupiaText.supporting)
+                    } else PlantupiaRecordedSpatialPlan(current, width, length, focusedId) { focusedId = it }
+                } else if (spatialPlan) {
                     PlantupiaRecordedSpatialPlan(current, width, length, focusedId) { focusedId = it }
                 } else {
                     PlantupiaRoomDrawing(width, length, current.plants, current.windows,
@@ -205,7 +215,7 @@ private fun LayoutRevisionPicker(room: PlantupiaRoom, saving: Boolean, onSelect:
 private fun RoomEditor(
     room: PlantupiaRoom, plants: List<PlantupiaPlant>, saving: Boolean,
     sessionCurrent: () -> Boolean,
-    save: (Double, Double, Double?, List<RoomPlant>, List<RoomWindow>) -> Unit,
+    save: (Double, Double, Double?, List<RoomPlant>, List<RoomWindow>, List<Float>) -> Unit,
 ) {
     var width by remember(room) { mutableStateOf(room.width?.toString().orEmpty()) }
     var length by remember(room) { mutableStateOf(room.length?.toString().orEmpty()) }
@@ -219,6 +229,8 @@ private fun RoomEditor(
     val context = LocalContext.current
     var arCandidate by remember(room) { mutableStateOf<Pair<Double, Double>?>(null) }
     var surveyPoints by remember(room) { mutableStateOf(emptyList<SpatialPoint>()) }
+    var rawSurvey by remember(room) { mutableStateOf(emptyList<Float>()) }
+    var attachSurvey by remember(room) { mutableStateOf(false) }
     var showSurveyPoints by remember(room) { mutableStateOf(false) }
     val currentSession by rememberUpdatedState(sessionCurrent)
     val surveyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -229,6 +241,8 @@ private fun RoomEditor(
                 arCandidate = w to l
                 val sample = result.data?.getFloatArrayExtra(PlantupiaFloorSurveyActivity.FEATURES)
                 surveyPoints = surveyPreviewPoints(sample)
+                rawSurvey = sample?.takeIf { surveyPoints.isNotEmpty() }?.toList().orEmpty()
+                attachSurvey = false
                 showSurveyPoints = false
             }
         }
@@ -241,6 +255,10 @@ private fun RoomEditor(
         OutlinedButton(enabled = !saving, onClick = {
             surveyLauncher.launch(Intent(context, PlantupiaFloorSurveyActivity::class.java))
         }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Measure floor with AR camera") }
+        if (rawSurvey.isNotEmpty()) {
+            FilterChip(selected = attachSurvey, enabled = !saving, onClick = { attachSurvey = !attachSurvey },
+                label = { Text("Save tracked points with this layout") })
+        }
         arCandidate?.let { (measuredWidth, measuredLength) ->
             Surface(color = PlantupiaColors.softSage, shape = PlantupiaShapes.inset, modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -262,7 +280,7 @@ private fun RoomEditor(
                             arCandidate = null
                         }) { Text("Use in draft") }
                     } else Text("Existing positions use the saved coordinate frame. Enter checked dimensions manually to preserve that frame.", style = PlantupiaText.supporting)
-                    TextButton(onClick = { arCandidate = null }) { Text("Dismiss measurement") }
+                    TextButton(onClick = { arCandidate = null; rawSurvey = emptyList(); attachSurvey = false }) { Text("Dismiss measurement") }
                 }
             }
         }
@@ -319,7 +337,7 @@ private fun RoomEditor(
                     val wy = when (wall) { "Top" -> 0.0; "Bottom" -> l; else -> distance }
                     room.windows + RoomWindow(windowName.trim(), wx, wy)
                 } else room.windows
-                save(w, l, h, points, windows)
+                save(w, l, h, points, windows, if (attachSurvey) rawSurvey else emptyList())
             }
         }) { Text(if (saving) "Saving…" else "Save room revision") }
     }

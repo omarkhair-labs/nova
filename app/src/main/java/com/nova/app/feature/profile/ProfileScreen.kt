@@ -193,7 +193,6 @@ fun ProfileScreen(
                                 plantupiaUserId = userId, plantupiaAvatarVariant = avatarVariant)
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(name, style = PlantupiaText.pageHeading)
-                                Text("A world that grows with you.", style = PlantupiaText.supporting)
                             }
                         }
                     } else {
@@ -201,7 +200,6 @@ fun ProfileScreen(
                             NovaAvatar(source = avatarUrl, fallbackText = name, size = 56.dp,
                                 plantupiaUserId = userId, plantupiaAvatarVariant = avatarVariant)
                             Text(name, style = PlantupiaText.pageHeading)
-                            Text("A world that grows with you.", style = PlantupiaText.supporting)
                         }
                     }
                 }

@@ -154,6 +154,7 @@ class PlantupiaRepository(
             .put("include_my_plant_context", includeContext)
             .put("include_recorded_evidence", includeContext)
         if (!plantId.isNullOrBlank()) payload.put("plant_id", plantId)
+        if (includeContext) payload.put("calendar_zone", java.time.ZoneId.systemDefault().id)
         if (includeContext && historyDay != null) payload.put("observed_on", historyDay)
         if (conversation.isNotEmpty()) {
             payload.put("conversation", JSONArray().apply {
@@ -469,11 +470,14 @@ class PlantupiaRepository(
         }
     }
 
+    private fun calendarZoneQuery(): String =
+        "&calendar_zone=" + java.net.URLEncoder.encode(java.time.ZoneId.systemDefault().id, "UTF-8")
+
     /** One bounded, read-only projection of actual Living History events in the visible grid. */
     suspend fun calendarHistory(from: String, through: String): ApiResult<List<JSONObject>> =
         authorized { token ->
             when (val response = api.requestJson(
-                path = "plantupia/care-calendar/history/?from=$from&to=$through",
+                path = "plantupia/care-calendar/history/?from=$from&to=$through" + calendarZoneQuery(),
                 bearerToken = token,
             )) {
                 is ApiResult.Failure -> response
@@ -488,7 +492,7 @@ class PlantupiaRepository(
         authorized { token ->
             val pageOffset = offset.coerceAtLeast(0)
             when (val response = api.requestJson(
-                path = "plantupia/plants/$plantId/events/?offset=$pageOffset" +
+                path = "plantupia/plants/$plantId/events/?offset=$pageOffset" + calendarZoneQuery() +
                     (if (pendingOnly) "&pending_followups=1" else "") +
                     (observedOn?.let { "&observed_on=$it" } ?: "") +
                     (previousPhotoFor?.let { "&previous_photo_for=$it" } ?: ""),

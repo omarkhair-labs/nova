@@ -285,10 +285,23 @@ internal fun StoreOrderCard(
                 "Add your own photo and placement. A shop species label is not a verified identity.",
                 style = PlantupiaText.supporting,
             )
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { onOpenPlant(deliveredPlants.optString(0)) },
-            ) { Text("Open delivered plants") }
+            var expanded by rememberSaveable(id) { mutableStateOf(false) }
+            val items = order.optJSONArray("delivered_plants")
+            if (deliveredPlants.length() > 1) TextButton(onClick = { expanded = !expanded }) {
+                Text(if (expanded) "Hide delivered plants" else "Choose a delivered plant")
+            }
+            if (expanded || deliveredPlants.length() == 1) {
+                for (index in 0 until deliveredPlants.length()) {
+                    val plantId = deliveredPlants.getString(index)
+                    val item = items?.optJSONObject(index)?.takeIf { it.optString("id") == plantId }
+                    val name = item?.optString("name").orEmpty()
+                    val variant = item?.optString("variant").orEmpty()
+                    val label = if (deliveredPlants.length() == 1) "Open delivered plant" else "Plant ${index + 1}"
+                    OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = { onOpenPlant(plantId) }) {
+                        Text(listOf(label, name, variant).filter { it.isNotBlank() }.joinToString(" · "))
+                    }
+                }
+            }
         }
         Text(storePaymentStatus(order.optString("payment_status")),
             style = PlantupiaText.sectionLabel)

@@ -66,6 +66,9 @@ import coil3.compose.AsyncImage
 private enum class CaptureView(val title: String, val guidance: String, val frameWidth: Float, val frameHeight: Float) {
     WHOLE("Whole plant", "Include the whole plant and pot. For a future comparison, repeat this view at the same height.", .72f, .80f),
     LEAF("Leaf detail", "Keep one leaf still and include its edges. Tap the leaf in the preview to focus.", .68f, .56f),
+    STEM("Stem", "Frame a section of stem with one node. Hold the camera level with that section.", .40f, .78f),
+    FLOWER("Flower", "Face the flower and keep its edges in the frame.", .64f, .62f),
+    ROOT("Exposed roots", "Photograph roots that are already visible, with the surrounding surface in view.", .70f, .55f),
     SOIL("Soil surface", "Hold the camera above the pot. Include the visible surface and a section of the rim.", .72f, .55f),
 }
 
@@ -151,13 +154,11 @@ internal fun PlantupiaCaptureStudio(
             Button(modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 onClick = { requestPermission.launch(Manifest.permission.CAMERA) }) { Text("Allow camera") }
         } else {
+            var compare by remember(reference?.id) { mutableStateOf(false) }
             if (reference != null && reference.photoUrl.isNotBlank()) {
-                var compare by remember(reference.id) { mutableStateOf(false) }
                 TextButton(onClick = { compare = !compare }) {
                     Text(if (compare) "Hide earlier view" else "Match the view from " + reference.observedAt.take(10))
                 }
-                if (compare) AsyncImage(model = reference.photoUrl, contentDescription = "Earlier view of this plant",
-                    modifier = Modifier.fillMaxWidth().height(164.dp), contentScale = ContentScale.Fit)
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CaptureView.entries.forEach { option ->
@@ -165,7 +166,7 @@ internal fun PlantupiaCaptureStudio(
                         label = { Text(option.title) })
                 }
             }
-            PlantupiaCameraPreview(view, writing, { writing = it }) { photo ->
+            PlantupiaCameraPreview(view, reference?.photoUrl.takeIf { compare }, writing, { writing = it }) { photo ->
                 if (ownedCaptureFile(context.cacheDir, photo)?.isFile != true) false
                 else {
                     owned.getAndSet(photo)?.let { previous ->
@@ -183,6 +184,7 @@ internal fun PlantupiaCaptureStudio(
 @Composable
 private fun PlantupiaCameraPreview(
     view: CaptureView,
+    referenceUrl: String?,
     writing: Boolean,
     onWriting: (Boolean) -> Unit,
     onCapture: (Uri) -> Boolean,
@@ -264,6 +266,10 @@ private fun PlantupiaCameraPreview(
         Box(Modifier.fillMaxWidth().height((maxWidth * 1.02f).coerceIn(230.dp, 420.dp))
             .clip(PlantupiaShapes.card).background(Color(0xFF192820))) {
             AndroidView(factory = { preview }, modifier = Modifier.fillMaxSize())
+            if (referenceUrl != null) AsyncImage(
+                model = referenceUrl, contentDescription = "Earlier plant photograph over live preview",
+                contentScale = ContentScale.Fit, alpha = .38f, modifier = Modifier.fillMaxSize(),
+            )
             Canvas(Modifier.fillMaxSize()) {
                 val width = size.width * view.frameWidth
                 val height = size.height * view.frameHeight

@@ -35,6 +35,42 @@ internal class PlantupiaFloorRenderer(
     private val pending=AtomicReference<FloorCommand?>(null)
     private val anchors=mutableListOf<Anchor>()
     private var floor:Plane?=null
+    private val featuresById = linkedMapOf<Int, FloatArray>()
+    private var lastFeatureRead = 0L
+    private var lastCloudStamp = 0L
+
+    private fun resetFeatures() {
+        featuresById.clear()
+        lastFeatureRead = 0L
+        lastCloudStamp = 0L
+    }
+
+    private fun collectFeatures(frame: com.google.ar.core.Frame, now: Long) {
+        if (anchors.isEmpty() || now - lastFeatureRead < 350) return
+        lastFeatureRead = now
+        val origin = anchors.first().pose.inverse()
+        try {
+            frame.acquirePointCloud().use { cloud ->
+                if (cloud.timestamp == lastCloudStamp) return
+                lastCloudStamp = cloud.timestamp
+                val ids = cloud.ids
+                val points = cloud.points
+                while (ids.hasRemaining() && points.remaining() >= 4) {
+                    val id = ids.get()
+                    val x = points.get()
+                    val y = points.get()
+                    val z = points.get()
+                    val confidence = points.get()
+                    if (confidence !in .5f..1f || !x.isFinite() || !y.isFinite() || !z.isFinite()) continue
+                    if (featuresById.size >= 1500 && id !in featuresById) continue
+                    val position = origin.transformPoint(floatArrayOf(x, y, z))
+                    if (position.all { it in -100f..100f }) featuresById[id] = position
+                }
+            }
+        } catch (_: com.google.ar.core.exceptions.NotYetAvailableException) {
+            // A tracked floor can still be measured without a usable cloud.
+        }
+    }
     private var w=0;private var h=0
     private var texture=0;private var program=0
     private var lastUpdate=0L
@@ -48,6 +84,7 @@ internal class PlantupiaFloorRenderer(
     fun releaseAnchors() {
         anchors.forEach { runCatching { it.detach() } }
         anchors.clear();floor=null;clearCommand();failed=false
+        resetFeatures()
     }
     private fun root(plane:Plane):Plane {
         var p=plane
@@ -108,7 +145,7 @@ internal class PlantupiaFloorRenderer(
             if(cmd==FloorCommand.RESET) releaseAnchors()
             if(cmd==FloorCommand.UNDO && anchors.isNotEmpty()) {
                 anchors.removeAt(anchors.lastIndex).detach()
-                if(anchors.isEmpty()) floor=null
+                if (anchors.isEmpty()) { floor = null; resetFeatures() }
             }
             val tracking=frame.camera.trackingState==TrackingState.TRACKING
             val eligible=tracking && anchors.all { it.trackingState==TrackingState.TRACKING }
@@ -134,32 +171,11 @@ internal class PlantupiaFloorRenderer(
                 estimateRectangularFloor(anchors.map { a -> a.pose.translation.let {
                     FloorMark(it[0].toDouble(),it[1].toDouble(),it[2].toDouble())
                 }}) else null
+            if (allTracking) collectFeatures(frame, now)
             if (cmd == FloorCommand.FINISH && estimate != null) {
-                // Snapshot one tracked coordinate system, in the first corner anchor's frame.
-                // A device can return a valid floor measurement with no usable feature cloud.
-                val features = try {
-                    val origin = anchors.first().pose.inverse()
-                    frame.acquirePointCloud().use { cloud ->
-                        val source = cloud.points
-                        val result = FloatArray(minOf(source.remaining() / 4, 1500) * 3)
-                        var count = 0
-                        while (source.remaining() >= 4 && count < result.size) {
-                            val x = source.get()
-                            val y = source.get()
-                            val z = source.get()
-                            val confidence = source.get()
-                            if (confidence < .5f || !confidence.isFinite() ||
-                                !x.isFinite() || !y.isFinite() || !z.isFinite()) continue
-                            val local = origin.transformPoint(floatArrayOf(x, y, z))
-                            local.copyInto(result, count)
-                            count += 3
-                        }
-                        result.copyOf(count)
-                    }
-                } catch (_: com.google.ar.core.exceptions.NotYetAvailableException) {
-                    floatArrayOf()
-                }
-                completed(estimate, features)
+                val points = FloatArray(featuresById.size * 3)
+                featuresById.values.forEachIndexed { index, xyz -> xyz.copyInto(points, index * 3) }
+                completed(estimate, points)
                 return
             }
             val projected=if(tracking) {

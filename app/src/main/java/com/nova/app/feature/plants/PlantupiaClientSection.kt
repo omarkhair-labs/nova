@@ -719,7 +719,7 @@ private fun PlantupiaAccountClientSection(
                 )
                 PlantupiaTodayPanel(
                     plants = plants,
-                    onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
+                    onOpenPlant = { plant -> PlantupiaPlantOpenSignal.open(accountId, plant.id, PlantupiaDetailChapter.CARE) },
                 )
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                     val actionButtons: @Composable (Modifier) -> Unit = { actionModifier ->

@@ -12,6 +12,7 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .calendar_time import calendar_zone
 from .handovers import HandoverError, claim_handover, preview_handover
 from .models import CareGuideVersion, PlantDiscussion, PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
 from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, PlantUpdateSerializer, PlantCoverPhotoUploadSerializer, SpaceCreateSerializer, SpaceSerializer, SpaceUpdateSerializer)
@@ -295,6 +296,10 @@ class PlantEventsView(APIView):
 
     def get(self, request, plant_id):
         plant = self.get_plant(request, plant_id)
+        with timezone.override(calendar_zone(request.query_params.get("calendar_zone"))):
+            return self.history(request, plant)
+
+    def history(self, request, plant):
         raw_offset = request.query_params.get("offset", "0")
         try:
             offset = int(raw_offset)
