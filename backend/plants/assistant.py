@@ -5,6 +5,7 @@ API credentials never enter the mobile client, Git repository or public posts.
 """
 import json
 import os
+from math import isfinite
 from uuid import UUID
 from datetime import date
 from urllib.error import HTTPError, URLError
@@ -13,12 +14,14 @@ from urllib.request import Request, urlopen
 from django.conf import settings
 from django.core.cache import caches
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import PlantEvent
+from .living_calibration import METHOD as PLANAR_CALIBRATION
+from .models import EvidenceReview, PlantEvent, TracedRegion
 from .views import accessible_plants
 from .demo_services import require_access, DemoProblem
 
@@ -136,10 +139,34 @@ def call_provider(message, plant_context, conversation=None):
     return answer.strip()
 
 
+def recorded_evidence(plant, events):
+    """Explicitly shared, bounded facts for the same observations as the notes."""
+    ids = [row["pk"] for row in events]
+    species = plant.verified_species or plant.selected_species
+    basis = "staff_verified" if plant.verified_species_id else "user_selected" if species else "unknown"
+    areas = []
+    traces = TracedRegion.objects.filter(event_id__in=ids).select_related("event").order_by("-created_at", "-pk")[:12]
+    for trace in traces:
+        geometry = trace.measurements.get("geometry", {})
+        calibration = geometry.get("calibration") or {}
+        area = geometry.get("projected_area_cm2")
+        if (calibration.get("method") == PLANAR_CALIBRATION and calibration.get("status") == "accepted"
+                and type(area) in (int, float) and isfinite(area) and area > 0):
+            areas.append({"observed_on": timezone.localdate(trace.event.observed_at).isoformat(),
+                          "operator_label": trace.annotation.get("part"), "projected_area_cm2": area})
+    reviews = EvidenceReview.objects.filter(event_id__in=ids).order_by("-created_at", "-pk").values_list(
+        "event__observed_at", "finding")[:6]
+    return {"current_botanical_identity": {"basis": basis, "scientific_name": species.scientific_name if species else None},
+            "accepted_projected_areas": areas,
+            "specialist_findings": [{"observed_on": timezone.localdate(stamp).isoformat(), "finding": finding}
+                                    for stamp, finding in reviews]}
+
+
 class PlantAssistantView(APIView):
     """Read-only context; user consent is per request, checked on the server."""
 
     permission_classes = [IsAuthenticated]
+    require_history_day = False
 
     def post(self, request):
         raw = request.data
@@ -155,6 +182,9 @@ class PlantAssistantView(APIView):
         if plant_id is not None and not isinstance(plant_id, str):
             return Response({"detail": "Invalid plant ID."}, status=400)
 
+        share_evidence = raw.get("include_recorded_evidence", False)
+        if not isinstance(share_evidence, bool):
+            return Response({"detail": "Evidence consent must be a boolean."}, status=400)
         observed_on = None
         if include_context and "observed_on" in raw:
             try:
@@ -162,6 +192,8 @@ class PlantAssistantView(APIView):
             except (TypeError, ValueError):
                 return Response({"detail": "Invalid observation date."}, status=400)
 
+        if self.require_history_day and observed_on is None:
+            return Response({"detail": "Select a history day and include its context."}, status=400)
         if not isinstance(conversation, list) or len(conversation) > 8:
             return Response({"detail": "Conversation must have up to 8 turns."}, status=400)
         for turn in conversation:
@@ -240,7 +272,7 @@ class PlantAssistantView(APIView):
                 observations = observations.filter(observed_at__date=observed_on)
             notes = list(
                 observations.order_by("-observed_at", "-created_at", "-pk")
-                .values("kind", "note", "observed_at")[:6]
+                .values("pk", "kind", "note", "observed_at")[:6]
             )
             context = {
                 "personal_name": nickname,
@@ -250,12 +282,14 @@ class PlantAssistantView(APIView):
                     {
                         "kind": event["kind"],
                         "note": (event["note"] or "")[:450],
-                        "observed_on": event["observed_at"].date().isoformat(),
+                        "observed_on": timezone.localdate(event["observed_at"]).isoformat(),
                     }
                     for event in notes
                 ],
             }
 
+            if share_evidence and settings.PLANTUPIA_LIVING_SYSTEMS_ENABLED:
+                context.update(recorded_evidence(plant, notes))
             if observed_on is not None:
                 context["selected_history_date"] = observed_on.isoformat()
 

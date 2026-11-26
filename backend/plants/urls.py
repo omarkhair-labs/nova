@@ -80,5 +80,6 @@ urlpatterns = [
     path("plants/<uuid:plant_id>/questions/", PlantQuestionsView.as_view(), name="plantupia-questions"),
     path("plants/<uuid:plant_id>/questions/<uuid:discussion_id>/resolve/", PlantQuestionResolveView.as_view(), name="plantupia-resolve"),
     path("circle/", PlantCircleView.as_view(), name="plantupia-circle"),
+    path("assistant/ask-history/", PlantAssistantView.as_view(require_history_day=True), name="plantupia-assistant-history"),
     path("assistant/ask/", PlantAssistantView.as_view(), name="plantupia-assistant-ask"),
 ]

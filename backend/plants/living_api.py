@@ -166,7 +166,11 @@ class FieldEvidenceView(ResearchView):
                     quality = inspect_photo(source.read(MAX_BYTES + 1))
             except (ValueError, OSError):
                 quality = None
+        species = event.plant.verified_species or event.plant.selected_species
         return Response({"event_id": event.pk, "quality": quality,
+                         "current_identity": {"scientific_name": species.scientific_name if species else None,
+                                              "basis": "staff_verified" if event.plant.verified_species_id else
+                                              "user_selected" if species else "unknown"},
                          "can_suggest_region": bool(event.photo and event.plant.is_active and
                              can_record(request.user, event.plant) and vision_available()),
                          "can_review": event.plant.is_active and request.user.has_perm("plants.review_visual_evidence") and can_record(request.user, event.plant),

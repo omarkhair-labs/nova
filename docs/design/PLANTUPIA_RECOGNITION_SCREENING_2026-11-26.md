@@ -16,3 +16,9 @@ Provisional two-view gate: agreement of the top class, each softmax score at lea
 ## Decision
 
 Do not enable either classifier in production or represent this as an automatic recognition feature. Compare a higher-capacity model and FP32 export on a separate, predeclared validation set; calibrate per class and include unknown taxa, nonplants, occlusions and poor lighting. Explicit user confirmation and an unknown result remain mandatory. Keep manual identity and photo-first creation working. No new network photo upload or model weights in the Android package from this study.
+
+## DINOv2 comparison on the same public cohort
+
+Ran the [pinned Verdant export](https://huggingface.co/m3r1al/verdant-plant-model/tree/239d591ffc13815a054492d3924966a76740dc01) using its versioned configuration and manifest. They describe a 110-class DINOv2-small head even though the bundle README still describes MobileViT. The 23,889,401-byte INT8 artifact had SHA-256 `63fc7e20c9c6fd287dfa38322fa27d0f1c4f8cd84cd26c8bbad48685505a933e`. Reproduce with `scripts/living_research/screen_houseplants.py <private-cache-dir>`. This uses public images only.
+
+On the twelve covered observations, the correct label ranked first in 16 of 24 photos and in both views of seven observations. Zero of twelve passed the previously specified two-view score and margin gate. None of four out-of-scope observations passed either. A pine was labelled dracaena in both views. The validation cohort is small, with possible overlap with iNaturalist training data. No operational identification or confidence calibration follows from these results. Maintain the unknown path, manual selection and separately verified botanical identity.

@@ -46,9 +46,9 @@ internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = 
     var busy by remember { mutableStateOf(true) }
     var historyBusy by remember { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
-    var selected by remember(accountId) { mutableStateOf(LocalDate.now()) }
-    var month by remember(accountId) { mutableStateOf(YearMonth.from(LocalDate.now())) }
-    var weekMode by remember(accountId) { mutableStateOf(true) }
+    var selected by androidx.compose.runtime.saveable.rememberSaveable(accountId) { mutableStateOf(LocalDate.now()) }
+    var month by androidx.compose.runtime.saveable.rememberSaveable(accountId) { mutableStateOf(YearMonth.from(LocalDate.now())) }
+    var weekMode by androidx.compose.runtime.saveable.rememberSaveable(accountId) { mutableStateOf(true) }
     val visible = if (weekMode) careCalendarWeekDays(selected) else careCalendarMonthDays(month)
     val visibleStart = visible.first()
     val visibleEnd = visible.last()

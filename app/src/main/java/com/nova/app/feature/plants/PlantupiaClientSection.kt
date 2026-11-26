@@ -109,9 +109,10 @@ fun PlantupiaClientSection(
     section: PlantupiaPrimarySection = PlantupiaPrimarySection.TODAY,
     onClosePlant: () -> Unit = {},
     refreshVersion: Int = 0,
+    returnToCalendar: Boolean = false,
 ) {
     key(accountId, section) {
-        PlantupiaAccountClientSection(accountId, onCommunityCreateClick, onOpenLinkedPost, onOpenPlant, section, onClosePlant, refreshVersion)
+        PlantupiaAccountClientSection(accountId, onCommunityCreateClick, onOpenLinkedPost, onOpenPlant, section, onClosePlant, refreshVersion, returnToCalendar)
     }
 }
 
@@ -124,6 +125,7 @@ private fun PlantupiaAccountClientSection(
     section: PlantupiaPrimarySection,
     onClosePlant: () -> Unit,
     refreshVersion: Int,
+    returnToCalendar: Boolean,
 ) {
     val context = LocalContext.current
     val repository = remember(context) { PlantupiaRepository(context.applicationContext) }
@@ -480,7 +482,7 @@ private fun PlantupiaAccountClientSection(
         dismissButton = { TextButton(onClick = { confirmDiscard = false; pendingPlantAfterDiscard = null; pendingTicketAfterDiscard = null }) { Text("Keep editing") } })
 
     BackHandler(enabled = selectedPlant != null) {
-        if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+        if (!returnToCalendar && openDetailMode != PlantupiaCreateMode.QUESTION &&
             selectedDetailChapter != PlantupiaDetailChapter.OVERVIEW.name
         ) {
             // Chapter navigation is inside the same plant. A draft is preserved.
@@ -1109,7 +1111,7 @@ private fun PlantupiaAccountClientSection(
                 PlantupiaDetailChapter.valueOf(selectedDetailChapter)
             }.getOrDefault(PlantupiaDetailChapter.OVERVIEW)
             TextButton(onClick = {
-                if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+                if (!returnToCalendar && openDetailMode != PlantupiaCreateMode.QUESTION &&
                     activeChapter != PlantupiaDetailChapter.OVERVIEW
                 ) {
                     selectedDetailChapter = PlantupiaDetailChapter.OVERVIEW.name
@@ -1122,7 +1124,8 @@ private fun PlantupiaAccountClientSection(
                 }
             }) {
                 Text(
-                    if (openDetailMode != PlantupiaCreateMode.QUESTION &&
+                    if (returnToCalendar) "← Back to calendar"
+                    else if (openDetailMode != PlantupiaCreateMode.QUESTION &&
                         activeChapter != PlantupiaDetailChapter.OVERVIEW
                     ) "← Back to plant" else "← Back to space",
                     color = deepGreen,

@@ -97,11 +97,37 @@ class PlantAssistantSecurityTests(TestCase):
         ) as provider:
             self.assertEqual(self.client.post(self.url, data, format="json").status_code, 200)
             self.assertIsNone(provider.call_args.args[1])
+            history_url = reverse("plantupia-assistant-history")
+            self.assertEqual(self.client.post(history_url, data, format="json").status_code, 400)
             data["include_my_plant_context"] = True
-            self.assertEqual(self.client.post(self.url, data, format="json").status_code, 200)
+            self.assertEqual(self.client.post(history_url, data, format="json").status_code, 200)
             context = provider.call_args.args[1]
             self.assertEqual(context["selected_history_date"], day)
             self.assertEqual([e["note"] for e in context["recent_person_observations"]], ["Earlier visit"])
+
+    @override_settings(PLANTUPIA_LIVING_SYSTEMS_ENABLED=True)
+    def test_measured_areas_need_new_consent_and_belong_to_selected_events(self):
+        from uuid import uuid4
+        from .models import BotanicalSpecies, TracedRegion
+        self.plant.selected_species = BotanicalSpecies.objects.create(key="rubber", scientific_name="Ficus elastica")
+        self.plant.save(update_fields=["selected_species"])
+        event = PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="care", observed_at=timezone.now())
+        for status, area in [("accepted", 2.5), ("rejected", 999)]:
+            TracedRegion.objects.create(event=event, author=self.owner, submission_id=uuid4(),
+                source_sha256="a"*64, annotation={"part": "leaf"}, measurements={"geometry": {
+                    "projected_area_cm2": area, "calibration": {"method": "face-on-two-segment-v1", "status": status}}})
+        self.client.force_authenticate(user=self.owner)
+        data = {"message": "What was measured?", "plant_id": str(self.plant.pk), "include_my_plant_context": True}
+        with patch.dict(os.environ, {"PLANTUPIA_AI_ENABLED": "1", "PLANTUPIA_AI_API_KEY": "test-only"}), patch(
+            "plants.assistant.call_provider", return_value="Look at the measurement."
+        ) as provider:
+            self.assertEqual(self.client.post(self.url, data, format="json").status_code, 200)
+            self.assertNotIn("accepted_projected_areas", provider.call_args.args[1])
+            self.assertEqual(self.client.post(self.url, {**data, "include_recorded_evidence": True}, format="json").status_code, 200)
+            context = provider.call_args.args[1]
+            self.assertEqual(context["current_botanical_identity"]["basis"], "user_selected")
+            self.assertEqual([a["projected_area_cm2"] for a in context["accepted_projected_areas"]], [2.5])
+            self.assertNotIn("source_sha256", str(context))
 
     def test_multi_turn_history_is_validated_and_bounded(self):
         self.client.force_authenticate(user=self.owner)

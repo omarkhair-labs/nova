@@ -125,8 +125,8 @@ internal fun PlantupiaAssistantSheet(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Include plant context", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
                             Text(
-                                if (historyDay == null) "Name, placement and recent notes. No photos or address."
-                                else "Name, placement and notes recorded on $historyDay. No photos or address.",
+                                if (historyDay == null) "Name, placement and recent notes. Available plant identity, measured areas and review findings are included. No photos or address."
+                                else "Name, placement and notes for $historyDay. Available plant identity, measured areas and review findings are included. No photos or address.",
                                 style = PlantupiaText.supporting,
                             )
                             if (onOpenHistory != null) TextButton(onClick = onOpenHistory, enabled = !pending) {

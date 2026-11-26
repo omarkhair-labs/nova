@@ -336,6 +336,8 @@ class PlantEventsView(APIView):
         return Response({
             "results": PlantEventSerializer(rows[:size], many=True, context={"request": request}).data,
             "next_offset": offset + size if len(rows) > size else None,
+            "observed_on": request.query_params.get("observed_on"),
+            "previous_photo_for": prior_for,
         })
 
     require_submission_identity = False

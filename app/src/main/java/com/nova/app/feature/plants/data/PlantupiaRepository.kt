@@ -152,6 +152,7 @@ class PlantupiaRepository(
         val payload = JSONObject()
             .put("message", message.trim())
             .put("include_my_plant_context", includeContext)
+            .put("include_recorded_evidence", includeContext)
         if (!plantId.isNullOrBlank()) payload.put("plant_id", plantId)
         if (includeContext && historyDay != null) payload.put("observed_on", historyDay)
         if (conversation.isNotEmpty()) {
@@ -164,7 +165,7 @@ class PlantupiaRepository(
             })
         }
         when (val response = api.requestJson(
-            path = "plantupia/assistant/ask/",
+            path = if (includeContext && historyDay != null) "plantupia/assistant/ask-history/" else "plantupia/assistant/ask/",
             method = "POST",
             body = payload,
             bearerToken = token,
@@ -495,6 +496,8 @@ class PlantupiaRepository(
             )) {
                 is ApiResult.Failure -> response
                 is ApiResult.Success -> parsePlantupiaResponse(response.value) { body ->
+                    if (observedOn != null) require(body.optString("observed_on") == observedOn.toString())
+                    if (previousPhotoFor != null) require(body.optString("previous_photo_for") == previousPhotoFor.toString())
                     val events = plantupiaRows(body).map { raw ->
                         PlantupiaCareEvent(
                             id = requiredPlantupiaId(raw),

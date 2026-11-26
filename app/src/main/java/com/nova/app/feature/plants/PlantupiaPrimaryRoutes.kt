@@ -41,6 +41,7 @@ fun PlantupiaPlantsRoute(
     onCreate: () -> Unit,
     onProfile: () -> Unit,
 ) {
+    val calendarState = androidx.compose.runtime.saveable.rememberSaveableStateHolder()
     val scroll = rememberScrollState()
     val calendarScroll = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -51,7 +52,12 @@ fun PlantupiaPlantsRoute(
     var calendarReturnToToday by rememberSaveable(accountId) {
         androidx.compose.runtime.mutableStateOf(false)
     }
+    var returnFromPlantToCalendar by rememberSaveable(accountId) {
+        androidx.compose.runtime.mutableStateOf(false)
+    }
     fun closeCareCalendar() {
+        returnFromPlantToCalendar = false
+        calendarState.removeState(accountId)
         showingCareCalendar = false
         if (calendarReturnToToday) {
             calendarReturnToToday = false
@@ -77,7 +83,7 @@ fun PlantupiaPlantsRoute(
     LaunchedEffect(pendingPlant) {
         if (showingCareCalendar && pendingPlant?.accountId == accountId) {
             showingCareCalendar = false
-            calendarReturnToToday = false
+            returnFromPlantToCalendar = true
         }
     }
 
@@ -113,10 +119,12 @@ fun PlantupiaPlantsRoute(
                         .verticalScroll(calendarScroll)
                         .padding(horizontal = 17.dp, vertical = 4.dp),
                 ) {
-                    PlantupiaCareActivity(
-                        accountId = accountId,
-                        onViewChanged = { scope.launch { calendarScroll.animateScrollTo(0) } },
-                    )
+                    calendarState.SaveableStateProvider(accountId) {
+                        PlantupiaCareActivity(
+                            accountId = accountId,
+                            onViewChanged = { scope.launch { calendarScroll.animateScrollTo(0) } },
+                        )
+                    }
                 }
             }
         } else {
@@ -140,8 +148,12 @@ fun PlantupiaPlantsRoute(
                         inventoryOffset = scroll.value
                         scope.launch { scroll.animateScrollTo(0) }
                     },
+                    returnToCalendar = returnFromPlantToCalendar,
                     onClosePlant = {
-                        scope.launch {
+                        if (returnFromPlantToCalendar) {
+                            returnFromPlantToCalendar = false
+                            showingCareCalendar = true
+                        } else scope.launch {
                             androidx.compose.runtime.withFrameNanos { }
                             scroll.scrollTo(inventoryOffset)
                         }

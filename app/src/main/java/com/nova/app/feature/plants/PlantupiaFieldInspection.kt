@@ -53,6 +53,15 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                     else TextButton(enabled = !busy, onClick = { generation++ }) { Text("Refresh inspection") }
                 }
                 record?.let { data ->
+                    data.optJSONObject("current_identity")?.let { identity ->
+                        val label = when (identity.optString("basis")) {
+                            "staff_verified" -> "Verified plant type"
+                            "user_selected" -> "Self-identified plant type"
+                            else -> null
+                        }
+                        Text(if (label == null) "Plant type awaiting identification"
+                            else "$label · " + identity.optString("scientific_name"), style = PlantupiaText.itemTitle)
+                    }
                     val quality = data.optJSONObject("quality")
                     val width = quality?.optInt("width") ?: 0
                     val height = quality?.optInt("height") ?: 0
