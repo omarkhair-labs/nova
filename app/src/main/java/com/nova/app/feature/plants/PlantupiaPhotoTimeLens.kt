@@ -54,8 +54,9 @@ internal fun PlantupiaPhotoTimeLens(
             modifier = Modifier.fillMaxWidth().padding(15.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("See it at another point in time", style = PlantupiaText.itemTitle)
-            Text("Recorded photos, not a health measurement.", style = PlantupiaText.supporting)
+            Text("LIVING TIME", style = PlantupiaText.sectionLabel)
+            Text("See it at another point in time", style = PlantupiaText.editorialHeading)
+            Text("Two recorded moments. Changes in viewpoint or light may alter the image; this is not a growth or health measurement.", style = PlantupiaText.supporting)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

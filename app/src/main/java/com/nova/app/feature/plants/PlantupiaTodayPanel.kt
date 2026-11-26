@@ -75,6 +75,7 @@ internal fun PlantupiaTodayPanel(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Column(Modifier.weight(1f)) {
+                Text("FIELD NOTES", style = PlantupiaText.sectionLabel)
                 Text(if (due.isNotEmpty()) "Check-ins" else "Upcoming",
                     style = PlantupiaText.itemTitle)
             }
@@ -101,7 +102,7 @@ internal fun PlantupiaTodayPanel(
             PersonalCheckInHero(
                 plant = first,
                 eyebrow = personalCheckInDateLabel(first.nextFollowUpOn, today).uppercase(Locale.ENGLISH),
-                supporting = "Personal check-in",
+                supporting = "Return to this plant’s care and observations",
                 onOpen = { onOpenPlant(first) },
             )
 
@@ -145,7 +146,7 @@ internal fun PlantupiaTodayPanel(
             PersonalCheckInHero(
                 plant = upcoming,
                 eyebrow = "NEXT CHECK-IN \u00B7 ${personalCheckInDateLabel(upcoming.nextFollowUpOn, today).uppercase(Locale.ENGLISH)}",
-                supporting = "Personal check-in",
+                supporting = "Return to this plant’s care and observations",
                 onOpen = { onOpenPlant(upcoming) },
             )
         }

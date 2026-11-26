@@ -26,7 +26,7 @@ import kotlin.math.min
 internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: PlantupiaPlant, event: PlantupiaCareEvent) =
     key(repository, plant.id, event.id) {
         var expanded by remember { mutableStateOf(false) }
-        TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Close inspection" else "Inspect this record") }
+        PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Photo, title = "Inspect this record", detail = "Private evidence · visible observations", onClick = { expanded = true })
         if (expanded) {
             val scope = rememberCoroutineScope()
             var record by remember { mutableStateOf<JSONObject?>(null) }
@@ -50,10 +50,16 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                     busy = false
                 }
             }
-            if (feedback.isNotBlank()) Text(feedback)
+            PlantupiaLivingWorkspace("FIELD NOTES", plant.name, "Recorded " + event.observedAt.take(10), busy, { expanded = false }) {
+            if (event.photoUrl.isNotBlank()) PlantupiaEvidencePhoto(event.photoUrl, "Original recorded plant photograph", Modifier.fillMaxWidth().height(220.dp), framing = PlantupiaPhotoFraming.FULL_RECORD)
+            Text("Observe what is visible; a photograph alone does not establish a diagnosis.", style = PlantupiaText.supporting)
+            if (feedback.isNotBlank()) Text(feedback, color = MaterialTheme.colorScheme.error)
+            if (record == null && feedback.isBlank()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             TextButton(enabled = !busy, onClick = { generation++ }) { Text("Refresh inspection") }
             record?.let { data ->
+                Text("Visible regions", style = PlantupiaText.editorialHeading)
                 val regions = data.optJSONArray("regions") ?: JSONArray()
+                if (regions.length() == 0) Text("No traced regions in this record.", style = PlantupiaText.supporting)
                 for (i in 0 until regions.length()) {
                     val item = regions.getJSONObject(i)
                     val geometry = item.getJSONObject("measurements").getJSONObject("geometry")
@@ -72,6 +78,8 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                         submit("regions/", body) { generation++ }
                     }
                 }
+                HorizontalDivider(color = PlantupiaColors.border)
+                Text("What do you notice?", style = PlantupiaText.editorialHeading)
                 var symptom by remember { mutableStateOf("uncertain") }
                 var substrate by remember { mutableStateOf("unknown") }
                 var advice by remember(symptom, substrate) { mutableStateOf("") }
@@ -104,6 +112,7 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                         }
                     }) { Text("Save review to this record") }
                 }
+            }
             }
         }
     }

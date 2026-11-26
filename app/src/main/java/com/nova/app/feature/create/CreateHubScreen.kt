@@ -180,22 +180,22 @@ fun CreateHubScreen(
             item(key = "living-create-private") {
                 CreateIntentGroup(
                     title = "Private",
-                    hint = "",
+                    hint = "Keep a record of a living thing or begin a new place. These actions stay private.",
                     featuredFirst = true,
                     actions = listOf(
                         CreateHubAction(
                             "Record care or observation",
-                            "",
+                            "Return to a plant and keep a dated record",
                             NovaIconAsset.Edit,
                         ) { enterPlant(PlantupiaCreateMode.OBSERVATION) },
                         CreateHubAction(
                             "Add a plant",
-                            "",
+                            "Begin a specimen’s own history",
                             NovaIconAsset.Create,
                         ) { enterPlant(PlantupiaCreateMode.ADD_PLANT) },
                         CreateHubAction(
                             "New space",
-                            "",
+                            "Begin a private living place",
                             NovaIconAsset.Home,
                         ) { enterPlant(PlantupiaCreateMode.ADD_SPACE) },
                     ),
@@ -204,7 +204,7 @@ fun CreateHubScreen(
             item(key = "living-create-public") {
                 CreateIntentGroup(
                     title = "Community",
-                    hint = "",
+                    hint = "Choose what to share with others.",
                     actions = publicActions,
                 )
             }
