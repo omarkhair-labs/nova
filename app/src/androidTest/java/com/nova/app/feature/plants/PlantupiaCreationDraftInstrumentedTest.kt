@@ -46,12 +46,15 @@ class PlantupiaCreationDraftInstrumentedTest {
             }
         }
         compose.onNodeWithText("+ Create my space").performClick()
-        compose.onNodeWithText("Space name *").performTextInput("FICTIONAL QA window desk")
-        compose.onNodeWithText("Location (optional)").performTextInput("Draft room")
+        compose.onNodeWithText("Space name *").performScrollTo().performTextInput("FICTIONAL QA window desk")
+        compose.onNodeWithText("Continue").performScrollTo().performClick()
+        compose.onNodeWithText("Location (optional)").performScrollTo().performTextInput("Draft room")
         restoration.emulateSavedInstanceStateRestore()
-        compose.onNodeWithText("New space").assertExists()
-        compose.onNodeWithText("Space name *").assertTextContains("FICTIONAL QA window desk")
+        compose.onNodeWithText("A little context").assertExists()
+        compose.onNodeWithText("FICTIONAL QA window desk").assertExists()
         compose.onNodeWithText("Location (optional)").assertTextContains("Draft room")
+        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithText("Space name *").assertTextContains("FICTIONAL QA window desk")
     }
 
     @Test fun freshLoginDiscardsThePreviousUnsubmittedSpaceDraft() {
@@ -68,7 +71,7 @@ class PlantupiaCreationDraftInstrumentedTest {
             }
         }
         compose.onNodeWithText("+ Create my space").performClick()
-        compose.onNodeWithText("Space name *").performTextInput("Earlier login draft")
+        compose.onNodeWithText("Space name *").performScrollTo().performTextInput("Earlier login draft")
         compose.runOnIdle {
             NovaSessionStore(context).logout()
             repositoryVersion.intValue++
@@ -114,6 +117,6 @@ class PlantupiaCreationDraftInstrumentedTest {
             spaces.value = spaces.value.map { it.copy(canAddPlant = false) }
         }
         compose.onNodeWithText("Choose a space").assertExists()
-        compose.onNodeWithText("Add plant", substring = false).assertIsNotEnabled()
+        compose.onNodeWithText("Continue", substring = false).assertIsNotEnabled()
     }
 }
