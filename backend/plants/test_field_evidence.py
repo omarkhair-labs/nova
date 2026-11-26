@@ -72,6 +72,21 @@ class FieldWorkflowTests(TestCase):
             self.assertEqual(geometry["traced_outline_length_px"], 36)
             self.assertIsNone(geometry["projected_area_cm2"])
             self.assertEqual(self.client.post(url, trace, format="json").status_code, 200)
+            calibrated = {**trace, "submission_id": "61e091d9-339c-4a8d-ac31-67c31e63119d",
+                "point_reference": {"face_on_coplanar": True, "points": [[4,4],[34,4],[39,5],[39,35]],
+                                    "reference_cm": 3, "check_cm": 3}}
+            response = self.client.post(url, calibrated, format="json")
+            self.assertEqual(response.status_code, 201, response.data)
+            g = response.data["measurements"]["geometry"]
+            self.assertEqual(g["calibration"]["status"], "accepted")
+            self.assertAlmostEqual(g["projected_area_cm2"], 1.0)
+            rejected = {**calibrated, "submission_id": "098097c4-0492-47b7-8af1-193a988dbb8c",
+                "point_reference": {**calibrated["point_reference"], "check_cm": 5}}
+            response = self.client.post(url, rejected, format="json")
+            self.assertEqual(response.status_code, 201)
+            self.assertIsNone(response.data["measurements"]["geometry"]["projected_area_cm2"])
+            self.assertEqual(response.data["measurements"]["geometry"]["calibration"]["reason"],
+                             "independent_scale_check_failed")
             self.assertEqual(self.client.post(url, {**trace, "part": "pot"}, format="json").status_code, 409)
             self.assertEqual(self.client.post(url, {**trace, "submission_id": "1699c321-846e-43cb-8830-1cba9c070c9a",
                 "vertices": [[1,1],[8,8],[1,8],[8,1]]}, format="json").status_code, 400)

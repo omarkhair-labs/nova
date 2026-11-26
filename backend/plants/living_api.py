@@ -282,13 +282,27 @@ class RegionSuggestionView(FieldEvidenceView):
                          "identity": "not_assessed", "health": "not_assessed"})
 
 
+class PointScaleReference(serializers.Serializer):
+    face_on_coplanar = serializers.BooleanField()
+    points = serializers.ListField(min_length=4, max_length=4, child=serializers.ListField(
+        min_length=2, max_length=2, child=serializers.IntegerField(min_value=0, max_value=20000000)))
+    reference_cm = serializers.FloatField(min_value=.001, max_value=10000)
+    check_cm = serializers.FloatField(min_value=.001, max_value=10000)
+
+
 class RegionInput(serializers.Serializer):
     submission_id = serializers.UUIDField()
     part = serializers.ChoiceField(choices=["plant", "leaf", "stem", "flower", "pot", "soil", "exposed_root", "visible_damage"])
     vertices = serializers.ListField(min_length=3, max_length=64, child=serializers.ListField(
         min_length=2, max_length=2, child=serializers.IntegerField(min_value=0, max_value=20000000)))
     reference = ScaleReference(required=False)
+    point_reference = PointScaleReference(required=False)
     suggestion_token = serializers.CharField(required=False, max_length=8192)
+
+    def validate(self, attrs):
+        if "reference" in attrs and "point_reference" in attrs:
+            raise serializers.ValidationError("Use only one scale reference method.")
+        return attrs
 
 
 class RegionView(FieldEvidenceView):
@@ -328,7 +342,8 @@ class RegionView(FieldEvidenceView):
                             "source": digest, "vertices": annotation["vertices"], "method": OUTLINE_METHOD}
                 if not isinstance(envelope, dict) or any(envelope.get(k) != v for k, v in expected.items()):
                     return Response({"detail": "The proposal does not match this photograph and outline."}, status=409)
-            result = measure_trace(raw, annotation["vertices"], annotation.get("reference"))
+            result = measure_trace(raw, annotation["vertices"], annotation.get("reference"),
+                                   annotation.get("point_reference"))
         except (ValueError, OSError) as exc:
             raise serializers.ValidationError("Photo or region could not be measured.") from exc
         result.update(method=OUTLINE_METHOD if token else "upright-operator-trace-v1", identity_basis="operator_label")

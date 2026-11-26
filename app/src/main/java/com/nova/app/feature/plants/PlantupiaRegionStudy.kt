@@ -17,6 +17,10 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.material3.Surface
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Text
@@ -59,6 +63,9 @@ internal data class FieldRegion(
     val outlineLength: Double?,
     val colors: List<Double>,
     val reviewedProposal: Boolean = false,
+    val planarAreaCm2: Double? = null,
+    val calibrationError: Double? = null,
+    val calibrationReason: String? = null,
 )
 
 private val regionColorKeys = listOf("green_like", "yellow_like", "brown_like", "other")
@@ -85,9 +92,16 @@ internal fun fieldRegions(rows: JSONArray?, width: Int, height: Int): List<Field
         val fractions = measurements.optJSONObject("color_fractions")
         val colors = regionColorKeys.map { fractions?.optDouble(it) ?: Double.NaN }
             .takeIf { it.all { fraction -> fraction in 0.0..1.0 } }.orEmpty()
+        val calibration = geometry.optJSONObject("calibration")
+        val calibrated = calibration?.optString("method") == "face-on-two-segment-v1"
+        val accepted = calibrated && calibration?.optString("status") == "accepted"
+        val cm2 = geometry.optDouble("projected_area_cm2").takeIf { accepted && it.isFinite() && it > 0 }
+        val scaleError = calibration?.optDouble("scale_check_relative_error")?.takeIf { it.isFinite() && it >= 0 }
         FieldRegion(id, part, area, outline, length, colors,
             reviewedProposal = measurements.optString("method") == "reviewed-grabcut-points-v1" &&
-                measurements.optJSONObject("assistance")?.optBoolean("operator_accepted") == true)
+                measurements.optJSONObject("assistance")?.optBoolean("operator_accepted") == true,
+            planarAreaCm2 = cm2, calibrationError = scaleError,
+            calibrationReason = calibration?.takeIf { calibrated && !accepted }?.optString("reason"))
     }
 
 private class RegionPhotoFrame(width: Int, height: Int, canvas: Size) {
@@ -122,6 +136,8 @@ internal fun PlantupiaRegionStudy(
     var includePoint by remember(revision, assisting, url) { mutableStateOf(true) }
     var proposal by remember(revision, assisting, url) { mutableStateOf<OutlineProposal?>(null) }
     var feedback by remember(revision, assisting, url) { mutableStateOf("") }
+    var calibrating by remember(revision, tracing, assisting, url) { mutableStateOf(false) }
+    var scaleDraft by remember(revision, tracing, assisting, url) { mutableStateOf(PlanarScaleDraft()) }
     fun resetProposal() { proposal = null; feedback = "" }
     var loaded by remember(url) { mutableStateOf(false) }
     var viewPhoto by remember(url) { mutableStateOf(false) }
@@ -129,7 +145,9 @@ internal fun PlantupiaRegionStudy(
     val ink = PlantupiaColors.forest
     val paper = PlantupiaColors.paper
     val chosen = regions.firstOrNull { it.id == selected }
-    val submission = remember(points, part, proposal?.token) { UUID.randomUUID().toString() }
+    val scalePayload = if (calibrating) scaleDraft.payload() else null
+    val scaleReady = !calibrating || scalePayload != null
+    val submission = remember(points, part, proposal?.token, calibrating, scaleDraft) { UUID.randomUUID().toString() }
     val tracingEnabled = tracing && loaded && !busy && canTrace
     val assistingEnabled = assisting && loaded && !busy && canTrace && canSuggest
     val marking = tracing || assisting
@@ -144,6 +162,12 @@ internal fun PlantupiaRegionStudy(
         } else if (!includePoint && background.size < 6 && point !in background && point !in foreground) {
             background = background + point
             resetProposal()
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
+    val addScalePoint = rememberUpdatedState<(IntOffset) -> Unit> { point ->
+        if (scaleDraft.points.size < 4 && point !in scaleDraft.points) {
+            scaleDraft = scaleDraft.copy(points = scaleDraft.points + point)
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         }
     }
@@ -167,7 +191,7 @@ internal fun PlantupiaRegionStudy(
         )
         if (loaded) {
             val traceGesture = if (tracingEnabled || assistingEnabled || (!busy && !marking && regions.isNotEmpty()))
-                Modifier.pointerInput(width, height, tracingEnabled, assistingEnabled, regions) {
+                Modifier.pointerInput(width, height, tracingEnabled, assistingEnabled, calibrating, regions) {
                 detectTapGestures { tap ->
                     val frame = RegionPhotoFrame(width, height, Size(size.width.toFloat(), size.height.toFloat()))
                     if (frame.scale <= 0f) return@detectTapGestures
@@ -175,6 +199,7 @@ internal fun PlantupiaRegionStudy(
                     if (position.x >= 0 && position.x < width && position.y >= 0 && position.y < height) {
                         val point = IntOffset(position.x.toInt(), position.y.toInt())
                         when {
+                            calibrating && (tracingEnabled || assistingEnabled) -> addScalePoint.value(point)
                             tracingEnabled -> addPoint.value(point)
                             assistingEnabled -> addPrompt.value(point)
                             else -> pickRegion.value(point)
@@ -205,6 +230,17 @@ internal fun PlantupiaRegionStudy(
                     if (tracing) projected.forEach { point ->
                         drawCircle(ink, 4.dp.toPx(), point)
                         drawCircle(paper, 2.dp.toPx(), point)
+                    }
+                }
+                if (calibrating) {
+                    val marks = scaleDraft.points.map(frame::project)
+                    for (i in marks.indices step 2) {
+                        val color = if (i == 0) Color(0xFFFFCE68) else Color(0xFF93DAE8)
+                        if (i+1 < marks.size) drawLine(color, marks[i], marks[i+1], 3.dp.toPx())
+                        for (j in i..minOf(i+1, marks.lastIndex)) {
+                            drawCircle(ink, 7.dp.toPx(), marks[j])
+                            drawCircle(color, 5.dp.toPx(), marks[j])
+                        }
                     }
                 }
                 if (assisting) {
@@ -246,8 +282,15 @@ internal fun PlantupiaRegionStudy(
         TextButton(enabled = !busy && points.isNotEmpty(), onClick = { points = points.dropLast(1) }) {
             Text("Undo last point")
         }
-        Button(enabled = tracingEnabled && points.size >= 3, onClick = {
-            save(JSONObject().put("submission_id", submission).put("vertices", pointArray(points)).put("part", part))
+        if (points.size >= 3) PlanarScaleControls(calibrating, scaleDraft, !busy,
+            onToggle = {
+                calibrating = it
+                if (it) scope.launch { photoAnchor.bringIntoView() }
+            }, onChange = { scaleDraft = it }, onLocate = { scope.launch { photoAnchor.bringIntoView() } })
+        Button(enabled = tracingEnabled && points.size >= 3 && scaleReady, onClick = {
+            val body = JSONObject().put("submission_id", submission).put("vertices", pointArray(points)).put("part", part)
+            scalePayload?.let { body.put("point_reference", it) }
+            save(body)
         }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             Text("Save outline · ${points.size} points")
         }
@@ -268,6 +311,7 @@ internal fun PlantupiaRegionStudy(
             TextButton(enabled = assistingEnabled && (if (includePoint) foreground.isNotEmpty() else background.isNotEmpty()),
                 onClick = {
                     if (includePoint) foreground = foreground.dropLast(1) else background = background.dropLast(1)
+                    calibrating = false
                     resetProposal()
                 }) { Text("Undo point") }
             TextButton(enabled = assistingEnabled && (foreground.isNotEmpty() || background.isNotEmpty()),
@@ -275,10 +319,11 @@ internal fun PlantupiaRegionStudy(
                     foreground = emptyList()
                     background = emptyList()
                     includePoint = true
+                    calibrating = false
                     resetProposal()
                 }) { Text("Clear points") }
         }
-        Button(enabled = assistingEnabled && foreground.isNotEmpty() && background.isNotEmpty(),
+        Button(enabled = assistingEnabled && !calibrating && foreground.isNotEmpty() && background.isNotEmpty(),
             onClick = {
                 resetProposal()
                 val request = JSONObject().put("foreground", pointArray(foreground))
@@ -301,10 +346,17 @@ internal fun PlantupiaRegionStudy(
                 assistingEnabled) { part = it }
             Text("A computer-assisted outline, not an identified plant part. Save only if the boundary matches what you see.",
                 style = PlantupiaText.supporting)
-            Button(enabled = assistingEnabled, onClick = {
-                save(JSONObject().put("submission_id", submission)
+            PlanarScaleControls(calibrating, scaleDraft, !busy,
+                onToggle = {
+                    calibrating = it
+                    if (it) scope.launch { photoAnchor.bringIntoView() }
+                }, onChange = { scaleDraft = it }, onLocate = { scope.launch { photoAnchor.bringIntoView() } })
+            Button(enabled = assistingEnabled && scaleReady, onClick = {
+                val body = JSONObject().put("submission_id", submission)
                     .put("vertices", pointArray(candidate.vertices)).put("part", part)
-                    .put("suggestion_token", candidate.token))
+                    .put("suggestion_token", candidate.token)
+                scalePayload?.let { body.put("point_reference", it) }
+                save(body)
             }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Text("Accept and save outline")
             }
@@ -350,8 +402,21 @@ private fun RegionMeasurements(region: FieldRegion) {
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Text("${region.label.replaceFirstChar { it.uppercase() }} · image measurement",
             style = PlantupiaText.itemTitle)
-        Text("${region.pixels} px²", style = PlantupiaText.display)
-        Text("Visible image area · not physical size", style = PlantupiaText.supporting)
+        if (region.planarAreaCm2 != null) {
+            Text(String.format(Locale.ROOT, "%.2f cm²", region.planarAreaCm2), style = PlantupiaText.display)
+            Text("Estimated projected area · reported flat, face-on plane", style = PlantupiaText.supporting)
+            Text("${region.pixels} px² in the original image", style = PlantupiaText.body)
+        } else {
+            Text("${region.pixels} px²", style = PlantupiaText.display)
+            Text("Visible image area · not physical size", style = PlantupiaText.supporting)
+        }
+        region.calibrationError?.let {
+            Text("Independent scale discrepancy: " + String.format(Locale.ROOT, "%.1f%%", it*100),
+                style = PlantupiaText.supporting)
+        }
+        region.calibrationReason?.let {
+            Text("Scale not accepted · " + scaleRejectionText(it), style = PlantupiaText.supporting)
+        }
         Text(if (region.reviewedProposal) "Computer-assisted boundary · accepted by the recorder"
             else "Boundary traced by the recorder", style = PlantupiaText.supporting)
         region.outlineLength?.let { Text("Traced outline " + String.format(Locale.ROOT, "%.1f", it) + " px",

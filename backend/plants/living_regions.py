@@ -6,6 +6,7 @@ from PIL import Image, ImageDraw
 
 from .living_vision import _open, region_features
 from .living_measurements import projected_region
+from .living_calibration import planar_reference
 
 
 def _orientation(a, b, c):
@@ -35,7 +36,7 @@ def polygon(points, width, height):
     return [tuple(p) for p in points]
 
 
-def measure_trace(data, points, reference=None):
+def measure_trace(data, points, reference=None, point_reference=None):
     image = _open(data, {"JPEG", "PNG", "WEBP"})
     shape = polygon(points, image.width, image.height)
     # Rasterize the original grid for pixel metrics, then sample only bounded RGB for colour.
@@ -43,7 +44,12 @@ def measure_trace(data, points, reference=None):
     ImageDraw.Draw(mask).polygon(shape, fill=255)
     buf = BytesIO()
     mask.save(buf, "PNG")
+    calibration = None
+    if point_reference is not None:
+        reference, calibration = planar_reference(point_reference, image.width, image.height, shape)
     geometry = projected_region(buf.getvalue(), reference=reference)
+    if calibration is not None:
+        geometry["calibration"] = calibration
     geometry["traced_outline_length_px"] = round(sum(
         hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(shape, shape[1:] + shape[:1])
     ), 2)
