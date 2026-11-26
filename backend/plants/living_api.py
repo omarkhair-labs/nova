@@ -54,6 +54,7 @@ class Window(serializers.Serializer):
 
 
 class RoomInput(serializers.Serializer):
+    survey_source = serializers.ChoiceField(choices=["arcore_features", "arcore_raw_depth"], required=False)
     survey_points_m = serializers.ListField(required=False, min_length=30, max_length=1500,
         child=serializers.ListField(min_length=3, max_length=3,
             child=serializers.FloatField(min_value=-100, max_value=100)))
@@ -127,7 +128,7 @@ class RoomView(ResearchView):
             points = fields["survey_points_m"]
             if not all(isfinite(v) for point in points for v in point):
                 raise serializers.ValidationError("Invalid survey coordinates.")
-            room["survey"] = {"source": "arcore_features", "frame": "first_corner_anchor",
+            room["survey"] = {"source": fields.get("survey_source", "arcore_features"), "frame": "first_corner_anchor",
                               "points_m": points}
         ids = [row["plant_id"] for row in placements]
         if PlantUnit.objects.filter(space=space, is_active=True, pk__in=ids).count() != len(ids):

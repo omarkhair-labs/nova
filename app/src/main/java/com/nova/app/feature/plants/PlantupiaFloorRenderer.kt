@@ -28,18 +28,21 @@ internal data class FloorFrame(
 internal class PlantupiaFloorRenderer(
     private val rotation:()->Int,
     private val publish:(FloorFrame)->Unit,
-    private val completed:(FloorSurvey, FloatArray)->Unit,
+    private val completed:(FloorSurvey, FloatArray, String)->Unit,
     private val failure:()->Unit,
 ): GLSurfaceView.Renderer {
     @Volatile var session:Session?=null
     private val pending=AtomicReference<FloorCommand?>(null)
     private val anchors=mutableListOf<Anchor>()
     private var floor:Plane?=null
+    @Volatile var depthEnabled = false
+    private val depthSurvey = PlantupiaDepthSurvey()
     private val featuresById = linkedMapOf<Int, FloatArray>()
     private var lastFeatureRead = 0L
     private var lastCloudStamp = 0L
 
     private fun resetFeatures() {
+        depthSurvey.clear()
         featuresById.clear()
         lastFeatureRead = 0L
         lastCloudStamp = 0L
@@ -48,6 +51,7 @@ internal class PlantupiaFloorRenderer(
     private fun collectFeatures(frame: com.google.ar.core.Frame, now: Long) {
         if (anchors.isEmpty() || now - lastFeatureRead < 350) return
         lastFeatureRead = now
+        if (depthEnabled) depthSurvey.observe(frame, anchors.first().pose)
         val origin = anchors.first().pose.inverse()
         try {
             frame.acquirePointCloud().use { cloud ->
@@ -175,7 +179,9 @@ internal class PlantupiaFloorRenderer(
             if (cmd == FloorCommand.FINISH && estimate != null) {
                 val points = FloatArray(featuresById.size * 3)
                 featuresById.values.forEachIndexed { index, xyz -> xyz.copyInto(points, index * 3) }
-                completed(estimate, points)
+                val depth = depthSurvey.coordinates()
+                if (depth.isNotEmpty()) completed(estimate, depth, "arcore_raw_depth")
+                else completed(estimate, points, "arcore_features")
                 return
             }
             val projected=if(tracking) {

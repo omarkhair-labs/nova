@@ -39,6 +39,7 @@ import java.util.Locale
 class PlantupiaFloorSurveyActivity : ComponentActivity() {
     companion object {
         internal const val WIDTH = "plantupia.survey.width"
+        internal const val SOURCE = "plantupia.survey.source"
         internal const val FEATURES = "plantupia.survey.features"
         internal const val LENGTH = "plantupia.survey.length"
     }
@@ -67,10 +68,10 @@ class PlantupiaFloorSurveyActivity : ComponentActivity() {
         renderer = PlantupiaFloorRenderer(
             rotation = { gl.display?.rotation ?: 0 },
             publish = { frame -> runOnUiThread { if (resumed && !isFinishing) state = frame } },
-            completed = { result, features -> runOnUiThread {
+            completed = { result, features, source -> runOnUiThread {
                 if (resumed && !isFinishing && glRunning) {
                     setResult(Activity.RESULT_OK, Intent().putExtra(WIDTH,result.width).putExtra(LENGTH,result.length)
-                        .putExtra(FEATURES, features))
+                        .putExtra(FEATURES, features).putExtra(SOURCE, source))
                     finish()
                 }
             }},
@@ -200,6 +201,9 @@ class PlantupiaFloorSurveyActivity : ComponentActivity() {
                 Session(this).also { s ->
                     session=s
                     s.configure(Config(s).apply {
+                        val supported = s.isDepthModeSupported(Config.DepthMode.RAW_DEPTH_ONLY)
+                        depthMode = if (supported) Config.DepthMode.RAW_DEPTH_ONLY else Config.DepthMode.DISABLED
+                        renderer.depthEnabled = supported
                         planeFindingMode=Config.PlaneFindingMode.HORIZONTAL
                         focusMode=Config.FocusMode.AUTO
                         updateMode=Config.UpdateMode.LATEST_CAMERA_IMAGE

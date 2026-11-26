@@ -70,10 +70,10 @@ internal fun PlantupiaRoomPlan(
             if (task == PlaceTask.EDIT && space.canAddPlant && !current.historical) {
                 Text("Record this room", style = PlantupiaText.editorialHeading)
                 TextButton(enabled = !saving, onClick = { returnToPlan() }) { Text("Cancel edit") }
-                RoomEditor(current, plants, saving, repository::isCurrentSession) { w, l, h, positions, openings, scan ->
+                RoomEditor(current, plants, saving, repository::isCurrentSession) { w, l, h, positions, openings, scan, source ->
                     saving = true
                     scope.launch {
-                        when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings, h, scan))) {
+                        when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings, h, scan, source))) {
                             is ApiResult.Failure -> message = result.message
                             is ApiResult.Success -> { returnToPlan(); generation++ }
                         }
@@ -117,7 +117,7 @@ internal fun PlantupiaRoomPlan(
                     if (displayScan) {
                         val points = remember(current.survey) { surveyPreviewPoints(current.survey.toFloatArray()) }
                         if (points.isNotEmpty()) PointCloudStage(points, "Recorded room survey")
-                        Text("Tracked features · layout ${current.revision}", style = PlantupiaText.supporting)
+                        Text((if (current.surveySource == "arcore_raw_depth") "Depth survey" else "Tracked features") + " · layout ${current.revision}", style = PlantupiaText.supporting)
                     } else PlantupiaRecordedSpatialPlan(current, width, length, focusedId) { focusedId = it }
                 } else if (spatialPlan) {
                     PlantupiaRecordedSpatialPlan(current, width, length, focusedId) { focusedId = it }
@@ -215,7 +215,7 @@ private fun LayoutRevisionPicker(room: PlantupiaRoom, saving: Boolean, onSelect:
 private fun RoomEditor(
     room: PlantupiaRoom, plants: List<PlantupiaPlant>, saving: Boolean,
     sessionCurrent: () -> Boolean,
-    save: (Double, Double, Double?, List<RoomPlant>, List<RoomWindow>, List<Float>) -> Unit,
+    save: (Double, Double, Double?, List<RoomPlant>, List<RoomWindow>, List<Float>, String) -> Unit,
 ) {
     var width by remember(room) { mutableStateOf(room.width?.toString().orEmpty()) }
     var length by remember(room) { mutableStateOf(room.length?.toString().orEmpty()) }
@@ -229,6 +229,7 @@ private fun RoomEditor(
     val context = LocalContext.current
     var arCandidate by remember(room) { mutableStateOf<Pair<Double, Double>?>(null) }
     var surveyPoints by remember(room) { mutableStateOf(emptyList<SpatialPoint>()) }
+    var surveySource by remember(room) { mutableStateOf("arcore_features") }
     var rawSurvey by remember(room) { mutableStateOf(emptyList<Float>()) }
     var attachSurvey by remember(room) { mutableStateOf(false) }
     var showSurveyPoints by remember(room) { mutableStateOf(false) }
@@ -240,6 +241,7 @@ private fun RoomEditor(
             if (w.isFinite() && l.isFinite() && w in .3..30.0 && l in .3..30.0) {
                 arCandidate = w to l
                 val sample = result.data?.getFloatArrayExtra(PlantupiaFloorSurveyActivity.FEATURES)
+                surveySource = result.data?.getStringExtra(PlantupiaFloorSurveyActivity.SOURCE) ?: "arcore_features"
                 surveyPoints = surveyPreviewPoints(sample)
                 rawSurvey = sample?.takeIf { surveyPoints.isNotEmpty() }?.toList().orEmpty()
                 attachSurvey = false
@@ -269,7 +271,7 @@ private fun RoomEditor(
                             Text(if (showSurveyPoints) "Hide tracked points" else "View tracked points in 3D")
                         }
                         if (showSurveyPoints) {
-                            Text("${surveyPoints.size} feature points · temporary survey preview", style = PlantupiaText.supporting)
+                            Text((if (surveySource == "arcore_raw_depth") "Depth survey" else "Feature survey") + " · ${surveyPoints.size} visible points", style = PlantupiaText.supporting)
                             PointCloudStage(surveyPoints, "Tracked room features from the floor survey")
                         }
                     }
@@ -337,7 +339,7 @@ private fun RoomEditor(
                     val wy = when (wall) { "Top" -> 0.0; "Bottom" -> l; else -> distance }
                     room.windows + RoomWindow(windowName.trim(), wx, wy)
                 } else room.windows
-                save(w, l, h, points, windows, if (attachSurvey) rawSurvey else emptyList())
+                save(w, l, h, points, windows, if (attachSurvey) rawSurvey else emptyList(), surveySource)
             }
         }) { Text(if (saving) "Saving…" else "Save room revision") }
     }
