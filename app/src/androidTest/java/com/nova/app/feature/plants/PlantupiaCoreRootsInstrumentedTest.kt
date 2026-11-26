@@ -325,6 +325,39 @@ class PlantupiaCoreRootsInstrumentedTest {
             (runBlocking { repository.historyPage(specimenId) } as? ApiResult.Success)?.value?.events?.isEmpty() == true)
     }
 
+    @Test fun recordedCalendarDayReturnsFromAskToTheSameVisit() {
+        val repository = openSeedAccount("staff")
+        val plantId = fixture.getJSONArray("plant_ids").getString(6)
+        val today = java.time.LocalDate.now()
+        val day = today.withDayOfMonth(1)
+        val marker = "Synthetic calendar navigation visit"
+        val existing = runBlocking { repository.historyPage(plantId, observedOn = day) }
+        assertTrue(existing is ApiResult.Success)
+        if ((existing as ApiResult.Success).value.events.none { it.note == marker }) {
+            val record = JSONObject().put("kind", "observation").put("note", marker)
+                .put("observed_at", day.toString() + "T10:00:00Z")
+            assertTrue(runBlocking { repository.demoPost("plants/$plantId/events/", record) } is ApiResult.Success)
+        }
+        tab("Plants")
+        clickDescription("Open care schedule")
+        clickText("Month")
+        val locale = InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.locales[0]
+        val dayLabel = day.format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", locale))
+        awaitNode(hasContentDescription("$dayLabel,", substring = true)).performScrollTo().performClick()
+        clickText("Observation recorded")
+        awaitText("Records from $day")
+        scrollToText(marker)
+        clickText("Ask about this history")
+        awaitText("Here for Synthetic plant 07")
+        pressBack()
+        scrollToText(marker)
+        clickText("← Back to calendar")
+        awaitText("My care schedule")
+        awaitNode(hasContentDescription("$dayLabel,", substring = true)).assertIsSelected()
+        scrollToText("Observation recorded")
+        capture("25-calendar-visit-return")
+    }
+
     private fun fillScenario(label: String, value: String) {
         val field = scrollToText(label)
         field.performTextReplacement(value)
