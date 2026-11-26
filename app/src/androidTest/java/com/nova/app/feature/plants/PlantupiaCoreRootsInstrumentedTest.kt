@@ -105,7 +105,10 @@ class PlantupiaCoreRootsInstrumentedTest {
         scrollToText("Your circle is quiet")
         capture("06-circle-moments")
         clickText("Back to Circle")
-        awaitText("Circle")
+        // The restored lazy list may be below its title at 2x text. Prove the
+        // Circle title is reachable and displayed, without requiring a reset
+        // of the user’s previously selected scroll position.
+        scrollToText("Circle").assertIsDisplayed()
         openProfile()
         awaitText("Your private places")
         compose.onNodeWithContentDescription("Settings").assertIsDisplayed()
