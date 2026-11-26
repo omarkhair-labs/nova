@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 from .handovers import HandoverError, claim_handover, preview_handover
 from .models import CareGuideVersion, PlantDiscussion, PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
 from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, PlantUpdateSerializer, PlantCoverPhotoUploadSerializer, SpaceCreateSerializer, SpaceSerializer, SpaceUpdateSerializer)
+from .living_capture import capture_quality
 from .media import sanitize_public_plant_photo
 from .submissions import submit, save_submission_photo
 
@@ -341,8 +342,9 @@ class PlantEventsView(APIView):
                     if updated != 1:
                         return Response({"detail": "This check-in was already completed."}, status=409)
                 photo = s.validated_data.get("photo")
+                quality = capture_quality(photo)
                 saved_photo = save_submission_photo(receipt, PlantEvent._meta.get_field("photo").storage, photo, "plantupia/events") if receipt and photo else photo
-                event = s.save(plant=plant, actor=request.user, **({"photo": saved_photo} if photo else {}))
+                event = s.save(plant=plant, actor=request.user, capture_quality=quality, **({"photo": saved_photo} if photo else {}))
             return Response(PlantEventSerializer(event, context={"request": request}).data, status=status.HTTP_201_CREATED)
         return submit(request, plant, "event", create, required=self.require_submission_identity)
 
