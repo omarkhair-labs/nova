@@ -2,6 +2,7 @@
 from hashlib import sha256
 
 from django.conf import settings
+from django.core import signing
 from django.db import transaction
 from django.db.models import OuterRef, Subquery
 from django.http import Http404
@@ -13,7 +14,9 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .living_space import build_room
-from .living_regions import measure_trace
+from .living_regions import measure_trace, polygon
+from .living_segmentation import METHOD as OUTLINE_METHOD, NoOutline, VisionUnavailable, propose_outline, vision_available
+from .living_vision import _open
 from .living_daylight import window_scenario
 from .vision_evidence import MAX_BYTES, inspect_photo
 from .models import CareGuideVersion, EvidenceReview, PlantEvent, PlantUnit, RoomRevision, Space, SpaceMember, TracedRegion
@@ -155,6 +158,8 @@ class FieldEvidenceView(ResearchView):
             except (ValueError, OSError):
                 quality = None
         return Response({"event_id": event.pk, "quality": quality,
+                         "can_suggest_region": bool(event.photo and event.plant.is_active and
+                             can_record(request.user, event.plant) and vision_available()),
                          "can_review": event.plant.is_active and request.user.has_perm("plants.review_visual_evidence") and can_record(request.user, event.plant),
                          "reviews": list(reviews.values("id", "finding", "rationale", "created_at")[:20]),
                          "regions": list(event.traced_regions.order_by("-pk").values(
@@ -231,12 +236,59 @@ class ScaleReference(serializers.Serializer):
     check_px = serializers.FloatField(min_value=1, max_value=50000)
 
 
+OUTLINE_SALT = "plantupia.private-region-proposal.v1"
+
+
+class OutlineInput(serializers.Serializer):
+    foreground = serializers.ListField(min_length=1, max_length=6, child=serializers.ListField(
+        min_length=2, max_length=2, child=serializers.IntegerField(min_value=0, max_value=20000000)))
+    background = serializers.ListField(min_length=1, max_length=6, child=serializers.ListField(
+        min_length=2, max_length=2, child=serializers.IntegerField(min_value=0, max_value=20000000)))
+
+
+class RegionSuggestionView(FieldEvidenceView):
+    http_method_names = ["post", "options"]
+
+    def post(self, request, plant_id, event_id):
+        event = self.event(request, plant_id, event_id)
+        if not can_record(request.user, event.plant):
+            raise PermissionDenied
+        if not event.plant.is_active or not event.photo:
+            return Response({"detail": "An active plant and a recorded photo are required."}, status=409)
+        data = OutlineInput(data=request.data)
+        data.is_valid(raise_exception=True)
+        try:
+            with event.photo.open("rb") as source:
+                raw = source.read(MAX_BYTES + 1)
+            image = _open(raw, {"JPEG", "PNG", "WEBP"})
+            points = propose_outline(image, **data.validated_data)
+            try:
+                polygon(points, image.width, image.height)
+            except ValueError as exc:
+                raise NoOutline("The proposed boundary is not a simple outline. Trace manually.") from exc
+        except NoOutline as exc:
+            return Response({"status": "abstained", "reason": str(exc)})
+        except VisionUnavailable as exc:
+            return Response({"detail": str(exc)}, status=503)
+        except (ValueError, OSError) as exc:
+            raise serializers.ValidationError("Photo or outline points could not be read.") from exc
+        # Only explicit later acceptance can write a trace. This signed envelope
+        # prevents clients from assigning a computed method to arbitrary vertices.
+        envelope = {"actor": str(request.user.pk), "event": str(event.pk),
+                    "source": sha256(raw).hexdigest(), "vertices": points,
+                    "method": OUTLINE_METHOD, "prompts": dict(data.validated_data)}
+        return Response({"status": "candidate", "method": OUTLINE_METHOD, "vertices": points,
+                         "suggestion_token": signing.dumps(envelope, salt=OUTLINE_SALT, compress=True),
+                         "identity": "not_assessed", "health": "not_assessed"})
+
+
 class RegionInput(serializers.Serializer):
     submission_id = serializers.UUIDField()
     part = serializers.ChoiceField(choices=["plant", "leaf", "stem", "flower", "pot", "soil", "exposed_root", "visible_damage"])
     vertices = serializers.ListField(min_length=3, max_length=64, child=serializers.ListField(
         min_length=2, max_length=2, child=serializers.IntegerField(min_value=0, max_value=20000000)))
     reference = ScaleReference(required=False)
+    suggestion_token = serializers.CharField(required=False, max_length=8192)
 
 
 class RegionView(FieldEvidenceView):
@@ -252,6 +304,9 @@ class RegionView(FieldEvidenceView):
         data.is_valid(raise_exception=True)
         annotation = dict(data.validated_data)
         key = annotation.pop("submission_id")
+        token = annotation.pop("suggestion_token", None)
+        if token:
+            annotation["assistance"] = {"method": OUTLINE_METHOD, "proposal_digest": sha256(token.encode()).hexdigest()}
         lookup = dict(event=event, author=request.user, submission_id=key)
         def replay(existing):
             if existing.annotation != annotation:
@@ -263,10 +318,22 @@ class RegionView(FieldEvidenceView):
         try:
             with event.photo.open("rb") as f:
                 raw = f.read(MAX_BYTES+1)
+            digest = sha256(raw).hexdigest()
+            if token:
+                try:
+                    envelope = signing.loads(token, salt=OUTLINE_SALT, max_age=900)
+                except signing.BadSignature:
+                    return Response({"detail": "The proposal expired or changed. Find an outline again."}, status=409)
+                expected = {"actor": str(request.user.pk), "event": str(event.pk),
+                            "source": digest, "vertices": annotation["vertices"], "method": OUTLINE_METHOD}
+                if not isinstance(envelope, dict) or any(envelope.get(k) != v for k, v in expected.items()):
+                    return Response({"detail": "The proposal does not match this photograph and outline."}, status=409)
             result = measure_trace(raw, annotation["vertices"], annotation.get("reference"))
         except (ValueError, OSError) as exc:
             raise serializers.ValidationError("Photo or region could not be measured.") from exc
-        result.update(method="upright-operator-trace-v1", identity_basis="operator_label")
+        result.update(method=OUTLINE_METHOD if token else "upright-operator-trace-v1", identity_basis="operator_label")
+        if token:
+            result["assistance"] = {"operator_accepted": True, "prompts": envelope["prompts"]}
         trace, created = TracedRegion.objects.get_or_create(**lookup, defaults=dict(
             annotation=annotation, measurements=result, source_sha256=sha256(raw).hexdigest()))
         return Response({"id": trace.pk, "measurements": result}, status=201) if created else replay(trace)

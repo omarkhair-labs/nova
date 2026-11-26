@@ -72,7 +72,8 @@ jobs:
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install -r requirements.txt -r requirements-living-vision.txt
+          python -c 'import cv2; assert hasattr(cv2, "grabCut")'
 
       - name: Check Django configuration
         run: python manage.py check

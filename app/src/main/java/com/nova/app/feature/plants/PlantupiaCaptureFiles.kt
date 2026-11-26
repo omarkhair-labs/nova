@@ -8,7 +8,7 @@ internal fun ownedCaptureFile(cacheDir: File, uri: Uri): File? =
     if (uri.scheme != "file" || !uri.authority.isNullOrEmpty()) null
     else runCatching {
         val root = File(cacheDir, "plantupia-captures").canonicalFile
-        val path = uri.path ?: return null
+        val path = uri.path ?: return@runCatching null
         val file = File(path).canonicalFile
         file.takeIf { it.parentFile == root && it.name.startsWith("care-") && it.extension == "jpg" }
     }.getOrNull()
