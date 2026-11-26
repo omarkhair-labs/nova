@@ -438,6 +438,21 @@ class PlantupiaRepository(
         }
     }
 
+    internal suspend fun roomDaylight(
+        spaceId: String,
+        scenario: RoomDaylightScenario,
+    ): ApiResult<List<RoomDaylightSample>> = authorized { token ->
+        when (val response = api.requestJson(
+            path = "plantupia/spaces/$spaceId/room/daylight/",
+            method = "POST",
+            body = scenario.body(),
+            bearerToken = token,
+        )) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) { parseDaylight(it, scenario) }
+        }
+    }
+
     /** One bounded, read-only projection of actual Living History events in the visible grid. */
     suspend fun calendarHistory(from: String, through: String): ApiResult<List<JSONObject>> =
         authorized { token ->

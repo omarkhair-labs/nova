@@ -1,5 +1,6 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import com.nova.app.feature.plants.data.PlantupiaCareEvent
@@ -43,6 +44,10 @@ class PlantupiaPhotoTimeLensInstrumentedTest {
         ).assertIsSelected()
         compose.onNodeWithText("Compare photos").performClick()
         compose.onNodeWithText("Single photo").assertExists()
+        compose.onNodeWithText("Slide across photos").performClick()
+        compose.onNodeWithContentDescription("Reveal earlier photo")
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(0.75f) }
+        compose.onNodeWithText("Side by side").performClick()
         compose.onNodeWithContentDescription("Earlier recorded photo, " + pair.earlier.observedAt.take(10)).assertIsNotSelected()
         compose.onNodeWithContentDescription("Later recorded photo, " + pair.later.observedAt.take(10)).assertIsNotSelected()
         compose.onNodeWithText("Single photo").performClick()

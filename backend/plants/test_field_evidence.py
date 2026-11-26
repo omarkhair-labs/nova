@@ -10,7 +10,7 @@ from django.utils import timezone
 from PIL import Image
 from rest_framework.test import APIClient
 
-from .living_measurements import direct_sun, projected_region
+from .living_measurements import aperture_footprint, direct_sun, projected_region
 from .models import PlantEvent, PlantUnit, RoomRevision, Space, SpaceMember
 
 
@@ -59,6 +59,12 @@ class FieldWorkflowTests(TestCase):
             url = reverse("plantupia-trace-region", args=[self.plant.pk, event.pk])
             trace = dict(submission_id="8ec9aed3-1bda-41cc-9538-dabc9870d3ef", part="leaf",
                          vertices=[[10,10],[19,10],[19,19],[10,19]])
+            evidence = reverse("plantupia-field-evidence", args=[self.plant.pk, event.pk])
+            legacy = self.client.get(evidence)
+            self.assertEqual(legacy.status_code, 200)
+            self.assertEqual((legacy.data["quality"]["width"], legacy.data["quality"]["height"]), (64, 64))
+            event.refresh_from_db()
+            self.assertIsNone(event.capture_quality)
             result = self.client.post(url, trace, format="json")
             self.assertEqual(result.status_code, 201)
             geometry = result.data["measurements"]["geometry"]
@@ -95,6 +101,11 @@ class FieldWorkflowTests(TestCase):
         response = self.client.post(url, scenario, format="json")
         self.assertEqual(response.status_code, 200)
         self.assertEqual([x["direct_ray"] for x in response.data["samples"]], [True,False])
+        self.assertEqual(response.data["plane_height_m"], 1.1)
+        day, night = response.data["samples"]
+        self.assertGreaterEqual(len(day["footprint_xy_m"]), 3)
+        self.assertTrue(all(0 <= x <= 4 and 0 <= y <= 3 for x, y in day["footprint_xy_m"]))
+        self.assertEqual(night["footprint_xy_m"], [])
         self.assertIsNone(response.data["illuminance_lux"])
         self.assertEqual(self.client.post(url, {**scenario,"revision":2}, format="json").status_code, 409)
         self.assertEqual(self.client.post(url, {**scenario,"timestamps":["2026-03-20T07:00:00"]}, format="json").status_code, 400)
@@ -149,3 +160,17 @@ class MeasurementTests(TestCase):
             result = direct_sun(**{**data, **changes})
             self.assertFalse(result["unobstructed_direct_ray"])
             self.assertIsNone(result["illuminance_lux"])
+
+
+    def test_aperture_footprint_matches_ray_intersection_and_clips_to_room(self):
+        aperture = dict(height_m=0, window_left_m=.5, window_right_m=1.5, sill_m=.5,
+                        head_m=2, sun_elevation_deg=45, sun_azimuth_deg=0, outward_normal_deg=0)
+        footprint = aperture_footprint(wall_span=2, room_depth=1.25, **aperture)
+        self.assertEqual({round(x, 3) for x, _ in footprint}, {.5, 1.5})
+        self.assertEqual({round(y, 3) for _, y in footprint}, {.5, 1.25})
+        self.assertTrue(direct_sun(inward_m=1, along_m=1, **aperture)["unobstructed_direct_ray"])
+        self.assertFalse(direct_sun(inward_m=.25, along_m=1, **aperture)["unobstructed_direct_ray"])
+        oblique = aperture_footprint(wall_span=2, room_depth=1.25, **{**aperture, "sun_azimuth_deg": 40})
+        self.assertTrue(any(x == 0 for x, _ in oblique))
+        self.assertTrue(all(0 <= x <= 2 and 0 <= y <= 1.25 for x, y in oblique))
+        self.assertEqual(aperture_footprint(wall_span=2, room_depth=1.25, **{**aperture, "height_m": 3}), [])

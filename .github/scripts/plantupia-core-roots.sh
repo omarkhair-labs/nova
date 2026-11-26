@@ -224,11 +224,10 @@ run_pass() {
   adb_bounded shell pm clear "$package" > "$directory/clear-data.txt"
   if ! grep -Eq '^Success[[:space:]]*$' "$directory/clear-data.txt"; then exit 1; fi
   adb_bounded shell run-as "$package" mkdir -p files
-  # Standard input never becomes a command-line argument or CI log. tee's copy
-  # to stdout is discarded; only the app-private file receives the fixture.
-  adb_bounded exec-in run-as "$package" /system/bin/tee files/core-roots-local-qa.json \
-    < "$credentials" > /dev/null
-  adb_bounded shell run-as "$package" chmod 600 files/core-roots-local-qa.json
+  # Non-PTY shell waits for the private write to finish and propagates errors.
+  # Fixture values are sent over stdin and never enter the CI log.
+  adb_bounded shell -T "run-as $package sh -c 'umask 077; cat > files/core-roots-local-qa.json && test -s files/core-roots-local-qa.json'" \
+    < "$credentials"
   adb_bounded shell wm size "$(( width * 2 ))x1600"
   adb_bounded shell wm density 320
   adb_bounded shell settings put system font_scale "$font"

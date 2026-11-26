@@ -35,6 +35,14 @@ def projected_region(mask_png, *, reference=None):
     return result
 
 
+def _sun_slopes(elevation_deg, azimuth_deg, normal_deg):
+    angle = radians((azimuth_deg - normal_deg) % 360)
+    facing = cos(angle)
+    if facing <= 1e-8 or not 0 < elevation_deg < 90:
+        return None
+    return sin(angle) / facing, tan(radians(elevation_deg)) / facing
+
+
 def direct_sun(*, inward_m, along_m, height_m, window_left_m, window_right_m,
                sill_m, head_m, sun_elevation_deg, sun_azimuth_deg, outward_normal_deg):
     """Ray from sample point to sun through one vertical rectangular aperture.
@@ -49,13 +57,47 @@ def direct_sun(*, inward_m, along_m, height_m, window_left_m, window_right_m,
         raise ValueError("Invalid point or aperture.")
     if not -90 <= sun_elevation_deg <= 90:
         raise ValueError("Invalid solar elevation.")
-    angle = radians((sun_azimuth_deg - outward_normal_deg) % 360)
-    faces_sun = cos(angle) > 1e-8 and 0 < sun_elevation_deg < 90
+    slopes = _sun_slopes(sun_elevation_deg, sun_azimuth_deg, outward_normal_deg)
     hit = False
-    if faces_sun:
-        travel = inward_m / cos(angle)
-        x = along_m + travel * sin(angle)
-        z = height_m + travel * tan(radians(sun_elevation_deg))
+    if slopes:
+        lateral, rise = slopes
+        x = along_m + inward_m * lateral
+        z = height_m + inward_m * rise
         hit = window_left_m <= x <= window_right_m and sill_m <= z <= head_m
     return {"source": "geometric_simulation", "unobstructed_direct_ray": hit,
             "illuminance_lux": None, "model": "single_vertical_aperture_v1"}
+
+
+def aperture_footprint(*, wall_span, room_depth, height_m, window_left_m, window_right_m,
+                       sill_m, head_m, sun_elevation_deg, sun_azimuth_deg, outward_normal_deg):
+    """Intersect the admitted beam with a horizontal plane and the rectangular room.
+
+    Returns vertices in (along-wall, inward) order. Uses the same ray slopes as
+    direct_sun. Coordinates are simulated metres in the reported room frame.
+    """
+    slopes = _sun_slopes(sun_elevation_deg, sun_azimuth_deg, outward_normal_deg)
+    if slopes is None or height_m >= head_m:
+        return []
+    lateral, rise = slopes
+    near = max(0., (sill_m - height_m) / rise)
+    far = min(room_depth, (head_m - height_m) / rise)
+    if near >= far:
+        return []
+    polygon = [
+        (window_left_m - near*lateral, near),
+        (window_right_m - near*lateral, near),
+        (window_right_m - far*lateral, far),
+        (window_left_m - far*lateral, far),
+    ]
+    for boundary, direction in ((0., 1), (wall_span, -1)):
+        clipped = []
+        for start, end in zip(polygon, polygon[1:] + polygon[:1]):
+            inside_start = direction * (start[0] - boundary) >= 0
+            inside_end = direction * (end[0] - boundary) >= 0
+            if inside_start != inside_end:
+                fraction = (boundary - start[0]) / (end[0] - start[0])
+                clipped.append((boundary, start[1] + fraction * (end[1] - start[1])))
+            if inside_end:
+                clipped.append(end)
+        polygon = clipped
+    return polygon if len(polygon) >= 3 else []

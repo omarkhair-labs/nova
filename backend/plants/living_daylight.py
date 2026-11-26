@@ -1,9 +1,9 @@
 """Approximate unrefracted solar position and one-window placement scenarios."""
 from calendar import isleap
 from datetime import timezone
-from math import asin, atan2, cos, degrees, pi, radians, sin
+from math import asin, atan2, cos, degrees, isfinite, pi, radians, sin
 
-from .living_measurements import direct_sun
+from .living_measurements import aperture_footprint, direct_sun
 
 
 def solar_position(stamp, latitude, longitude):
@@ -46,14 +46,30 @@ def window_scenario(room, window_id, point, *, top_normal_deg, width_m, sill_m, 
     left, right = middle-width_m/2, middle+width_m/2
     if width_m <= 0 or not 0 <= left < right <= length:
         raise ValueError("The opening must fit on the selected wall.")
+    if not isfinite(top_normal_deg):
+        raise ValueError("Supply a finite orientation.")
+    depth = l if side in (0, 180) else w
+
+    def to_room(along_wall, inward):
+        if side == 0:
+            return [along_wall, inward]
+        if side == 90:
+            return [w-inward, along_wall]
+        if side == 180:
+            return [w-along_wall, l-inward]
+        return [inward, l-along_wall]
+
     rows = []
     for stamp in timestamps:
         elevation, azimuth = solar_position(stamp, latitude, longitude)
-        ray = direct_sun(inward_m=inward, along_m=along, height_m=z, window_left_m=left, window_right_m=right,
-                         sill_m=sill_m, head_m=head_m, sun_elevation_deg=elevation, sun_azimuth_deg=azimuth,
-                         outward_normal_deg=top_normal_deg+side)
+        aperture = dict(height_m=z, window_left_m=left, window_right_m=right,
+                        sill_m=sill_m, head_m=head_m, sun_elevation_deg=elevation, sun_azimuth_deg=azimuth,
+                        outward_normal_deg=top_normal_deg+side)
+        ray = direct_sun(inward_m=inward, along_m=along, **aperture)
+        footprint = aperture_footprint(wall_span=length, room_depth=depth, **aperture)
         rows.append({"at": stamp.isoformat(), "sun_elevation_deg": elevation, "sun_azimuth_deg": azimuth,
-                     "direct_ray": ray["unobstructed_direct_ray"]})
-    return {"source": "simulation", "geometry_source": room["geometry_source"], "samples": rows,
+                     "direct_ray": ray["unobstructed_direct_ray"],
+                     "footprint_xy_m": [to_room(a, i) for a, i in footprint]})
+    return {"source": "simulation", "geometry_source": room["geometry_source"], "samples": rows, "plane_height_m": z,
             "assumptions": ["one vertical opening", "no glazing attenuation", "unobstructed exterior and interior"],
             "illuminance_lux": None, "artificial_lighting": "unmodelled", "placement_suitability": "unassessed"}

@@ -1,20 +1,13 @@
 package com.nova.app.feature.plants
 
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.*
 import kotlinx.coroutines.launch
-import kotlin.math.min
 
 @Composable
 internal fun PlantupiaRoomPlan(
@@ -47,32 +40,16 @@ internal fun PlantupiaRoomPlan(
             val length = current.length
             if (width != null && length != null) {
                 Text("Reported room · $width × $length m · revision ${current.revision}")
-                val ink = PlantupiaColors.forest
-                val marker = PlantupiaColors.sage
                 var focusedId by remember(current.revision) { mutableStateOf<String?>(null) }
-                Surface(color = PlantupiaColors.softSage, modifier = Modifier.fillMaxWidth()) {
-                Canvas(Modifier.fillMaxWidth().height(280.dp).padding(20.dp).pointerInput(current, width, length) {
-                    detectTapGestures { tap ->
-                        val scale = min(size.width / width, size.height / length).toFloat()
-                        val ox = (size.width - width * scale).toFloat() / 2f
-                        val oy = (size.height - length * scale).toFloat() / 2f
-                        focusedId = nearestRoomPlant(current.plants, tap.x, tap.y, ox, oy, scale, 24.dp.toPx())
-                    }
-                }) {
-                    val scale = min(size.width / width, size.height / length).toFloat()
-                    val frame = Size((width * scale).toFloat(), (length * scale).toFloat())
-                    val origin = Offset((size.width-frame.width)/2f, (size.height-frame.height)/2f)
-                    drawRect(ink, origin, frame, style = Stroke(2.dp.toPx()))
-                    current.windows.forEach {
-                        drawCircle(ink, 4.dp.toPx(), origin + Offset((it.x*scale).toFloat(), (it.y*scale).toFloat()), style = Stroke(1.dp.toPx()))
-                    }
-                    current.plants.forEach {
-                        val center = origin + Offset((it.x*scale).toFloat(), (it.y*scale).toFloat())
-                        drawCircle(if (focusedId == it.id) ink else marker, 10.dp.toPx(), center)
-                        drawCircle(ink, 10.dp.toPx(), center, style = Stroke(1.dp.toPx()))
-                    }
+                var daylight by remember(current.revision) { mutableStateOf(false) }
+                TextButton(enabled = !saving && current.windows.isNotEmpty(), onClick = { daylight = !daylight }) {
+                    Text(if (daylight) "Return to placements" else "Explore direct sunlight")
                 }
-                }
+                if (daylight) {
+                    PlantupiaDaylightStudy(space.id, current, width, length, repository)
+                } else {
+                    PlantupiaRoomDrawing(width, length, current.plants, current.windows,
+                        selectedPlant = focusedId, onSelectPlant = { focusedId = it })
                 Text("Tap a plant marker, or choose from the list below. Dimensions are reported, not camera measurements.", style = PlantupiaText.supporting)
                 current.plants.firstOrNull { it.id == focusedId }?.let { point ->
                     plants.find { it.id == point.id }?.let { plant ->
@@ -89,6 +66,7 @@ internal fun PlantupiaRoomPlan(
                                 if (point.latest.isEmpty()) "" else " · last record ${point.latest.take(10)}")
                         }
                     }
+                }
                 }
             } else Text("This space has no recorded room dimensions.")
             if (space.canAddPlant) {

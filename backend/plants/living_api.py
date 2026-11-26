@@ -15,7 +15,7 @@ from rest_framework.views import APIView
 from .living_space import build_room
 from .living_regions import measure_trace
 from .living_daylight import window_scenario
-from .vision_evidence import MAX_BYTES
+from .vision_evidence import MAX_BYTES, inspect_photo
 from .models import CareGuideVersion, EvidenceReview, PlantEvent, PlantUnit, RoomRevision, Space, SpaceMember, TracedRegion
 from .views import accessible_plants, accessible_spaces, can_record
 
@@ -132,7 +132,16 @@ class FieldEvidenceView(ResearchView):
     def get(self, request, plant_id, event_id):
         event = self.event(request, plant_id, event_id)
         reviews = event.evidence_reviews.order_by("-pk")
-        return Response({"event_id": event.pk, "quality": event.capture_quality,
+        quality = event.capture_quality
+        if not quality and event.photo:
+            # Existing journal photos predate the capture metadata. Read only
+            # this authorized image and leave the original record untouched.
+            try:
+                with event.photo.open("rb") as source:
+                    quality = inspect_photo(source.read(MAX_BYTES + 1))
+            except (ValueError, OSError):
+                quality = None
+        return Response({"event_id": event.pk, "quality": quality,
                          "can_review": event.plant.is_active and request.user.has_perm("plants.review_visual_evidence") and can_record(request.user, event.plant),
                          "reviews": list(reviews.values("id", "finding", "rationale", "created_at")[:20]),
                          "regions": list(event.traced_regions.order_by("-pk").values(
