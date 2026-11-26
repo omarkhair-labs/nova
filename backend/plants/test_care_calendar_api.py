@@ -101,6 +101,21 @@ class CalendarHistoryTests(TestCase):
         self.api.force_authenticate(self.other)
         self.assertEqual(self.api.get(url, params).status_code, 404)
 
+    def test_previous_photo_is_from_an_earlier_day_and_the_same_plant(self):
+        now = timezone.now()
+        def photo(plant, days, name):
+            return PlantEvent.objects.create(plant=plant, actor=self.owner, kind="observation",
+                                             observed_at=now-timedelta(days=days), photo=name)
+        earlier = photo(self.plant, 3, "care/earlier.jpg")
+        current = photo(self.plant, 0, "care/current.jpg")
+        photo(self.plant, 1, "care/current.jpg")
+        other = photo(self.second, 1, "care/other.jpg")
+        self.api.force_authenticate(self.owner)
+        url = reverse("plantupia-events", args=[self.plant.pk])
+        rows = self.api.get(url, {"previous_photo_for": str(current.pk)}).data["results"]
+        self.assertEqual([r["id"] for r in rows], [str(earlier.pk)])
+        self.assertEqual(self.api.get(url, {"previous_photo_for": str(other.pk)}).status_code, 404)
+
     def test_invalid_dates_cannot_trigger_unbounded_history_scan(self):
         self.api.force_authenticate(self.owner)
         for query in [

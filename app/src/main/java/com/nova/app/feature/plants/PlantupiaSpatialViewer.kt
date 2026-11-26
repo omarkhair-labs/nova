@@ -86,7 +86,7 @@ internal fun PlantupiaSpatialViewer(spaceName: String, onBack: () -> Unit) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PointCloudStage(points: List<SpatialPoint>) {
+internal fun PointCloudStage(points: List<SpatialPoint>, description: String = "Interactive reconstructed point cloud") {
     var yaw by remember(points) { mutableFloatStateOf(0f) }
     var pitch by remember(points) { mutableFloatStateOf(0f) }
     var zoom by remember(points) { mutableFloatStateOf(1f) }
@@ -97,7 +97,7 @@ private fun PointCloudStage(points: List<SpatialPoint>) {
     }
     Canvas(
         Modifier.fillMaxWidth().aspectRatio(1.15f).clipToBounds().background(Color(0xFF12261F))
-            .semantics { contentDescription = "Interactive reconstructed point cloud" }.transformable(gestures),
+            .semantics { contentDescription = description }.transformable(gestures),
     ) {
         val cy = cos(yaw)
         val sy = sin(yaw)

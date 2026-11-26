@@ -20,9 +20,11 @@ internal data class RoomDaylightScenario(
     val latitude: Double,
     val longitude: Double,
     val times: List<OffsetDateTime>,
+    val historical: Boolean = false,
 ) {
     fun body(): JSONObject = JSONObject()
         .put("revision", revision)
+        .put("historical", historical)
         .put("window_id", windowId)
         .put("point", JSONArray(listOf(x, y, height)))
         .put("top_normal_deg", orientation)

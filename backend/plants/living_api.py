@@ -15,7 +15,10 @@ from rest_framework.views import APIView
 
 from .living_space import build_room
 from .living_regions import measure_trace, polygon
-from .living_segmentation import METHOD as OUTLINE_METHOD, NoOutline, VisionUnavailable, propose_outline, vision_available
+from .living_segmentation import (
+    AUTO_METHOD, METHOD as OUTLINE_METHOD, NoOutline, VisionUnavailable,
+    propose_frame_outline, propose_outline, vision_available,
+)
 from .living_vision import _open
 from .living_daylight import window_scenario
 from .living_temporal import compare_projected_areas
@@ -270,13 +273,18 @@ class RegionSuggestionView(FieldEvidenceView):
             raise PermissionDenied
         if not event.plant.is_active or not event.photo:
             return Response({"detail": "An active plant and a recorded photo are required."}, status=409)
-        data = OutlineInput(data=request.data)
-        data.is_valid(raise_exception=True)
+        automatic = request.data == {"mode": "automatic"}
+        prompts = {}
+        if not automatic:
+            data = OutlineInput(data=request.data)
+            data.is_valid(raise_exception=True)
+            prompts = dict(data.validated_data)
+        method = AUTO_METHOD if automatic else OUTLINE_METHOD
         try:
             with event.photo.open("rb") as source:
                 raw = source.read(MAX_BYTES + 1)
             image = _open(raw, {"JPEG", "PNG", "WEBP"})
-            points = propose_outline(image, **data.validated_data)
+            points = propose_frame_outline(image) if automatic else propose_outline(image, **prompts)
             try:
                 polygon(points, image.width, image.height)
             except ValueError as exc:
@@ -291,8 +299,8 @@ class RegionSuggestionView(FieldEvidenceView):
         # prevents clients from assigning a computed method to arbitrary vertices.
         envelope = {"actor": str(request.user.pk), "event": str(event.pk),
                     "source": sha256(raw).hexdigest(), "vertices": points,
-                    "method": OUTLINE_METHOD, "prompts": dict(data.validated_data)}
-        return Response({"status": "candidate", "method": OUTLINE_METHOD, "vertices": points,
+                    "method": method, "prompts": prompts}
+        return Response({"status": "candidate", "method": method, "vertices": points,
                          "suggestion_token": signing.dumps(envelope, salt=OUTLINE_SALT, compress=True),
                          "identity": "not_assessed", "health": "not_assessed"})
 
@@ -312,6 +320,7 @@ class RegionInput(serializers.Serializer):
         min_length=2, max_length=2, child=serializers.IntegerField(min_value=0, max_value=20000000)))
     reference = ScaleReference(required=False)
     point_reference = PointScaleReference(required=False)
+    outline_method = serializers.ChoiceField(choices=[AUTO_METHOD, OUTLINE_METHOD], required=False)
     suggestion_token = serializers.CharField(required=False, max_length=8192)
 
     def validate(self, attrs):
@@ -334,8 +343,9 @@ class RegionView(FieldEvidenceView):
         annotation = dict(data.validated_data)
         key = annotation.pop("submission_id")
         token = annotation.pop("suggestion_token", None)
+        method = annotation.pop("outline_method", OUTLINE_METHOD)
         if token:
-            annotation["assistance"] = {"method": OUTLINE_METHOD, "proposal_digest": sha256(token.encode()).hexdigest()}
+            annotation["assistance"] = {"method": method, "proposal_digest": sha256(token.encode()).hexdigest()}
         lookup = dict(event=event, author=request.user, submission_id=key)
         def replay(existing):
             if existing.annotation != annotation:
@@ -354,14 +364,14 @@ class RegionView(FieldEvidenceView):
                 except signing.BadSignature:
                     return Response({"detail": "The proposal expired or changed. Find an outline again."}, status=409)
                 expected = {"actor": str(request.user.pk), "event": str(event.pk),
-                            "source": digest, "vertices": annotation["vertices"], "method": OUTLINE_METHOD}
+                            "source": digest, "vertices": annotation["vertices"], "method": method}
                 if not isinstance(envelope, dict) or any(envelope.get(k) != v for k, v in expected.items()):
                     return Response({"detail": "The proposal does not match this photograph and outline."}, status=409)
             result = measure_trace(raw, annotation["vertices"], annotation.get("reference"),
                                    annotation.get("point_reference"))
         except (ValueError, OSError) as exc:
             raise serializers.ValidationError("Photo or region could not be measured.") from exc
-        result.update(method=OUTLINE_METHOD if token else "upright-operator-trace-v1", identity_basis="operator_label")
+        result.update(method=method if token else "upright-operator-trace-v1", identity_basis="operator_label")
         if token:
             result["assistance"] = {"operator_accepted": True, "prompts": envelope["prompts"]}
         trace, created = TracedRegion.objects.get_or_create(**lookup, defaults=dict(
@@ -392,6 +402,7 @@ class ProjectedComparisonView(ResearchView):
 
 
 class ScenarioInput(serializers.Serializer):
+    historical = serializers.BooleanField(default=False)
     revision = serializers.IntegerField(min_value=1)
     window_id = serializers.CharField(max_length=128)
     point = serializers.ListField(min_length=3, max_length=3, child=serializers.FloatField())
@@ -411,12 +422,15 @@ class DaylightView(ResearchView):
         data = ScenarioInput(data=request.data)
         data.is_valid(raise_exception=True)
         fields = dict(data.validated_data)
-        latest = space.room_revisions.order_by("-revision").first()
-        if not latest or latest.revision != fields.pop("revision"):
+        revision = fields.pop("revision")
+        historical = fields.pop("historical")
+        revisions = space.room_revisions
+        layout = get_object_or_404(revisions, revision=revision) if historical else revisions.order_by("-revision").first()
+        if not layout or layout.revision != revision:
             return Response({"detail": "Refresh the room revision before simulating."}, status=409)
         try:
             fields["timestamps"] = [datetime.fromisoformat(s) for s in fields["timestamps"]]
-            result = window_scenario(latest.geometry, **fields)
+            result = window_scenario(layout.geometry, **fields)
         except ValueError as error:
             raise serializers.ValidationError(str(error)) from error
-        return Response({**result, "revision": latest.revision})
+        return Response({**result, "revision": layout.revision, "historical": historical})

@@ -168,7 +168,12 @@ class FieldWorkflowTests(TestCase):
         self.assertEqual(night["footprint_xy_m"], [])
         self.assertIsNone(response.data["illuminance_lux"])
         self.assertEqual(self.client.post(url, {**scenario,"revision":2}, format="json").status_code, 409)
-        self.assertEqual(self.client.post(url, {**scenario,"timestamps":["2026-03-20T07:00:00"]}, format="json").status_code, 400)
+        self.client.post(self.room, {**room, "base_revision": 1, "windows": []}, format="json")
+        self.assertEqual(self.client.post(url, scenario, format="json").status_code, 409)
+        earlier = self.client.post(url, {**scenario, "historical": True}, format="json")
+        self.assertEqual(earlier.status_code, 200)
+        self.assertEqual(earlier.data["samples"], response.data["samples"])
+        self.assertEqual(self.client.post(url, {**scenario, "historical": True,"timestamps":["2026-03-20T07:00:00"]}, format="json").status_code, 400)
         self.client.force_authenticate(self.other)
         self.assertEqual(self.client.post(url, scenario, format="json").status_code, 404)
 

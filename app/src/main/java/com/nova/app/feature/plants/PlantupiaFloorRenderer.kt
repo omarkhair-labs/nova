@@ -28,7 +28,7 @@ internal data class FloorFrame(
 internal class PlantupiaFloorRenderer(
     private val rotation:()->Int,
     private val publish:(FloorFrame)->Unit,
-    private val completed:(FloorSurvey)->Unit,
+    private val completed:(FloorSurvey, FloatArray)->Unit,
     private val failure:()->Unit,
 ): GLSurfaceView.Renderer {
     @Volatile var session:Session?=null
@@ -134,7 +134,34 @@ internal class PlantupiaFloorRenderer(
                 estimateRectangularFloor(anchors.map { a -> a.pose.translation.let {
                     FloorMark(it[0].toDouble(),it[1].toDouble(),it[2].toDouble())
                 }}) else null
-            if(cmd==FloorCommand.FINISH && estimate!=null) { completed(estimate);return }
+            if (cmd == FloorCommand.FINISH && estimate != null) {
+                // Snapshot one tracked coordinate system, in the first corner anchor's frame.
+                // A device can return a valid floor measurement with no usable feature cloud.
+                val features = try {
+                    val origin = anchors.first().pose.inverse()
+                    frame.acquirePointCloud().use { cloud ->
+                        val source = cloud.points
+                        val result = FloatArray(minOf(source.remaining() / 4, 1500) * 3)
+                        var count = 0
+                        while (source.remaining() >= 4 && count < result.size) {
+                            val x = source.get()
+                            val y = source.get()
+                            val z = source.get()
+                            val confidence = source.get()
+                            if (confidence < .5f || !confidence.isFinite() ||
+                                !x.isFinite() || !y.isFinite() || !z.isFinite()) continue
+                            val local = origin.transformPoint(floatArrayOf(x, y, z))
+                            local.copyInto(result, count)
+                            count += 3
+                        }
+                        result.copyOf(count)
+                    }
+                } catch (_: com.google.ar.core.exceptions.NotYetAvailableException) {
+                    floatArrayOf()
+                }
+                completed(estimate, features)
+                return
+            }
             val projected=if(tracking) {
                 val projection=FloatArray(16);val view=FloatArray(16);val combined=FloatArray(16)
                 frame.camera.getProjectionMatrix(projection,0,.05f,100f)

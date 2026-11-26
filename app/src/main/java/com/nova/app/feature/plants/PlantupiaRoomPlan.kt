@@ -85,7 +85,7 @@ internal fun PlantupiaRoomPlan(
             val width = current.width
             val length = current.length
             if (width != null && length != null) {
-                if (task == PlaceTask.LIGHT && !current.historical) {
+                if (task == PlaceTask.LIGHT) {
                     TextButton(enabled = !saving, onClick = { returnToPlan() }) { Text("Return to placements") }
                     PlantupiaDaylightStudy(space.id, current, width, length, repository,
                         initialPlacement = current.plants.firstOrNull { it.id == focusedId },
@@ -147,17 +147,15 @@ internal fun PlantupiaRoomPlan(
                         onClick = { expanded = false; openPlant(selectedPlant) },
                     )
                 }
-                if (!current.historical) {
-                    if (current.windows.isNotEmpty()) {
-                        PlantupiaActionRow(
-                            icon = com.nova.app.ui.icons.NovaIconAsset.Home,
-                            title = selectedPlant?.let { "Study sunlight at " + it.name } ?: "Explore direct sunlight",
-                            detail = "Study a date and a point on this plan",
-                            enabled = !saving, onClick = { task = PlaceTask.LIGHT },
-                        )
-                    } else {
-                        Text("Record a window centre to study direct sunlight.", style = PlantupiaText.supporting)
-                    }
+                if (current.windows.isNotEmpty()) {
+                    PlantupiaActionRow(
+                        icon = com.nova.app.ui.icons.NovaIconAsset.Home,
+                        title = selectedPlant?.let { "Study sunlight at " + it.name } ?: "Explore direct sunlight",
+                        detail = "Study a date and a point on this plan",
+                        enabled = !saving, onClick = { task = PlaceTask.LIGHT },
+                    )
+                } else if (!current.historical) {
+                    Text("Record a window centre to study direct sunlight.", style = PlantupiaText.supporting)
                 }
             } else {
                 Text("This space has no recorded room dimensions.", style = PlantupiaText.editorialHeading)
@@ -220,12 +218,19 @@ private fun RoomEditor(
     var choose by remember { mutableStateOf(false) }
     val context = LocalContext.current
     var arCandidate by remember(room) { mutableStateOf<Pair<Double, Double>?>(null) }
+    var surveyPoints by remember(room) { mutableStateOf(emptyList<SpatialPoint>()) }
+    var showSurveyPoints by remember(room) { mutableStateOf(false) }
     val currentSession by rememberUpdatedState(sessionCurrent)
     val surveyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == Activity.RESULT_OK && currentSession()) {
             val w = result.data?.getDoubleExtra(PlantupiaFloorSurveyActivity.WIDTH, Double.NaN) ?: Double.NaN
             val l = result.data?.getDoubleExtra(PlantupiaFloorSurveyActivity.LENGTH, Double.NaN) ?: Double.NaN
-            if (w.isFinite() && l.isFinite() && w in .3..30.0 && l in .3..30.0) arCandidate = w to l
+            if (w.isFinite() && l.isFinite() && w in .3..30.0 && l in .3..30.0) {
+                arCandidate = w to l
+                val sample = result.data?.getFloatArrayExtra(PlantupiaFloorSurveyActivity.FEATURES)
+                surveyPoints = surveyPreviewPoints(sample)
+                showSurveyPoints = false
+            }
         }
     }
     val prior = room.plants.find { it.id == selected?.id }
@@ -241,6 +246,15 @@ private fun RoomEditor(
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(String.format(Locale.ROOT, "%.2f × %.2f m", measuredWidth, measuredLength), style = PlantupiaText.editorialHeading)
                     Text("AR estimate. Check both lengths with a physical measure before saving.", style = PlantupiaText.supporting)
+                    if (surveyPoints.isNotEmpty()) {
+                        TextButton(onClick = { showSurveyPoints = !showSurveyPoints }) {
+                            Text(if (showSurveyPoints) "Hide tracked points" else "View tracked points in 3D")
+                        }
+                        if (showSurveyPoints) {
+                            Text("${surveyPoints.size} feature points · temporary survey preview", style = PlantupiaText.supporting)
+                            PointCloudStage(surveyPoints, "Tracked room features from the floor survey")
+                        }
+                    }
                     if (room.plants.isEmpty() && room.windows.isEmpty()) {
                         TextButton(enabled = !saving, onClick = {
                             width = String.format(Locale.ROOT, "%.3f", measuredWidth)

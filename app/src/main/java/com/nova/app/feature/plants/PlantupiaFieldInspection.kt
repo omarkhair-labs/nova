@@ -77,6 +77,9 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                             Text("Image dimensions are unavailable for tracing.", style = PlantupiaText.supporting)
                         }
                     }
+                    if (event.photoUrl.isNotBlank()) {
+                        InspectionPhotoComparison(repository, plant, event)
+                    }
                     Text("A photograph alone does not establish a diagnosis.", style = PlantupiaText.supporting)
                     val reviews = data.optJSONArray("reviews") ?: JSONArray()
                     if (reviews.length() > 0) Text("Specialist findings", style = PlantupiaText.editorialHeading)
@@ -117,6 +120,47 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
             }
         }
     }
+
+@Composable
+private fun InspectionPhotoComparison(
+    repository: PlantupiaRepository, plant: PlantupiaPlant, event: PlantupiaCareEvent,
+) {
+    var open by remember { mutableStateOf(false) }
+    var retry by remember { mutableIntStateOf(0) }
+    var pair by remember { mutableStateOf<PlantupiaLoadedPhotoPair?>(null) }
+    var busy by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var photo by remember { mutableStateOf<PlantupiaCareEvent?>(null) }
+    TextButton(onClick = { open = !open }) {
+        Text(if (open) "Close comparison" else "Compare with the previous visit photo")
+    }
+    if (!open) return
+    LaunchedEffect(repository, plant.id, event.id, retry) {
+        busy = true
+        error = null
+        val result = repository.historyPage(plant.id, previousPhotoFor = UUID.fromString(event.id))
+        if (!repository.isCurrentSession()) return@LaunchedEffect
+        when (result) {
+            is ApiResult.Failure -> error = result.message
+            is ApiResult.Success -> pair = plantupiaLoadedPhotoPair(result.value.events + event)
+        }
+        busy = false
+    }
+    val visits = pair
+    when {
+        busy -> LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        error != null -> {
+            Text(error.orEmpty(), style = PlantupiaText.supporting)
+            TextButton(onClick = { retry++ }) { Text("Retry comparison") }
+        }
+        visits != null -> {
+            PlantupiaPhotoTimeLens(visits, hasOlderPages = false, onOpenPhoto = { photo = it }, alignmentEnabled = true)
+            PlantupiaMeasuredVisits(repository, plant.id, visits)
+        }
+        else -> Text("No distinct photograph from an earlier day.", style = PlantupiaText.supporting)
+    }
+    photo?.let { PlantupiaPhotoViewer(photoUrl = it.photoUrl, plantName = plant.name, onClose = { photo = null }) }
+}
 
 @Composable
 internal fun InspectionChoice(label: String, selected: String, values: List<String>, enabled: Boolean, change: (String) -> Unit) {

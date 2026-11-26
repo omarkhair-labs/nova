@@ -482,13 +482,15 @@ class PlantupiaRepository(
             }
         }
 
-    suspend fun historyPage(plantId: String, offset: Int = 0, pendingOnly: Boolean = false, observedOn: java.time.LocalDate? = null): ApiResult<PlantupiaHistoryPage> =
+    suspend fun historyPage(plantId: String, offset: Int = 0, pendingOnly: Boolean = false,
+                            observedOn: java.time.LocalDate? = null, previousPhotoFor: java.util.UUID? = null): ApiResult<PlantupiaHistoryPage> =
         authorized { token ->
             val pageOffset = offset.coerceAtLeast(0)
             when (val response = api.requestJson(
                 path = "plantupia/plants/$plantId/events/?offset=$pageOffset" +
                     (if (pendingOnly) "&pending_followups=1" else "") +
-                    (observedOn?.let { "&observed_on=$it" } ?: ""),
+                    (observedOn?.let { "&observed_on=$it" } ?: "") +
+                    (previousPhotoFor?.let { "&previous_photo_for=$it" } ?: ""),
                 bearerToken = token,
             )) {
                 is ApiResult.Failure -> response

@@ -1,5 +1,6 @@
 """Account-scoped API; possession of a plant ID never grants access."""
 from datetime import date
+from uuid import UUID
 
 from django.db import transaction
 from django.db.models import Case, DateField, OuterRef, Q, Subquery, Value, When
@@ -304,6 +305,21 @@ class PlantEventsView(APIView):
         # Years of observed history must not silently end after 100 entries.
         size = 20
         events_qs = plant.events.all()
+        prior_for = request.query_params.get("previous_photo_for")
+        if prior_for is not None:
+            try:
+                reference_id = UUID(prior_for)
+            except ValueError:
+                return Response({"detail": "Invalid photo record."}, status=400)
+            reference = get_object_or_404(plant.events, pk=reference_id)
+            if not reference.photo:
+                events_qs = events_qs.none()
+            else:
+                events_qs = events_qs.filter(
+                    observed_at__date__lt=timezone.localdate(reference.observed_at),
+                    photo__isnull=False,
+                ).exclude(photo="").exclude(photo=reference.photo.name)
+            size = 1
         if "observed_on" in request.query_params:
             try:
                 day = date.fromisoformat(request.query_params["observed_on"])

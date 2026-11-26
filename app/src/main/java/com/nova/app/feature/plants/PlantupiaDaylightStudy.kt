@@ -54,6 +54,7 @@ internal fun PlantupiaDaylightStudy(
     initialPlacement: RoomPlant?,
     plantName: String?,
 ) {
+    if (room.historical) Text("Simulating saved layout · revision ${room.revision}", style = PlantupiaText.itemTitle)
     val windows = remember(room.windows, width, length) {
         room.windows.filter { (it.x == 0.0 || it.x == width) != (it.y == 0.0 || it.y == length) }
     }
@@ -72,7 +73,10 @@ internal fun PlantupiaDaylightStudy(
     var head by remember { mutableStateOf("") }
     var latitude by remember { mutableStateOf("") }
     var longitude by remember { mutableStateOf("") }
-    var date by remember { mutableStateOf(LocalDate.now().toString()) }
+    var date by remember(room.revision) {
+        val recorded = room.revisions.firstOrNull { it.number == room.revision }?.recordedAt?.take(10)
+        mutableStateOf(if (room.historical && recorded != null) recorded else LocalDate.now().toString())
+    }
     var zone by remember { mutableStateOf(ZoneId.systemDefault().id) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -103,7 +107,7 @@ internal fun PlantupiaDaylightStudy(
             openingWidth in 0.001..(2 * edgeDistance) && bottom >= 0 && bottom < top && top in 0.001..1000.0 &&
             lat in -90.0..90.0 && lon in -180.0..180.0
         ) RoomDaylightScenario(room.revision, windowId, position.first, position.second, planeHeight,
-            orientation, openingWidth, bottom, top, lat, lon, times) else null
+            orientation, openingWidth, bottom, top, lat, lon, times, historical = room.historical) else null
     } else null
     // The footprint depends on the aperture and plane, not the chosen point.
     val simulation = scenario?.copy(x = 0.0, y = 0.0)

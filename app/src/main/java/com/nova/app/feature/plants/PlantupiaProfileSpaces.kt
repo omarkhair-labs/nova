@@ -1,5 +1,6 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -148,7 +149,6 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                     .take(3)
 
                 Surface(
-                    onClick = onOpenSpaces,
                     color = PlantupiaColors.softSage,
                     shape = PlantupiaShapes.card,
                     border = BorderStroke(1.dp, PlantupiaColors.border),
@@ -178,6 +178,9 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                                     items(photos, key = { it.id }) { plant ->
                                         Surface(
+                                            onClick = {
+                                                if (repository.isCurrentSession()) PlantupiaPlantOpenSignal.open(accountId, plant.id)
+                                            },
                                             shape = PlantupiaShapes.inset,
                                             color = PlantupiaColors.cream,
                                             modifier = Modifier.width(92.dp).height(110.dp),
@@ -243,7 +246,12 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                             )
                             current.spaces.take(3).forEach { place ->
                                 androidx.compose.material3.HorizontalDivider(color = PlantupiaColors.border)
-                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                                Row(Modifier.fillMaxWidth().clickable {
+                                    if (repository.isCurrentSession()) {
+                                        PlantupiaHandoverNavigation.connected(accountId, place.id)
+                                        onOpenSpaces()
+                                    }
+                                }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                     Text(place.name, style = PlantupiaText.itemTitle, modifier = Modifier.weight(1f))
                                     val count = activePlants.count { it.spaceId == place.id }
@@ -255,7 +263,7 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                                 style = PlantupiaText.supporting)
                         }
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenSpaces).padding(vertical = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

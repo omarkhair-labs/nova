@@ -96,6 +96,17 @@ class RegionProposalTests(TestCase):
         self.assertEqual(self.api.post(self.save, payload, format="json").status_code, 200)
         self.assertEqual(TracedRegion.objects.count(), 1)
 
+    def test_automatic_proposal_keeps_its_method_only_after_acceptance(self):
+        data = self.api.post(self.suggest, {"mode": "automatic"}, format="json").data
+        self.assertEqual(data["status"], "candidate", data)
+        self.assertFalse(TracedRegion.objects.exists())
+        payload = {"submission_id": str(uuid4()), "part": "leaf", "vertices": data["vertices"],
+                   "outline_method": data["method"], "suggestion_token": data["suggestion_token"]}
+        result = self.api.post(self.save, payload, format="json")
+        self.assertEqual(result.status_code, 201, result.data)
+        self.assertEqual(result.data["measurements"]["method"], "reviewed-grabcut-frame-v1")
+        self.assertEqual(result.data["measurements"]["assistance"]["prompts"], {})
+
     def test_scope_flag_and_actor_bound_token(self):
         result = self.api.post(self.suggest, self.prompts, format="json").data
         self.api.force_authenticate(self.other)

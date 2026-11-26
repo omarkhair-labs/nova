@@ -39,6 +39,7 @@ import java.util.Locale
 class PlantupiaFloorSurveyActivity : ComponentActivity() {
     companion object {
         internal const val WIDTH = "plantupia.survey.width"
+        internal const val FEATURES = "plantupia.survey.features"
         internal const val LENGTH = "plantupia.survey.length"
     }
     private lateinit var gl: GLSurfaceView
@@ -66,9 +67,10 @@ class PlantupiaFloorSurveyActivity : ComponentActivity() {
         renderer = PlantupiaFloorRenderer(
             rotation = { gl.display?.rotation ?: 0 },
             publish = { frame -> runOnUiThread { if (resumed && !isFinishing) state = frame } },
-            completed = { result -> runOnUiThread {
+            completed = { result, features -> runOnUiThread {
                 if (resumed && !isFinishing && glRunning) {
-                    setResult(Activity.RESULT_OK, Intent().putExtra(WIDTH,result.width).putExtra(LENGTH,result.length))
+                    setResult(Activity.RESULT_OK, Intent().putExtra(WIDTH,result.width).putExtra(LENGTH,result.length)
+                        .putExtra(FEATURES, features))
                     finish()
                 }
             }},
@@ -100,7 +102,7 @@ class PlantupiaFloorSurveyActivity : ComponentActivity() {
                             TextButton(onClick={
                                 runCatching { startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://policies.google.com/privacy"))) }
                             }) { Text("Google Privacy Policy") }
-                            Text("Plantupia does not save or upload camera frames from this session. Only checked estimated dimensions may be returned to your private room draft.",
+                            Text("The survey returns estimated dimensions and a temporary 3D preview of tracked points to your room draft. Camera frames stay on this device.",
                                 style=PlantupiaText.supporting)
                             Button(enabled=!checking,onClick={requestStart()},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
                                 Text(if(checking) "Checking AR support…" else "Start floor survey")

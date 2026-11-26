@@ -98,7 +98,7 @@ internal fun fieldRegions(rows: JSONArray?, width: Int, height: Int): List<Field
         val cm2 = geometry.optDouble("projected_area_cm2").takeIf { accepted && it.isFinite() && it > 0 }
         val scaleError = calibration?.optDouble("scale_check_relative_error")?.takeIf { it.isFinite() && it >= 0 }
         FieldRegion(id, part, area, outline, length, colors,
-            reviewedProposal = measurements.optString("method") == "reviewed-grabcut-points-v1" &&
+            reviewedProposal = measurements.optString("method") in setOf("reviewed-grabcut-points-v1", "reviewed-grabcut-frame-v1") &&
                 measurements.optJSONObject("assistance")?.optBoolean("operator_accepted") == true,
             planarAreaCm2 = cm2, calibrationError = scaleError,
             calibrationReason = calibration?.takeIf { calibrated && !accepted }?.optString("reason"))
@@ -296,7 +296,7 @@ internal fun PlantupiaRegionStudy(
         }
     } else if (assisting) {
         Text("Find the edge", style = PlantupiaText.editorialHeading)
-        Text(if (foreground.isEmpty()) "Tap inside one visible part."
+        Text(if (foreground.isEmpty()) "Try the foreground outline, or tap inside the part to guide it."
             else if (background.isEmpty()) "Tap outside that part to exclude the background."
             else "Add points to correct the selection, then find its outline.",
             style = PlantupiaText.body)
@@ -323,10 +323,11 @@ internal fun PlantupiaRegionStudy(
                     resetProposal()
                 }) { Text("Clear points") }
         }
-        Button(enabled = assistingEnabled && !calibrating && foreground.isNotEmpty() && background.isNotEmpty(),
+        Button(enabled = assistingEnabled && !calibrating && (foreground.isEmpty() == background.isEmpty()),
             onClick = {
                 resetProposal()
-                val request = JSONObject().put("foreground", pointArray(foreground))
+                val request = if (foreground.isEmpty()) JSONObject().put("mode", "automatic")
+                    else JSONObject().put("foreground", pointArray(foreground))
                     .put("background", pointArray(background))
                 suggest(request) { response ->
                     proposal = parseOutlineProposal(response, width, height)
@@ -337,7 +338,7 @@ internal fun PlantupiaRegionStudy(
                     scope.launch { photoAnchor.bringIntoView() }
                 }
             }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Text(if (busy) "Looking at the photograph…" else "Find outline")
+            Text(if (busy) "Looking at the photograph…" else if (foreground.isEmpty()) "Find foreground outline" else "Find outline")
         }
         if (feedback.isNotBlank()) Text(feedback, style = PlantupiaText.supporting)
         proposal?.let { candidate ->
@@ -354,7 +355,7 @@ internal fun PlantupiaRegionStudy(
             Button(enabled = assistingEnabled && scaleReady, onClick = {
                 val body = JSONObject().put("submission_id", submission)
                     .put("vertices", pointArray(candidate.vertices)).put("part", part)
-                    .put("suggestion_token", candidate.token)
+                    .put("suggestion_token", candidate.token).put("outline_method", candidate.method)
                 scalePayload?.let { body.put("point_reference", it) }
                 save(body)
             }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
@@ -459,7 +460,7 @@ internal fun fieldRegionAtPoint(regions: List<FieldRegion>, point: IntOffset): F
         inside
     }.minWithOrNull(compareBy<FieldRegion> { it.pixels }.thenBy { it.id })
 
-internal data class OutlineProposal(val vertices: List<IntOffset>, val token: String)
+internal data class OutlineProposal(val vertices: List<IntOffset>, val token: String, val method: String)
 
 private fun pointArray(points: List<IntOffset>): JSONArray = JSONArray().apply {
     points.forEach { point -> put(JSONArray().put(point.x).put(point.y)) }
@@ -468,7 +469,7 @@ private fun pointArray(points: List<IntOffset>): JSONArray = JSONArray().apply {
 /** Only the server-signed original-grid proposal can be accepted. */
 internal fun parseOutlineProposal(raw: JSONObject, width: Int, height: Int): OutlineProposal? {
     if (width <= 0 || height <= 0 || raw.optString("status") != "candidate" ||
-        raw.optString("method") != "reviewed-grabcut-points-v1") return null
+        raw.optString("method") !in setOf("reviewed-grabcut-points-v1", "reviewed-grabcut-frame-v1")) return null
     val token = raw.optString("suggestion_token")
     if (token.isBlank() || token.length > 8192 || token == "null") return null
     val array = raw.optJSONArray("vertices") ?: return null
@@ -482,5 +483,5 @@ internal fun parseOutlineProposal(raw: JSONObject, width: Int, height: Int): Out
         IntOffset(x, y)
     }
     if (points.distinct().size != points.size) return null
-    return OutlineProposal(points, token)
+    return OutlineProposal(points, token, raw.getString("method"))
 }

@@ -66,3 +66,12 @@ internal fun normalizePointCloud(points: List<SpatialPoint>): List<SpatialPoint>
     return centered.filterIndexed { i, _ -> radii[i] <= radius * 2.5 }
         .map { it.copy(x = it.x / radius, y = it.y / radius, z = it.z / radius) }
 }
+
+/** AR supplies geometry only. Uniform ink distinguishes tracked points from photographic RGB. */
+internal fun surveyPreviewPoints(sample: FloatArray?): List<SpatialPoint> {
+    if (sample == null || sample.size !in 90..4500 || sample.size % 3 != 0 || sample.any { !it.isFinite() }) return emptyList()
+    val points = (sample.indices step 3).map { i ->
+        SpatialPoint(sample[i].toDouble(), -sample[i+1].toDouble(), sample[i+2].toDouble(), 172, 215, 185)
+    }
+    return runCatching { normalizePointCloud(points) }.getOrDefault(emptyList())
+}

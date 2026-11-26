@@ -3,6 +3,7 @@ from math import hypot
 from threading import Lock
 
 METHOD = "reviewed-grabcut-points-v1"
+AUTO_METHOD = "reviewed-grabcut-frame-v1"
 MAX_SIDE = 384
 ENGINE_LOCK = Lock()
 
@@ -83,9 +84,51 @@ def propose_outline(image, foreground, background):
         raise NoOutline("A reliable outline could not be proposed.") from exc
     finally:
         ENGINE_LOCK.release()
+    return _outline_from_labels(labels, width, height, fg, bg)
+
+
+def propose_frame_outline(image):
+    """Fit one foreground proposal, abstaining on clutter or low contrast."""
+    if not vision_available():
+        raise VisionUnavailable("The local vision engine is not installed.")
+    import cv2
+    import numpy as np
+
+    width, height = image.size
+    scale = min(1., MAX_SIDE / max(width, height))
+    w, h = round(width * scale), round(height * scale)
+    if min(w, h) < 24:
+        raise NoOutline("The photograph is too narrow for an automatic outline.")
+    rgb = np.asarray(image.convert("RGB").resize((w, h)), dtype=np.uint8)
+    if max(np.std(rgb, axis=(0, 1))) < 7:
+        raise NoOutline("Too little contrast. Mark the part on the photograph.")
+    x, y = max(1, w // 20), max(1, h // 20)
+    labels = np.zeros((h, w), dtype=np.uint8)
+    if not ENGINE_LOCK.acquire(blocking=False):
+        raise VisionUnavailable("The local vision engine is busy. Try again.")
+    try:
+        cv2.setRNGSeed(42)
+        cv2.grabCut(rgb, labels, (x, y, w-2*x, h-2*y), None, None, 3, cv2.GC_INIT_WITH_RECT)
+    except cv2.error as exc:
+        raise NoOutline("Mark the part to help find its boundary.") from exc
+    finally:
+        ENGINE_LOCK.release()
+    return _outline_from_labels(labels, width, height, [], [])
+
+
+def _outline_from_labels(labels, width, height, fg, bg):
+    import cv2
+    import numpy as np
+
+    h, w = labels.shape
     mask = ((labels & 1) == 1).astype(np.uint8)
     _, components, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
     ids = {int(components[y,x]) for x,y in fg}
+    if not fg:
+        areas = stats[1:, cv2.CC_STAT_AREA]
+        if not areas.size or areas.max() < .85 * areas.sum():
+            raise NoOutline("Several regions or no clear foreground. Mark one part to continue.")
+        ids = {1 + int(areas.argmax())}
     if len(ids) != 1 or 0 in ids:
         raise NoOutline("Mark one connected visible part at a time.")
     selected = next(iter(ids))
