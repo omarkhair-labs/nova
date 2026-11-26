@@ -237,7 +237,9 @@ internal fun StoreOrderCard(
         Text((if (status in listOf("quote_pending", "quoted", "declined")) "Request " else "Order ") +
             id.take(8), style = PlantupiaText.sectionLabel)
         Text(storeOrderStatus(status), style = PlantupiaText.editorialHeading)
-        Text("Products · " + displayedEGP(order.optString("subtotal")))
+        PlantupiaAmountRow(label = "Items") {
+            Text(displayedEGP(order.optString("subtotal")), style = PlantupiaText.body)
+        }
         PlantupiaOrderTracking(order)
         val shippingFee = order.optString("shipping_fee")
         if (order.isNull("shipping_fee")) {
@@ -245,7 +247,9 @@ internal fun StoreOrderCard(
                 Text("Your request is saved. Plantupia will confirm delivery cost before you accept a final total.", style = PlantupiaText.body)
             }
         } else {
-            Text("Shipping · " + displayedEGP(shippingFee))
+            PlantupiaAmountRow(label = "Shipping") {
+                Text(displayedEGP(shippingFee), style = PlantupiaText.body)
+            }
             Text("Exact total · " + displayedEGP(order.optString("final_total")),
                 fontWeight = FontWeight.SemiBold)
         }

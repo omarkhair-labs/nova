@@ -62,31 +62,16 @@ internal fun PlantupiaDeliveryQuoteJourney(
             return@Column
         }
 
-        Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text("DELIVERY / " + if (step == "review") "REVIEW" else "ADDRESS",
-                style = PlantupiaText.sectionLabel)
-            Text(
-                if (step == "review") "Review your total"
-                else "Where should we deliver?",
-                style = PlantupiaText.editorialHeading,
-            )
-            if (step == "details") {
-                Text("See the delivery fee and full price before placing an order.",
-                    style = PlantupiaText.supporting)
+        val reviewing = step == "review"
+        Text(if (reviewing) "2 of 2 · Review" else "1 of 2 · Delivery", style = PlantupiaText.supporting)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            repeat(2) { index ->
+                Surface(Modifier.weight(1f).height(4.dp),
+                    color = if (index == 0 || reviewing) PlantupiaColors.forest else PlantupiaColors.border,
+                    shape = PlantupiaShapes.badge) {}
             }
         }
-
-        // A compact progress rail, not a tab strip with hidden form state.
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-            DeliveryPhase(
-                number = "01", name = "Address & contact",
-                active = step == "details", modifier = Modifier.weight(1f),
-            )
-            DeliveryPhase(
-                number = "02", name = "Review & order",
-                active = step == "review", modifier = Modifier.weight(1f),
-            )
-        }
+        Text(if (reviewing) "Review your total" else "Delivery details", style = PlantupiaText.editorialHeading)
 
         if (step == "details") {
             DeliverySection("01 / ADDRESS", "Recipient and delivery point") {
@@ -135,8 +120,7 @@ internal fun PlantupiaDeliveryQuoteJourney(
                 Text("${draft.note.length} / 500", style = PlantupiaText.sectionLabel)
             }
             DeliverySection("COST", "Items and delivery") {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Saved items subtotal", style = PlantupiaText.body)
+                PlantupiaAmountRow(label = "Saved items subtotal") {
                     Text("EGP " + (cart?.optString("subtotal") ?: "—"),
                         style = PlantupiaText.body, fontWeight = FontWeight.SemiBold)
                 }
@@ -190,18 +174,15 @@ internal fun PlantupiaDeliveryQuoteJourney(
                     }
                 }
                 HorizontalDivider(color = PlantupiaColors.border)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Items only", style = PlantupiaText.body)
+                PlantupiaAmountRow(label = "Items only") {
                     Text("EGP " + (cart?.optString("subtotal") ?: "—"),
                         style = PlantupiaText.editorialHeading)
                 }
                 if (exactPrice != null) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Delivery", style = PlantupiaText.body)
+                    PlantupiaAmountRow(label = "Delivery") {
                         Text("EGP " + exactPrice.shippingFee, style = PlantupiaText.body)
                     }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Total to confirm", style = PlantupiaText.body)
+                    PlantupiaAmountRow(label = "Total to confirm") {
                         Text("EGP " + exactPrice.total, style = PlantupiaText.editorialHeading)
                     }
                 } else {
@@ -333,8 +314,7 @@ private fun DeliverySection(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(eyebrow, style = PlantupiaText.sectionLabel)
-        Text(heading, style = PlantupiaText.body, fontWeight = FontWeight.SemiBold)
+        Text(heading, style = PlantupiaText.itemTitle)
         content()
         HorizontalDivider(color = PlantupiaColors.border)
     }
@@ -377,17 +357,16 @@ private fun DeliveryQuoteReceived(
         Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
         verticalArrangement = Arrangement.spacedBy(19.dp),
     ) {
-        Text(if (receipt.confirmed) "PLANTUPIA  /  ORDER CONFIRMED"
-             else "PLANTUPIA  /  YOUR REQUEST", style = PlantupiaText.sectionLabel)
+        com.nova.app.ui.icons.NovaIcon(
+            asset = com.nova.app.ui.icons.NovaIconAsset.Check,
+            contentDescription = null, modifier = Modifier.size(38.dp), tint = PlantupiaColors.forest)
         Text(if (receipt.confirmed) "Your order is confirmed."
              else "We've received your request.", style = PlantupiaText.editorialHeading)
         Text(
             if (receipt.confirmed)
-                "Your items have been ordered at the displayed total. The Plantupia " +
-                    "team can now prepare them. Follow the order for real updates."
+                "Follow your order for delivery updates."
             else
-                "Your selection and delivery details are saved. Plantupia will review " +
-                    "delivery cost before you decide whether to confirm the final total.",
+                "Review the delivery quote before confirming your order.",
             style = PlantupiaText.body,
         )
 
@@ -425,8 +404,7 @@ private fun DeliveryQuoteReceived(
                     }
                 }
                 HorizontalDivider(color = PlantupiaColors.border)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Items subtotal", style = PlantupiaText.body)
+                PlantupiaAmountRow(label = "Items subtotal") {
                     Text("EGP " + receipt.productSubtotal, style = PlantupiaText.body,
                         fontWeight = FontWeight.SemiBold)
                 }
@@ -445,17 +423,11 @@ private fun DeliveryQuoteReceived(
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-            Text("WHAT HAPPENS NEXT", style = PlantupiaText.sectionLabel)
             if (receipt.confirmed) {
-                Text("01  Your order is confirmed.", style = PlantupiaText.body)
-                Text("02  Plantupia prepares the items.", style = PlantupiaText.body)
-                Text("03  Follow the recorded delivery updates.", style = PlantupiaText.body)
                 Text("No payment or shipment has been recorded yet.",
                     style = PlantupiaText.supporting)
             } else {
-                Text("01  Your request has been recorded.", style = PlantupiaText.body)
-                Text("02  The team checks delivery and availability.", style = PlantupiaText.body)
-                Text("03  You review any final price before confirming.", style = PlantupiaText.body)
+                Text("Delivery quote pending", style = PlantupiaText.itemTitle)
                 Text("No payment, stock reservation or shipment has been recorded.",
                     style = PlantupiaText.supporting)
             }

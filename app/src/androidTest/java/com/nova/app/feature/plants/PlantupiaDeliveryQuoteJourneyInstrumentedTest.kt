@@ -50,11 +50,11 @@ class PlantupiaDeliveryQuoteJourneyInstrumentedTest {
                 }
             }
         }
-        compose.onNodeWithText("Where should these objects go?").assertExists()
+        compose.onNodeWithText("Delivery details").assertExists()
         compose.onNodeWithText("✓ Edit confirmed map pin").assertExists()
         compose.onNodeWithText("Manual bank transfer").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("manual_transfer", paymentSelected) }
-        compose.onNodeWithText("Review your request  ↗").assertExists()
+        compose.onNodeWithText("Review total  ↗").assertExists()
         compose.onAllNodesWithText("Pay now").assertCountEquals(0)
     }
 

@@ -41,6 +41,11 @@ class PlantupiaPhotoTimeLensInstrumentedTest {
         compose.onNodeWithContentDescription(
             "Earlier recorded photo, 2026-10-02",
         ).assertIsSelected()
+        compose.onNodeWithText("Compare photos").performClick()
+        compose.onNodeWithText("Single photo").assertExists()
+        compose.onNodeWithContentDescription("Earlier recorded photo, " + pair.earlier.observedAt.take(10)).assertIsNotSelected()
+        compose.onNodeWithContentDescription("Later recorded photo, " + pair.later.observedAt.take(10)).assertIsNotSelected()
+        compose.onNodeWithText("Single photo").performClick()
         compose.onNodeWithText("Only photos loaded so far.", substring = true).assertExists()
         compose.onAllNodesWithText("Healthy", substring = true).assertCountEquals(0)
     }

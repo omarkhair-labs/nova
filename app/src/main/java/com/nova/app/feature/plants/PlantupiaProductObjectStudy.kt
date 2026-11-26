@@ -88,7 +88,8 @@ internal fun StoreProductDetails(
                     Text(product.optString("name"),
                         style = PlantupiaText.editorialHeading)
                     Text("EGP " + selected.optString("price"),
-                        style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                        modifier = Modifier.semantics { contentDescription = "Selected price EGP " + selected.optString("price") },
+                        style = PlantupiaText.itemTitle)
                 }
                 ShopObjectGallery(productId, photos, repository, product.optString("kind"),
                     heroHeight = heroHeight)
@@ -294,21 +295,12 @@ private fun ShopObjectDecision(
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         if (showIdentity) {
-            Text("PLANTUPIA / " + family, style = PlantupiaText.sectionLabel)
             Text(product.optString("name"), style = PlantupiaText.pageHeading)
         }
-        product.optString("description").takeIf { it.isNotBlank() }?.let {
-            Text(it, style = PlantupiaText.body)
-        }
         val species = product.optJSONObject("reference_species")?.optString("scientific_name").orEmpty()
-        if (kind == "plant" && species.isNotBlank()) {
-            Text("Species reference · " + species, style = PlantupiaText.supporting)
-            Text("A reference only, not a verified identity for an individual delivered plant.",
-                style = PlantupiaText.supporting)
-        }
         HorizontalDivider(color = PlantupiaColors.border)
         if (variants.size > 1) {
-            Text("CHOOSE YOUR OPTION", style = PlantupiaText.sectionLabel)
+            Text("Choose an option", style = PlantupiaText.itemTitle)
             Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 variants.forEach { option ->
                     val optionId = option.optString("id")
@@ -329,13 +321,13 @@ private fun ShopObjectDecision(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             RadioButton(selected = chosen, onClick = null)
-                            Column(Modifier.weight(1f)) {
-                                Text(storeVariantName(option), style = PlantupiaText.body,
-                                    fontWeight = FontWeight.SemiBold)
+                            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                PlantupiaAmountRow(label = storeVariantName(option)) {
+                                    Text("EGP " + option.optString("price"), style = PlantupiaText.itemTitle)
+                                }
                                 Text(shopStockDescription(units, option.optBoolean("in_stock")),
                                     style = PlantupiaText.supporting)
                             }
-                            Text("EGP " + option.optString("price"), style = PlantupiaText.body)
                         }
                     }
                 }
@@ -398,7 +390,17 @@ private fun ShopObjectDecision(
         } else if (inCart >= 10) {
             Text("Maximum 10 of this option per cart.", style = PlantupiaText.supporting)
         }
-        Text("Your cart does not reserve stock. Delivery is calculated at checkout.",
+        Text("Stock is not reserved in your cart. Delivery calculated at checkout.",
             style = PlantupiaText.supporting)
+        product.optString("description").takeIf { it.isNotBlank() }?.let {
+            HorizontalDivider(color = PlantupiaColors.border)
+            Text("Details", style = PlantupiaText.itemTitle)
+            Text(it, style = PlantupiaText.body)
+        }
+        if (kind == "plant" && species.isNotBlank()) {
+            Text("Species reference · " + species, style = PlantupiaText.supporting)
+            Text("Individual delivered plant identity is not verified by this reference.",
+                style = PlantupiaText.supporting)
+        }
     }
 }
