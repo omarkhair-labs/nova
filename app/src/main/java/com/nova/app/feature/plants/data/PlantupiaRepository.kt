@@ -424,8 +424,9 @@ class PlantupiaRepository(
                 method = if (data == null) "GET" else "POST", body = data, bearerToken = token)
         }
 
-    internal suspend fun room(spaceId: String): ApiResult<PlantupiaRoom> = authorized { token ->
-        when (val response = api.requestJson(path = "plantupia/spaces/$spaceId/room/", bearerToken = token)) {
+    internal suspend fun room(spaceId: String, revision: Int? = null): ApiResult<PlantupiaRoom> = authorized { token ->
+        val revisionQuery = revision?.let { "?revision=$it" }.orEmpty()
+        when (val response = api.requestJson(path = "plantupia/spaces/$spaceId/room/$revisionQuery", bearerToken = token)) {
             is ApiResult.Failure -> response
             is ApiResult.Success -> parsePlantupiaResponse(response.value) { parseRoom(it, spaceId) }
         }

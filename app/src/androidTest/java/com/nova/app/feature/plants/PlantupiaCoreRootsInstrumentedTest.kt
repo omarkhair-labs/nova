@@ -255,12 +255,29 @@ class PlantupiaCoreRootsInstrumentedTest {
              "plants":[{"plant_id":"$specimenId","x_m":3.7,"y_m":1.5}],
              "windows":[{"id":"East window","x_m":4,"y_m":1.5}]}
         """.trimIndent())
-        val saved = runBlocking { repository.saveRoom(id, payload) }
-        assertTrue("The disposable room revision must be acknowledged.", saved is ApiResult.Success && saved.value == 1)
+        val original = runBlocking { repository.room(id) }
+        assertTrue("The disposable room must be available.", original is ApiResult.Success)
+        val initialRevision = (original as ApiResult.Success).value.revision
+        if (initialRevision == 0) {
+            val first = JSONObject(payload.toString()).put("length_m", 2.8)
+            val saved = runBlocking { repository.saveRoom(id, first) }
+            assertTrue("The first layout must be acknowledged.", saved is ApiResult.Success && saved.value == 1)
+            val revised = runBlocking { repository.saveRoom(id, payload.put("base_revision", 1)) }
+            assertTrue("The updated layout must be acknowledged.", revised is ApiResult.Success && revised.value == 2)
+        } else {
+            assertTrue("Only both expected layouts may exist on this repeat pass.", initialRevision == 2)
+        }
         tab("Plants")
         clickText("Explore this place")
         scrollToText("Reported room", substring = true)
         capture("22-room-placements")
+        clickText("Browse layout history")
+        clickText("Revision 1", substring = true)
+        scrollToText("Earlier layout", substring = true)
+        clickText("Return to current layout")
+        clickText("Explore a 3D reconstruction")
+        scrollToText("Open PLY scene", clickable = true)
+        clickText("Return to floor plan")
         clickText("Explore direct sunlight")
         fillScenario("Opening width (m)", "2")
         fillScenario("Sill above floor (m)", ".4")

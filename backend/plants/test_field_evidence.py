@@ -92,6 +92,33 @@ class FieldWorkflowTests(TestCase):
         self.assertEqual(self.client.get(self.room).data["room"]["plants"], [])
         self.assertEqual(self.client.post(self.room, {**self.geometry, "base_revision": 1}, format="json").status_code, 400)
 
+    def test_room_layout_history_stays_private_and_excludes_backdated_late_care(self):
+        stamp = timezone.now()
+        PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="care", observed_at=stamp)
+        self.assertEqual(self.client.post(self.room, self.geometry, format="json").status_code, 201)
+        later = PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="care",
+                                          observed_at=timezone.now())
+        revision = self.geometry | {"base_revision": 1, "width_m": 5}
+        self.assertEqual(self.client.post(self.room, revision, format="json").status_code, 201)
+        current = self.client.get(self.room).data
+        self.assertEqual([layout["revision"] for layout in current["layout_revisions"]], [2, 1])
+        self.assertEqual(current["room"]["plants"][0]["latest_event_id"], later.pk)
+        old_url = self.room + "?revision=1"
+        historical = self.client.get(old_url).data
+        self.assertTrue(historical["historical"])
+        self.assertEqual(historical["room"]["width_m"], 4)
+        self.assertNotEqual(historical["room"]["plants"][0]["latest_event_id"], later.pk)
+        PlantEvent.objects.filter(pk=later.pk).update(observed_at=stamp)
+        self.assertNotEqual(self.client.get(old_url).data["room"]["plants"][0]["latest_event_id"], later.pk)
+        self.assertEqual(self.client.get(self.room + "?revision=3").status_code, 404)
+        self.assertEqual(self.client.get(self.room + "?revision=-1").status_code, 400)
+        self.client.force_authenticate(self.other)
+        self.assertEqual(self.client.get(old_url).status_code, 404)
+        self.client.force_authenticate(self.owner)
+        self.plant.space = Space.objects.create(owner=self.other, name="New location")
+        self.plant.save()
+        self.assertEqual(self.client.get(old_url).data["room"]["plants"], [])
+
     def test_daylight_uses_current_window_time_and_orientation(self):
         room = {**self.geometry, "windows": [dict(id="east", x_m=4, y_m=1.5)]}
         self.client.post(self.room, room, format="json")

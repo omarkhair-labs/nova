@@ -54,14 +54,26 @@ class RoomInput(serializers.Serializer):
     windows = serializers.ListField(child=Window(), max_length=100)
 
 
+class RoomRevisionQuery(serializers.Serializer):
+    revision = serializers.IntegerField(min_value=1, max_value=2_147_483_647, required=False)
+
+
 class RoomView(ResearchView):
     def get(self, request, space_id):
         space = get_object_or_404(accessible_spaces(request.user), pk=space_id)
-        latest = space.room_revisions.order_by("-revision").first()
-        # Re-read current membership of each plant and its actual latest history on every sync.
-        # Historic placement JSON alone may never expose a unit transferred out of this space.
-        latest_event = PlantEvent.objects.filter(plant_id=OuterRef("pk")).order_by("-observed_at", "-created_at", "-pk")
-        geometry = dict(latest.geometry) if latest else None
+        query = RoomRevisionQuery(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        revisions = space.room_revisions.order_by("-revision")
+        requested = query.validated_data.get("revision")
+        historical = requested is not None
+        selected = get_object_or_404(revisions, revision=requested) if historical else revisions.first()
+        # Current installation authority applies to every revision. As-of timelines
+        # also exclude records created later and backdated into this layout.
+        latest_event = PlantEvent.objects.filter(plant_id=OuterRef("pk"))
+        if historical:
+            latest_event = latest_event.filter(observed_at__lte=selected.created_at, created_at__lte=selected.created_at)
+        latest_event = latest_event.order_by("-observed_at", "-created_at", "-pk")
+        geometry = dict(selected.geometry) if selected else None
         if geometry:
             ids = [row["plant_id"] for row in geometry["plants"]]
             units = PlantUnit.objects.filter(space=space, pk__in=ids, is_active=True).annotate(
@@ -74,8 +86,9 @@ class RoomView(ResearchView):
                  "latest_observed_at": current[key].last_event_at}
                 for row in geometry["plants"] if (key := row["plant_id"]) in current
             ]
-        return Response({"space_id": space.pk, "revision": latest.revision if latest else 0,
-                         "geometry_recorded_at": latest.created_at if latest else None, "room": geometry})
+        return Response({"space_id": space.pk, "revision": selected.revision if selected else 0,
+                         "geometry_recorded_at": selected.created_at if selected else None, "room": geometry,
+                         "historical": historical, "layout_revisions": list(revisions.values("revision", "created_at")[:30])})
 
     @transaction.atomic
     def post(self, request, space_id):

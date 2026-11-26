@@ -19,30 +19,47 @@ internal fun PlantupiaRoomPlan(
     if (expanded) {
         var room by remember { mutableStateOf<PlantupiaRoom?>(null) }
         var generation by remember { mutableIntStateOf(0) }
+        var revision by remember { mutableStateOf<Int?>(null) }
         var message by remember { mutableStateOf("") }
         var saving by remember { mutableStateOf(false) }
         var editing by remember { mutableStateOf(false) }
+        var spatialStudy by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
-        LaunchedEffect(generation) {
+        LaunchedEffect(generation, revision) {
             room = null
             message = ""
-            when (val response = repository.room(space.id)) {
+            when (val response = repository.room(space.id, revision)) {
                 is ApiResult.Failure -> message = response.message
                 is ApiResult.Success -> if (repository.isCurrentSession()) room = response.value
             }
         }
-        PlantupiaLivingWorkspace("LIVING SPACE", space.name, "A map of recorded placements", saving, { expanded = false }) {
-            TextButton(enabled = !saving, onClick = { editing = false; generation++ }) { Text("Refresh floor plan") }
+        PlantupiaLivingWorkspace("LIVING SPACE", space.name, "A map of recorded placements", saving, {
+            if (spatialStudy) spatialStudy = false else expanded = false
+        }) {
+            if (spatialStudy && repository.isCurrentSession()) {
+                PlantupiaSpatialViewer(space.name) { spatialStudy = false }
+                return@PlantupiaLivingWorkspace
+            }
+            TextButton(enabled = !saving, onClick = { editing = false; revision = null; generation++ }) {
+                Text(if (revision == null) "Refresh floor plan" else "Return to current layout")
+            }
             if (message.isNotBlank()) Text(message)
             val current = room
             if (current != null) {
+                if (current.revisions.size > 1) LayoutRevisionPicker(current, saving) {
+                    editing = false
+                    revision = it
+                }
+                if (!current.historical) TextButton(enabled = !saving, onClick = { spatialStudy = true }) { Text("Explore a 3D reconstruction") }
                 val width = current.width
                 val length = current.length
                 if (width != null && length != null) {
                     Text("Reported room · $width × $length m · revision ${current.revision}")
+                    if (current.historical) Text("Earlier layout · care history as of that revision",
+                        style = PlantupiaText.supporting)
                     var focusedId by remember(current.revision) { mutableStateOf<String?>(null) }
                     var daylight by remember(current.revision) { mutableStateOf(false) }
-                    TextButton(enabled = !saving && current.windows.isNotEmpty(), onClick = { daylight = !daylight }) {
+                    if (!current.historical) TextButton(enabled = !saving && current.windows.isNotEmpty(), onClick = { daylight = !daylight }) {
                         Text(if (daylight) "Return to placements" else "Explore direct sunlight")
                     }
                     if (daylight) {
@@ -69,7 +86,7 @@ internal fun PlantupiaRoomPlan(
                         }
                     }
                 } else Text("This space has no recorded room dimensions.")
-                if (space.canAddPlant) {
+                if (space.canAddPlant && !current.historical) {
                     TextButton(enabled = !saving, onClick = { editing = !editing }) {
                         Text(if (editing) "Cancel edit" else "Record dimensions or placement")
                     }
@@ -85,6 +102,28 @@ internal fun PlantupiaRoomPlan(
                     }
                 }
             } else if (message.isEmpty()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+    }
+}
+
+@Composable
+private fun LayoutRevisionPicker(room: PlantupiaRoom, saving: Boolean, onSelect: (Int?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(enabled = !saving, onClick = { open = true }) { Text("Browse layout history") }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            room.revisions.forEachIndexed { index, revision ->
+                DropdownMenuItem(
+                    text = {
+                        val lead = if (index == 0) "Current" else "Revision ${revision.number}"
+                        Text("$lead · ${revision.recordedAt.take(10)}")
+                    },
+                    onClick = {
+                        open = false
+                        onSelect(revision.number.takeUnless { index == 0 })
+                    },
+                )
+            }
         }
     }
 }
