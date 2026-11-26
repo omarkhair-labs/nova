@@ -573,8 +573,7 @@ private fun PlantupiaAccountClientSection(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(3.dp),
                         ) {
-                            Text("My plants", modifier = Modifier.weight(1f),
-                                fontFamily = FontFamily.Serif, fontSize = 29.sp, color = deepGreen)
+                            Text("My plants", modifier = Modifier.weight(1f), style = PlantupiaText.pageHeading)
                             com.nova.app.ui.components.NovaIconButton(
                                 asset = com.nova.app.ui.icons.NovaIconAsset.CareCalendar,
                                 contentDescription = "Open care schedule",
@@ -588,8 +587,7 @@ private fun PlantupiaAccountClientSection(
                         }
                     } else {
                         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("My plants", fontFamily = FontFamily.Serif,
-                                fontSize = 31.sp, lineHeight = 38.sp, color = deepGreen)
+                            Text("My plants", style = PlantupiaText.pageHeading)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
@@ -623,7 +621,7 @@ private fun PlantupiaAccountClientSection(
                         onOpenCalendar = { PlantupiaCareCalendarOpenSignal.open(accountId, fromToday = true) },
                     )
                 } else {
-                    Text("Today", fontFamily = FontFamily.Serif, fontSize = 31.sp, color = deepGreen)
+                    Text("Today", style = PlantupiaText.pageHeading)
                 }
             }
             // The selected Space chip already carries its real count.
@@ -784,12 +782,12 @@ private fun PlantupiaAccountClientSection(
                 Surface(color = PlantupiaColors.paper, shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.fillMaxWidth(), border = BorderStroke(1.dp, PlantupiaColors.border)) {
                     Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(spaceHeroMediaEyebrow(photoHero), style = PlantupiaText.sectionLabel)
+                        if (photoHero) Text(spaceHeroMediaEyebrow(true), style = PlantupiaText.supporting)
                         BoxWithConstraints(Modifier.fillMaxWidth()) {
                             val wide = maxWidth / LocalDensity.current.fontScale >= 245.dp
                             val identity: @Composable () -> Unit = {
                                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text(featured.name, style = PlantupiaText.pageHeading)
+                                    Text(featured.name, style = PlantupiaText.editorialHeading)
                                     if (featured.location.isNotBlank()) Text(featured.location, style = PlantupiaText.supporting)
                                     Text(if (focusedPlants.size == 1) "1 active plant" else "${focusedPlants.size} active plants",
                                         style = PlantupiaText.body)
@@ -811,8 +809,7 @@ private fun PlantupiaAccountClientSection(
                                 if (heroPhoto.isNotBlank()) portrait(Modifier.fillMaxWidth().height(108.dp))
                             }
                         }
-                        HorizontalDivider(color = PlantupiaColors.border)
-                        Text("PRIVATE SPACE", style = PlantupiaText.sectionLabel)
+                        // No duplicate private-space label.
                     }
                 }
                 // Editing site context belongs with its actual chosen space,
@@ -827,8 +824,7 @@ private fun PlantupiaAccountClientSection(
                 Text("Loading your spaces…", color = muted, fontSize = 13.sp)
             } else {
                 if (spaces.isNotEmpty()) {
-                    // The private history remains inside each plant; avoid a duplicate carousel.
-                    BrandEyebrow("IN THIS SPACE")
+                    // Collection controls below own the inventory heading.
                 }
                 val focused = resolveFocusedSpace(spaces, focusedSpaceId)
                 if (focused != null) {
@@ -858,7 +854,7 @@ private fun PlantupiaAccountClientSection(
                     } else {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("COLLECTION / ${sitePlants.size}", style = PlantupiaText.sectionLabel, modifier = Modifier.weight(1f))
+                            Text("Plants · ${sitePlants.size}", style = PlantupiaText.itemTitle, modifier = Modifier.weight(1f))
                             TextButton(onClick = {
                                 collectionSearchOpen = !collectionSearchOpen
                                 if (!collectionSearchOpen) plantSearch = ""
@@ -890,7 +886,7 @@ private fun PlantupiaAccountClientSection(
                             if (maxWidth / LocalDensity.current.fontScale >= 280.dp) {
                                 TextButton(onClick = { preferGallery = !preferGallery },
                                     modifier = Modifier.heightIn(min = 48.dp)) {
-                                    Text(if (preferGallery) "Switch to list view" else "Switch to gallery view", color = deepGreen)
+                                    Text(if (preferGallery) "List view" else "Gallery view", color = deepGreen)
                                 }
                             }
                         }
@@ -2409,30 +2405,12 @@ private fun PlantupiaAccountClientSection(
 @Composable
 private fun PlantupiaFirstSpaceArrival(onConnectDelivery: () -> Unit, onStartOwnSpace: () -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text("BEGIN / YOUR LIVING SPACE", style = PlantupiaText.sectionLabel)
-        Text("Start with a real place.", style = PlantupiaText.pageHeading)
-        Text("A private record for the plants you actually live with. Nothing is shared just by starting.",
-            style = PlantupiaText.body)
-        Surface(onClick = onStartOwnSpace, modifier = Modifier.fillMaxWidth(),
-            color = PlantupiaColors.forest, shape = RoundedCornerShape(8.dp)) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                PlantupiaEditionArt("day", Modifier.fillMaxWidth().height(88.dp))
-                Text("MY OWN PLANTS", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
-                Text("Start my first space →", style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper))
-            }
-        }
-        Surface(onClick = onConnectDelivery, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-            color = PlantupiaColors.paper, shape = RoundedCornerShape(8.dp), border = BorderStroke(1.dp, PlantupiaColors.border)) {
-            Row(Modifier.padding(15.dp), verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("FROM PLANTUPIA", style = PlantupiaText.sectionLabel)
-                    Text("Connect a delivery →", style = PlantupiaText.editorialHeading)
-                    Text("Review your real delivery before it joins your space.", style = PlantupiaText.supporting)
-                }
-                PlantupiaEditorialMark("plant", Modifier.size(32.dp))
-            }
-        }
+        PlantupiaEmptyPlantArt(Modifier.fillMaxWidth().height(118.dp))
+        Text("Your first space", style = PlantupiaText.editorialHeading)
+        PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Home,
+            title = "Start my first space", detail = "Private", onClick = onStartOwnSpace, accent = true)
+        PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Plants,
+            title = "Connect a delivery", detail = "Review before connecting", onClick = onConnectDelivery)
     }
 }
 

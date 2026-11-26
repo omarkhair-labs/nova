@@ -459,18 +459,13 @@ private fun PlantupiaAccountStoreShop(
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
-                    if (screen == "catalog") "THE SHOP / COLLECTION"
-                    else "THE SHOP / " + screen.uppercase(),
-                    style = PlantupiaText.sectionLabel,
-                )
-                Text(
                     when (screen) {
                         "cart" -> "Your cart"
                         "checkout" -> "Checkout"
                         "orders" -> "Orders & updates"
                         "business" -> "For shared spaces"
                         "product" -> "The object"
-                        else -> "The living collection"
+                        else -> "Shop"
                     },
                     style = if (plantupiaShopIsFlowPage(screen))
                         PlantupiaText.pageHeading.copy(fontSize = 25.sp, lineHeight = 31.sp)
@@ -512,16 +507,12 @@ private fun PlantupiaAccountStoreShop(
 
         when (screen) {
             "catalog" -> {
-                // Editorial catalogue introduction, not a promotional banner.
-                Text("OBJECTS / PLACES / CONTINUITY", style = PlantupiaText.sectionLabel)
-                Text("Plants, vessels and simple things for their care.", style = PlantupiaText.body)
-                HorizontalDivider(color = PlantupiaColors.forest)
+                // Product search and the live catalogue own the first fold.
                 OutlinedTextField(
                     search, { search = it.take(100); visibleCount = 8 },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Find something for your space") },
-                    placeholder = { Text("Name, type or product code") },
+                    label = { Text("Search products") },
                 )
                 if (loaded && loadError == null) {
                     val allFamilies = remember(products) {
@@ -559,7 +550,7 @@ private fun PlantupiaAccountStoreShop(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            "$count ${if (count == 1) "OBJECT" else "OBJECTS"} IN VIEW",
+                            "$count ${if (count == 1) "product" else "products"}",
                             style = PlantupiaText.sectionLabel,
                         )
                         if (needle.isNotEmpty() || selectedKind != "all") {
@@ -573,19 +564,9 @@ private fun PlantupiaAccountStoreShop(
                             Modifier.fillMaxWidth().padding(vertical = 18.dp),
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            if (allFamilies.isEmpty()) {
-                                PlantupiaEditionArt("material", Modifier.fillMaxWidth().height(152.dp))
-                                Text("CATALOGUE STUDY / NOT PRODUCT PHOTOGRAPHY", style = PlantupiaText.sectionLabel)
-                            }
                             Text(
-                                if (allFamilies.isEmpty()) "The collection is growing."
-                                else "Nothing matching that selection.",
-                                style = PlantupiaText.editorialHeading,
-                            )
-                            Text(
-                                if (allFamilies.isEmpty())
-                                    "No products are currently published for this account."
-                                else "Try another category or a shorter product name.",
+                                if (allFamilies.isEmpty()) "No products are currently published for this account."
+                                else "No matching products",
                                 style = PlantupiaText.body,
                             )
                             if (allFamilies.isNotEmpty()) {

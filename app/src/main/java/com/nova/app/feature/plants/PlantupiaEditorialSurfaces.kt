@@ -115,10 +115,10 @@ internal fun PlantupiaEditorialMark(kind: String, modifier: Modifier = Modifier,
 
 /** Status text is derived only from real user-chosen check-ins. */
 internal fun todayCareBrief(activeCount: Int, dueCount: Int): String = when {
-    activeCount == 0 -> "Start with a real plant. Its record begins here."
-    dueCount == 1 -> "One personal check-in ready to review."
-    dueCount > 1 -> "$dueCount personal check-ins ready to review."
-    else -> "See what's next, or record a moment of care."
+    activeCount == 0 -> "No plants yet"
+    dueCount == 1 -> "1 check-in due"
+    dueCount > 1 -> "$dueCount check-ins due"
+    else -> "No check-ins due"
 }
 
 internal data class ShopShelfCategory(val key: String, val label: String, val sublabel: String, val tint: Color)
@@ -186,57 +186,35 @@ internal fun PlantupiaTodayMasthead(
     onOpenCalendar: () -> Unit,
     date: LocalDate = LocalDate.now(),
 ) {
-    val paper = PlantupiaColors.paper
-    Surface(color = PlantupiaColors.forest, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text(date.format(DateTimeFormatter.ofPattern("EEEE · MMMM yyyy", Locale.ENGLISH)).uppercase(Locale.ENGLISH),
-                style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
-                if (maxWidth / LocalDensity.current.fontScale >= 235.dp) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(date.dayOfMonth.toString().padStart(2, '0'),
-                                style = PlantupiaText.pageHeading.copy(color = paper,
-                                    fontSize = 54.sp, lineHeight = 60.sp))
-                            Text("TODAY / YOUR LIVING RECORD",
-                                style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
-                        }
-                        PlantupiaEditionArt("day", Modifier.size(80.dp))
-                    }
-                } else {
-                    Text(date.dayOfMonth.toString(), style = PlantupiaText.pageHeading.copy(color = paper, fontSize = 44.sp, lineHeight = 49.sp))
-                }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Today", style = PlantupiaText.pageHeading)
+                Text(date.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)),
+                    style = PlantupiaText.supporting)
             }
-            androidx.compose.material3.HorizontalDivider(color = PlantupiaColors.sage.copy(alpha = .35f))
-            Text(if (dueCount > 0) "A little care is due" else if (activeCount == 0) "It begins with a plant" else "One day, one living space",
-                style = PlantupiaText.editorialHeading.copy(color = paper))
-            Text(todayCareBrief(activeCount, dueCount), style = PlantupiaText.body.copy(color = PlantupiaColors.cream))
-            Surface(onClick = onOpenCalendar, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                color = paper, shape = RoundedCornerShape(7.dp)) {
-                Row(Modifier.padding(13.dp), verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PlantupiaEditorialMark("today", Modifier.size(24.dp))
-                    Text("Schedule ↗", modifier = Modifier.weight(1f), style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                }
-            }
+            com.nova.app.ui.components.NovaIconButton(
+                asset = com.nova.app.ui.icons.NovaIconAsset.CareCalendar,
+                contentDescription = "Open care schedule", onClick = onOpenCalendar,
+                containerColor = PlantupiaColors.paper, contentColor = PlantupiaColors.forest,
+                borderColor = PlantupiaColors.border,
+            )
+        }
+        if (activeCount > 0) {
+            PlantupiaActionRow(
+                icon = com.nova.app.ui.icons.NovaIconAsset.Today,
+                title = todayCareBrief(activeCount, dueCount),
+                detail = if (activeCount == 1) "1 active plant" else "$activeCount active plants",
+                onClick = onOpenCalendar, accent = dueCount > 0,
+            )
         }
     }
 }
 
 @Composable
 internal fun PlantupiaCircleEditorialIntro() {
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("THE CIRCLE · HUMAN STORIES", style = PlantupiaText.sectionLabel)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Better together", style = PlantupiaText.pageHeading.copy(fontSize = 36.sp, lineHeight = 40.sp))
-                Text("Questions and experiences people choose to share. Your private plant record stays yours.",
-                    style = PlantupiaText.body)
-            }
-            if (LocalDensity.current.fontScale < 1.3f) PlantupiaEditionArt("circle", Modifier.size(84.dp))
-        }
-        androidx.compose.material3.HorizontalDivider(color = PlantupiaColors.forest)
-    }
+    Text("Circle", style = PlantupiaText.pageHeading)
 }
 
 /**

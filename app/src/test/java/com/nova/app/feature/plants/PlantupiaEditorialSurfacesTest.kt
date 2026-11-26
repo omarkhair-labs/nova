@@ -6,19 +6,19 @@ import org.junit.Test
 class PlantupiaEditorialSurfacesTest {
     @Test fun todaySummaryOnlyCountsActuallyScheduledPersonalCheckIns() {
         assertEquals(
-            "Start with a real plant. Its record begins here.",
+            "No plants yet",
             todayCareBrief(activeCount = 0, dueCount = 0),
         )
         assertEquals(
-            "See what's next, or record a moment of care.",
+            "No check-ins due",
             todayCareBrief(activeCount = 2, dueCount = 0),
         )
         assertEquals(
-            "One personal check-in ready to review.",
+            "1 check-in due",
             todayCareBrief(activeCount = 3, dueCount = 1),
         )
         assertEquals(
-            "3 personal check-ins ready to review.",
+            "3 check-ins due",
             todayCareBrief(activeCount = 3, dueCount = 3),
         )
     }

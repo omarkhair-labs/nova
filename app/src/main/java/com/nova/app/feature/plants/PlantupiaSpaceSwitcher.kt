@@ -30,11 +30,11 @@ internal fun PlantupiaSpaceSwitcher(
     focusedSpaceId: String?,
     onSelectSpace: (String) -> Unit,
 ) {
-    if (spaces.isEmpty()) return
+    if (spaces.size <= 1) return
     val selected = resolveFocusedSpace(spaces, focusedSpaceId)
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("YOUR SPACES", style = PlantupiaText.sectionLabel)
+            Text("Spaces", style = PlantupiaText.itemTitle)
             Text(
                 if (spaces.size == 1) "1 space" else "${spaces.size} spaces",
                 style = PlantupiaText.supporting,
@@ -67,8 +67,6 @@ internal fun PlantupiaSpaceSwitcher(
                     }
                 }
             }
-        } else {
-            Text("This is the space you're tracking.", style = PlantupiaText.supporting)
         }
     }
 }

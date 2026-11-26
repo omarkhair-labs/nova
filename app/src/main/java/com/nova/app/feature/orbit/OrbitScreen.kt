@@ -150,8 +150,8 @@ fun OrbitScreen(
                     com.nova.app.feature.plants.PlantupiaAccountHeader(displayName, username, avatarUrl, userId, avatarVariant, onProfileClick)
                     PlantupiaCircleEditorialIntro()
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CircleDestinationLink("Shared moments", "What people chose to publish", onSharedMoments, Modifier.weight(1f))
-                        CircleDestinationLink("People", "Find and follow intentionally", onDiscoveryClick, Modifier.weight(1f))
+                        CircleDestinationLink("Shared moments", "", onSharedMoments, Modifier.weight(1f))
+                        CircleDestinationLink("People", "", onDiscoveryClick, Modifier.weight(1f))
                     }
                 }
             }
@@ -203,9 +203,8 @@ fun OrbitScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Text("ASK FROM A PLANT", style = com.nova.app.feature.plants.PlantupiaText.sectionLabel)
-                                Text("Ask the Circle", style = com.nova.app.feature.plants.PlantupiaText.editorialHeading)
-                                Text("Choose a plant, then review exactly what becomes public.", style = com.nova.app.feature.plants.PlantupiaText.supporting)
+                                Text("Ask the Circle", style = com.nova.app.feature.plants.PlantupiaText.itemTitle)
+                                Text("Public question · preview before posting", style = com.nova.app.feature.plants.PlantupiaText.supporting)
                             }
                             NovaIcon(
                                 asset = NovaIconAsset.Create,
@@ -354,7 +353,7 @@ private fun CircleDestinationLink(
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(title, style = com.nova.app.feature.plants.PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-            Text(body, style = com.nova.app.feature.plants.PlantupiaText.supporting)
+            if (body.isNotBlank()) Text(body, style = com.nova.app.feature.plants.PlantupiaText.supporting)
         }
     }
 }

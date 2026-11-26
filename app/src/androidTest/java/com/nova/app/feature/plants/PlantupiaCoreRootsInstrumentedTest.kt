@@ -82,20 +82,20 @@ class PlantupiaCoreRootsInstrumentedTest {
         assertTrue("The unclaimed seed customer must have an empty inventory.",
             initialPlants is ApiResult.Success && initialPlants.value.isEmpty())
 
-        awaitText("Start with a real place.")
+        awaitText("Your first space")
         capture("01-customer-today")
         tab("Plants")
         awaitText("My plants")
-        awaitText("Start with a real place.")
+        awaitText("Your first space")
         capture("02-customer-plants")
 
         tab("Create")
-        awaitText("What are you doing?")
+        awaitText("Record care or observation")
         capture("03-create")
         scrollToText("Explore the Circle")
         capture("04-create-public")
         clickText("Explore the Circle")
-        awaitText("Better together")
+        awaitText("Circle")
         scrollToText("No questions yet")
         capture("05-circle")
 
@@ -104,7 +104,7 @@ class PlantupiaCoreRootsInstrumentedTest {
         scrollToText("Your circle is quiet")
         capture("06-circle-moments")
         clickText("Back to Circle")
-        awaitText("Better together")
+        awaitText("Circle")
         openProfile()
         awaitText("Your private places")
         compose.onNodeWithContentDescription("Settings").assertIsDisplayed()
@@ -124,9 +124,8 @@ class PlantupiaCoreRootsInstrumentedTest {
         awaitText("My Plantupia")
 
         tab("Shop")
-        awaitText("The living collection")
-        scrollToText("The collection is growing.")
-        compose.onNodeWithText("No products are currently published for this account.").assertExists()
+        awaitText("Search products")
+        scrollToText("No products are currently published for this account.").assertIsDisplayed()
         capture("11-shop-empty")
         clickText("Cart", substring = true)
         awaitText("Your cart")
@@ -140,13 +139,13 @@ class PlantupiaCoreRootsInstrumentedTest {
         awaitNoProgress()
         revealGeneralContext()
         capture("13-ask")
-        clickText("General care")
-        awaitText("Choose a plant")
+        awaitNode(hasText("General care") and hasClickAction()).assertIsDisplayed().performClick()
+        awaitText("Choose a plant").assertIsDisplayed()
         capture("13a-ask-picker")
-        clickText("Done")
+        awaitNode(hasText("Done") and hasClickAction()).assertIsDisplayed().performClick()
         awaitText("Ask Plantupia")
         tab("Today")
-        awaitText("Start with a real place.")
+        awaitText("Your first space")
         capture("14-today-return")
 
         val finalPlants = runBlocking { repository.plants() }
@@ -173,7 +172,7 @@ class PlantupiaCoreRootsInstrumentedTest {
         val ownSpace = spaces.singleOrNull { it.id == fixture.getString("space_id") }
         assertTrue("The original synthetic space must be accessible to its owner.", ownSpace != null)
 
-        awaitText("One day, one living space")
+        awaitText("No check-ins due")
         capture("15-owner-today")
         tab("Plants")
         awaitText("My plants")
@@ -288,7 +287,9 @@ class PlantupiaCoreRootsInstrumentedTest {
         val deadline = SystemClock.elapsedRealtime() + 30_000
         while (SystemClock.elapsedRealtime() < deadline) {
             if (compose.onAllNodes(matcher).fetchSemanticsNodes().isNotEmpty()) {
-                return compose.onAllNodes(matcher).onFirst().performScrollTo().assertIsDisplayed()
+                val node = compose.onAllNodes(matcher).onFirst()
+                if (runCatching { node.assertIsDisplayed() }.isSuccess) return node
+                return node.performScrollTo().assertIsDisplayed()
             }
             // Lazy roots do not compose off-screen rows until they are requested.
             // Eager vertical forms already expose their children above.

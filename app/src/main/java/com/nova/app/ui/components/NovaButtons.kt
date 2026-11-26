@@ -1,5 +1,6 @@
 package com.nova.app.ui.components
 
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -56,11 +57,8 @@ fun NovaPrimaryButton(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (busy) {
-                NovaPresenceIndicator(
-                    modifier = Modifier.size(18.dp),
-                    monochrome = true,
-                    monochromeColor = Color.White,
-                )
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp,
+                    color = Color.White)
             }
             Text(
                 text = if (busy) busyText else text,
@@ -98,11 +96,8 @@ fun NovaSecondaryButton(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (busy) {
-                NovaPresenceIndicator(
-                    modifier = Modifier.size(18.dp),
-                    monochrome = true,
-                    monochromeColor = NovaInk,
-                )
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp,
+                    color = NovaInk)
             }
             Text(
                 text = if (busy) busyText else text,

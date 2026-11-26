@@ -1,5 +1,6 @@
 package com.nova.app.feature.create
 
+import com.nova.app.feature.plants.PlantupiaActionRow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -120,13 +121,13 @@ fun CreateHubScreen(
         ) { enterPlant(PlantupiaCreateMode.QUESTION) },
         CreateHubAction(
             "Explore the Circle",
-            "Browse public plant questions and people's experiences",
+            "",
             NovaIconAsset.People,
             onOrbitClick,
         ),
         CreateHubAction(
             "Share an experience",
-            "Publish an experience to your community",
+            "",
             NovaIconAsset.Create,
             onCreatePost,
         ),
@@ -173,33 +174,28 @@ fun CreateHubScreen(
             item(key = "living-create-heading") {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     com.nova.app.feature.plants.PlantupiaAccountHeader(displayName, username, avatarUrl, userId, avatarVariant, onProfileClick)
-                    Text("CREATE / WITH INTENT", style = PlantupiaText.sectionLabel)
-                    Text("What are you doing?", style = PlantupiaText.pageHeading)
-                    Text(
-                        "Record something private, add to your space, ask from a plant, or choose what to share.",
-                        style = PlantupiaText.supporting,
-                    )
+                    Text("Create", style = PlantupiaText.pageHeading)
                 }
             }
             item(key = "living-create-private") {
                 CreateIntentGroup(
-                    title = "IN YOUR SPACE",
-                    hint = "Private records · nothing here is published",
+                    title = "Private",
+                    hint = "",
                     featuredFirst = true,
                     actions = listOf(
                         CreateHubAction(
                             "Record care or observation",
-                            "Choose a plant and record what happened",
+                            "",
                             NovaIconAsset.Edit,
                         ) { enterPlant(PlantupiaCreateMode.OBSERVATION) },
                         CreateHubAction(
                             "Add a plant",
-                            "Create a real plant record in your space",
+                            "",
                             NovaIconAsset.Create,
                         ) { enterPlant(PlantupiaCreateMode.ADD_PLANT) },
                         CreateHubAction(
                             "New space",
-                            "Choose where your plants live",
+                            "",
                             NovaIconAsset.Home,
                         ) { enterPlant(PlantupiaCreateMode.ADD_SPACE) },
                     ),
@@ -207,8 +203,8 @@ fun CreateHubScreen(
             }
             item(key = "living-create-public") {
                 CreateIntentGroup(
-                    title = "WITH PEOPLE",
-                    hint = "Choose what becomes visible to other people",
+                    title = "Community",
+                    hint = "",
                     actions = publicActions,
                 )
             }
@@ -274,9 +270,9 @@ private fun CreateIntentGroup(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Text(title, style = PlantupiaText.sectionLabel)
+        Text(title, style = PlantupiaText.itemTitle)
         if (hint.isNotBlank()) Text(hint, style = PlantupiaText.supporting)
         actions.forEachIndexed { index, action ->
             if (index > 0) HorizontalDivider(color = PlantupiaColors.border)
@@ -287,67 +283,8 @@ private fun CreateIntentGroup(
 
 @Composable
 private fun CreateActionCard(action: CreateHubAction, featured: Boolean = false) {
-    if (featured) {
-        Surface(onClick = action.onClick, modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(8.dp), color = PlantupiaColors.forest) {
-            Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("PRIVATE / LIVING JOURNAL", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
-                PlantupiaEditionArt("journal", Modifier.fillMaxWidth().height(112.dp))
-                Text(action.title, style = PlantupiaText.pageHeading.copy(color = PlantupiaColors.paper))
-                Text(action.subtitle, style = PlantupiaText.body.copy(color = PlantupiaColors.cream))
-                HorizontalDivider(color = PlantupiaColors.sage.copy(alpha = .45f))
-                Text("Begin →", style = PlantupiaText.body.copy(color = PlantupiaColors.paper))
-            }
-        }
-        return
-    }
-    val foreground = if (featured) PlantupiaColors.paper else PlantupiaColors.forest
-    Surface(
-        onClick = action.onClick,
-        modifier = Modifier.fillMaxWidth().heightIn(min = if (featured) 104.dp else 74.dp),
-        shape = RoundedCornerShape(6.dp),
-        color = PlantupiaColors.paper,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = if (featured) 19.dp else 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(13.dp),
-        ) {
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = if (featured) Color(0xFF315947) else PlantupiaColors.softSage,
-            ) {
-                NovaIcon(
-                    asset = action.icon,
-                    contentDescription = null,
-                    tint = foreground,
-                    modifier = Modifier.padding(12.dp).size(if (featured) 27.dp else 22.dp),
-                )
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(
-                    action.title,
-                    style = if (featured) PlantupiaText.editorialHeading.copy(color = foreground)
-                        else PlantupiaText.body.copy(
-                            color = foreground,
-                            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
-                        ),
-                )
-                Text(
-                    action.subtitle,
-                    style = PlantupiaText.supporting.copy(
-                        color = if (featured) PlantupiaColors.cream else PlantupiaColors.secondaryText,
-                    ),
-                )
-            }
-            NovaIcon(
-                asset = NovaIconAsset.Back,
-                contentDescription = null,
-                tint = foreground,
-                modifier = Modifier.size(20.dp).graphicsLayer { scaleX = -1f },
-            )
-        }
-    }
+    PlantupiaActionRow(icon = action.icon, title = action.title,
+        detail = action.subtitle.ifBlank { null }, onClick = action.onClick, accent = featured)
 }
 
 @Composable

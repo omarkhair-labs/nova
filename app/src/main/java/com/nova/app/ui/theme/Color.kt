@@ -11,11 +11,11 @@ val NovaBrandElectricBlue = Color(0xFF7E9C87)
 val NovaBrandSunrisePeach = Color(0xFF9FB79A)
 val NovaBrandSoftLight = Color(0xFFEAEADD)
 
-val NovaBaseBackground = Color(0xFFF3EEDE)
-val NovaBaseSurface = Color(0xFFFFFDF7)
+val NovaBaseBackground = Color(0xFFF7F7F2)
+val NovaBaseSurface = Color(0xFFFFFEFB)
 val NovaBaseInk = Color(0xFF16302A)
 val NovaBaseMuted = Color(0xFF4A5A50)
-val NovaBaseBorder = Color(0xFFD7D2C1)
+val NovaBaseBorder = Color(0xFFD8DED6)
 val NovaBaseAccent = NovaBrandPurple
 val NovaBaseAccentSoft = NovaBrandSoftLight
 val NovaBaseLive = NovaBrandElectricBlue

@@ -1,5 +1,6 @@
 package com.nova.app.ui.components
 
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,9 +60,11 @@ fun NovaBottomBar(
 ) {
     Surface(
         color = containerColor,
-        shadowElevation = NovaElevation.floating,
+        shadowElevation = NovaElevation.flat,
         tonalElevation = NovaElevation.flat,
     ) {
+        Column {
+        HorizontalDivider(color = PlantupiaColors.border)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -109,6 +112,7 @@ fun NovaBottomBar(
                 onClick = { NovaRootNavigationSignal.request(NovaRootTab.AI) },
             )
         }
+        }
     }
 }
 
@@ -119,29 +123,9 @@ private fun NovaCreateTabItem(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val containerColor by animateColorAsState(
-        targetValue = if (selected) PlantupiaColors.forestText else PlantupiaColors.forest,
-        label = "plantupia-create-tab-color",
-    )
-
-    Surface(onClick = onClick, modifier = modifier.heightIn(min = 48.dp).semantics { this.selected = selected; role = Role.Tab },
-        color = Color.Transparent, shape = MaterialTheme.shapes.medium) {
-        Column(Modifier.padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Surface(modifier = Modifier.size(43.dp),
-                shape = CircleShape, color = containerColor) {
-                Box(contentAlignment = Alignment.Center) {
-                    NovaIcon(asset = NovaIconAsset.SignatureCreate,
-                        contentDescription = null,
-                        tint = PlantupiaColors.paper, modifier = Modifier.size(25.dp))
-                }
-            }
-            Text("Create", color = PlantupiaColors.forest, style = NovaType.navigationLabel,
-                textAlign = TextAlign.Center)
-        }
-    }
-
+    NovaTabItem(modifier = modifier, label = "Create", icon = NovaIconAsset.SignatureCreate,
+        selected = selected, onClick = onClick)
 }
-
 
 @Composable
 private fun NovaTabItem(
@@ -177,7 +161,7 @@ private fun NovaTabItem(
                     color = if (selected) PlantupiaColors.softSage else Color.Transparent,
                     shape = CircleShape,
                 ) {
-                    Box(Modifier.padding(horizontal = 10.dp, vertical = 5.dp)) {
+                    Box(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
                         // The visible label already names this merged tab for accessibility.
                         NovaIcon(asset = icon, contentDescription = null,
                             tint = contentColor, modifier = Modifier.size(21.dp))
