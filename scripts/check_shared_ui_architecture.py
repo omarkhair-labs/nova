@@ -232,7 +232,9 @@ else:
         "NovaInlineLoading(",
         "NovaInlineRetry(",
         "NovaUnreadDot()",
-        'Text("What changed", style = PlantupiaText.pageHeading)',
+        'Text("Activity", style = PlantupiaText.pageHeading)',
+        'title = "Care schedule"',
+        "PlantupiaActionRow(",
     ):
         if seam not in notifications_text:
             errors.append(f"Notifications bypassed migrated Nova feedback/chrome/status seam: {seam}")

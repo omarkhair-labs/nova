@@ -1,5 +1,6 @@
 package com.nova.app.feature.auth
 
+import androidx.compose.foundation.layout.width
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
@@ -309,7 +310,7 @@ fun AccountSecurityScreen(
 
     SecurityScrollablePage(
         title = "Security",
-        subtitle = "Change your password or remove other signed-in Plantupia sessions.",
+        subtitle = "",
         onBack = onBack,
     ) {
         Text("Password", color = NovaInk, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -552,20 +553,13 @@ private fun PlantupiaSecurityHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         NovaBackButton(onClick = onBack)
-        Spacer(Modifier.weight(1f))
-        PlantupiaBrandGlyph(Modifier.size(28.dp))
-        Text(
-            "PLANTUPIA",
-            modifier = Modifier.padding(start = 7.dp),
-            style = PlantupiaText.sectionLabel,
-        )
+        Spacer(Modifier.width(12.dp))
+        Text(title, style = PlantupiaText.pageHeading, modifier = Modifier.weight(1f).semantics { heading() })
     }
-    Spacer(Modifier.height(28.dp))
-    Text("ACCOUNT / SECURITY", style = PlantupiaText.sectionLabel)
-    Spacer(Modifier.height(6.dp))
-    Text(title, style = PlantupiaText.pageHeading, modifier = Modifier.semantics { heading() })
-    Spacer(Modifier.height(8.dp))
-    Text(subtitle, style = PlantupiaText.body)
+    if (subtitle.isNotBlank()) {
+        Spacer(Modifier.height(12.dp))
+        Text(subtitle, style = PlantupiaText.supporting)
+    }
 }
 
 

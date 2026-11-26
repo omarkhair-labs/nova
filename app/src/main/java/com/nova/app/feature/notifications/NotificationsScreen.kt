@@ -1,5 +1,6 @@
 package com.nova.app.feature.notifications
 
+import com.nova.app.feature.plants.PlantupiaActionRow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -175,13 +176,7 @@ fun NotificationsScreen(
                             .weight(1f)
                             .padding(bottom = NovaSpacing.lg),
                     ) {
-                        Text("PLANTUPIA / ACTIVITY", style = PlantupiaText.sectionLabel)
-                        Spacer(Modifier.height(4.dp))
-                        Text("What changed", style = PlantupiaText.pageHeading)
-                        Text(
-                            "Care dates, team replies, orders and Circle activity. Each update opens the place it belongs to.",
-                            style = PlantupiaText.supporting,
-                        )
+                        Text("Activity", style = PlantupiaText.pageHeading)
                     }
                 }
             }
@@ -213,11 +208,11 @@ fun NotificationsScreen(
                 }
             }
             if (category == "Care") item(key = "care-schedule-entry") {
-                ActivityDestinationCard(
-                    eyebrow = "CARE / SCHEDULE",
-                    title = "Planned and recorded stay distinct",
-                    body = "Open the care schedule for the dates you chose, reviewed plans and moments already recorded in Living History.",
-                    action = "Open care schedule \u2192",
+                PlantupiaActionRow(
+                    icon = NovaIconAsset.CareCalendar,
+                    title = "Care schedule",
+                    detail = "Planned and recorded care",
+                    modifier = Modifier.padding(vertical = 8.dp),
                     onClick = { PlantupiaCareCalendarOpenSignal.open(accountId) },
                 )
             }
@@ -309,7 +304,7 @@ fun NotificationsScreen(
             } else if (category != "Care" && visibleNotifications.isEmpty() && !state.requestsLoading) {
                 item {
                     NovaEmptyState(
-                        title = "Quiet for now.",
+                        title = "No new activity",
                         message = "No updates in this category. Your other activity keeps its own unread state.",
                     )
                 }

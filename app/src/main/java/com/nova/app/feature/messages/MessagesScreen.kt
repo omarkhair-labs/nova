@@ -1,5 +1,9 @@
 package com.nova.app.feature.messages
 
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.fillMaxHeight
+import com.nova.app.feature.plants.PlantupiaActionRow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -193,20 +197,10 @@ fun MessagesScreen(
                     .fillMaxWidth()
                     .padding(top = 22.dp),
             ) {
-                Text("MESSAGES / PRIVATE & COMMUNITY", style = PlantupiaText.sectionLabel)
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = "Conversations",
-                    style = PlantupiaText.pageHeading,
-                )
-                Spacer(Modifier.height(5.dp))
-                Text(
-                    text = when {
-                        unreadCount > 0 -> "$unreadCount unread ${if (unreadCount == 1) "conversation" else "conversations"}. Team support stays private and separate."
-                        else -> "Private Plantupia support first. People and groups stay together below."
-                    },
-                    style = PlantupiaText.supporting,
-                )
+                Text("Messages", style = PlantupiaText.pageHeading)
+                if (unreadCount > 0) {
+                    Text("$unreadCount unread", style = PlantupiaText.supporting)
+                }
             }
 
             Spacer(modifier = Modifier.height(18.dp))
@@ -225,9 +219,7 @@ fun MessagesScreen(
                 onRetry = { teamPlantsRefresh += 1 },
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
-            Text("YOUR CONVERSATIONS", style = PlantupiaText.sectionLabel)
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -376,70 +368,20 @@ private fun PlantupiaTeamEntry(
     onOpen: () -> Unit,
     onRetry: () -> Unit,
 ) {
-    val actionable = !loading && (plants.isNotEmpty() || error != null)
-    Surface(
-        onClick = onOpen,
-        enabled = actionable,
-        modifier = Modifier.fillMaxWidth(),
-        shape = PlantupiaShapes.card,
-        color = PlantupiaColors.forest,
-        border = BorderStroke(1.dp, PlantupiaColors.forest),
-    ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(
-                    modifier = Modifier.size(44.dp),
-                    shape = CircleShape,
-                    color = PlantupiaColors.cream,
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        NovaIcon(
-                            asset = NovaIconAsset.Messages,
-                            contentDescription = null,
-                            modifier = Modifier.size(21.dp),
-                            tint = PlantupiaColors.forest,
-                        )
-                    }
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        "PLANTUPIA TEAM",
-                        style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage),
-                    )
-                    Text(
-                        "Private support for your plants",
-                        style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.cream),
-                    )
-                }
-            }
-            Text(
-                "Requests, staff replies and the plant context you explicitly choose to share. This is separate from community messages.",
-                style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream.copy(alpha = 0.82f)),
-            )
-            HorizontalDivider(color = PlantupiaColors.cream.copy(alpha = 0.22f))
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    when {
-                        loading -> "Checking your plants..."
-                        error != null -> "Team access couldn't load"
-                        plants.isEmpty() -> "Claim or add a plant to start a private request"
-                        plants.size == 1 -> "Open support for ${plants.first().name}"
-                        else -> "Choose from ${plants.size} plants"
-                    },
-                    modifier = Modifier.weight(1f),
-                    style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream),
-                )
-                if (error != null) {
-                    Surface(onClick = onRetry, color = PlantupiaColors.cream, shape = PlantupiaShapes.badge) {
-                        Text("Retry", Modifier.padding(horizontal = 11.dp, vertical = 7.dp), color = PlantupiaColors.forest, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                } else if (plants.isNotEmpty()) {
-                    Text("Open \u2192", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.cream))
-                }
-            }
-        }
+    val detail = when {
+        loading -> "Checking access…"
+        error != null -> "Couldn't load · retry"
+        plants.isEmpty() -> "Add a plant to request support"
+        plants.size == 1 -> plants.first().name
+        else -> "${plants.size} plants"
     }
+    PlantupiaActionRow(
+        icon = NovaIconAsset.Messages,
+        title = "Plantupia Team",
+        detail = "Private support · $detail",
+        enabled = !loading && (plants.isNotEmpty() || error != null),
+        onClick = if (error != null) onRetry else onOpen,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -454,17 +396,16 @@ private fun PlantupiaTeamPlantPicker(
         containerColor = PlantupiaColors.paper,
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
+            Modifier.fillMaxWidth().fillMaxHeight(.78f).padding(start = 20.dp, end = 20.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("PLANTUPIA TEAM / PRIVATE SUPPORT", style = PlantupiaText.sectionLabel)
-            Text("Which plant is this about?", style = PlantupiaText.pageHeading)
-            Text(
-                "Support stays attached to the plant it belongs to. Private history and photos are not shared unless a support request explicitly includes them.",
-                style = PlantupiaText.supporting,
-            )
-            Spacer(Modifier.height(4.dp))
-            plants.forEach { plant ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Choose a plant", style = PlantupiaText.itemTitle, modifier = Modifier.weight(1f))
+                TextButton(onClick = onDismiss) { Text("Done") }
+            }
+            Text("Private history and photos aren't shared unless you include them.", style = PlantupiaText.supporting)
+            LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(plants, key = { it.id }) { plant ->
                 Surface(
                     onClick = { onChoose(plant) },
                     modifier = Modifier.fillMaxWidth(),
@@ -488,8 +429,10 @@ private fun PlantupiaTeamPlantPicker(
                             val detail = listOf(plant.species, plant.placement).filter { it.isNotBlank() }.joinToString(" \u00B7 ")
                             if (detail.isNotBlank()) Text(detail, style = PlantupiaText.supporting, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
-                        Text("Open \u2192", style = PlantupiaText.sectionLabel)
+                        NovaIcon(NovaIconAsset.Back, null, tint = PlantupiaColors.forest,
+                            modifier = Modifier.size(18.dp).graphicsLayer { rotationZ = 180f })
                     }
+                }
                 }
             }
         }

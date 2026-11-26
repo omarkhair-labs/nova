@@ -187,33 +187,13 @@ private fun SettingsScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 NovaBackButton(onClick = onBack)
-                Spacer(Modifier.weight(1f))
-                PlantupiaBrandGlyph(Modifier.size(28.dp))
-                if (LocalDensity.current.fontScale < 1.5f) {
-                    Text(
-                        "PLANTUPIA",
-                        modifier = Modifier.padding(start = 7.dp),
-                        style = PlantupiaText.sectionLabel,
-                    )
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Settings", style = PlantupiaText.pageHeading, modifier = Modifier.semantics { heading() })
+                    if (username.isNotBlank()) Text("@$username", style = PlantupiaText.supporting)
                 }
             }
-
-            Spacer(Modifier.height(30.dp))
-            Text("ACCOUNT / APP", style = PlantupiaText.sectionLabel)
-            Spacer(Modifier.height(6.dp))
-            Text("Settings", style = PlantupiaText.pageHeading, modifier = Modifier.semantics { heading() })
-            if (username.isNotBlank()) {
-                Spacer(Modifier.height(4.dp))
-                Text("@$username", style = PlantupiaText.supporting)
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Your account, your privacy, your choices. Manage how you sign in, what you share and how Plantupia reaches you.",
-                style = PlantupiaText.body,
-                modifier = Modifier.fillMaxWidth(0.95f),
-            )
-
-            Spacer(Modifier.height(30.dp))
+            Spacer(Modifier.height(24.dp))
             SettingsSectionLabel("ACCOUNT & PRIVACY")
             SettingsGroup {
                 SettingsRow(
@@ -226,14 +206,14 @@ private fun SettingsScreen(
                 SettingsRow(
                     icon = NovaIconAsset.Privacy,
                     title = "Privacy",
-                    subtitle = "Public account choices, requests and Close Friends",
+                    subtitle = "Audience and follow requests",
                     onClick = onPrivacy,
                 )
                 SettingsDivider()
                 SettingsRow(
                     icon = NovaIconAsset.Blocked,
                     title = "Blocked accounts",
-                    subtitle = "People who cannot find or contact you",
+                    subtitle = "",
                     onClick = onBlockedAccounts,
                 )
             }
@@ -251,7 +231,7 @@ private fun SettingsScreen(
                 SettingsRow(
                     icon = NovaIconAsset.Settings,
                     title = "Android app settings",
-                    subtitle = "Permissions, notification access and storage on this device",
+                    subtitle = "Permissions and storage",
                     onClick = onDataStorage,
                 )
             }
@@ -269,7 +249,7 @@ private fun SettingsScreen(
                 SettingsRow(
                     icon = NovaIconAsset.Policy,
                     title = "Privacy policy",
-                    subtitle = "How Plantupia handles account and product information",
+                    subtitle = "",
                     onClick = onPrivacyPolicy,
                 )
                 SettingsDivider()
@@ -429,8 +409,10 @@ private fun SettingsRow(
             SettingsIcon(icon)
             Column(Modifier.weight(1f)) {
                 Text(title, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                Spacer(Modifier.height(2.dp))
-                Text(subtitle, style = PlantupiaText.supporting)
+                if (subtitle.isNotBlank()) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(subtitle, style = PlantupiaText.supporting)
+                }
             }
             if (onClick != null) SettingsForwardIcon()
         }

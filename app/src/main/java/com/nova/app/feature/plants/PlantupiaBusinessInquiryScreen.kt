@@ -139,16 +139,15 @@ internal fun PlantupiaBusinessInquiryScreen(
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(
-            if (receipt != null) "Your business request arrived."
-            else "Wholesale supply or installation project",
+            if (receipt != null) "Request received"
+            else "Business enquiry",
             style = PlantupiaText.editorialHeading,
         )
         Text(
             if (receipt != null)
-                "Your brief is saved under the reference below. The team can review it and respond with a quotation."
+                "Your request has been saved."
             else
-                "Describe what your organization needs. Plantupia can return a nonbinding EGP quotation. " +
-                    "A signed contract, stock allocation, installation and QR handover are separate steps.",
+                "Request a nonbinding quote. Contracts, stock and installation are confirmed separately.",
             style = PlantupiaText.supporting,
         )
         OutlinedButton(onClick = onBack, enabled = !busy) { Text("Back to products") }
@@ -162,7 +161,6 @@ internal fun PlantupiaBusinessInquiryScreen(
                 },
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("RECEIVED / BUSINESS ENQUIRY", style = PlantupiaText.sectionLabel)
                     Text(savedReceipt.organization, style = PlantupiaText.editorialHeading)
                     Text(
                         (if (savedReceipt.kind == "installation") "Installation project" else "Wholesale supply") +
@@ -230,8 +228,7 @@ internal fun PlantupiaBusinessInquiryScreen(
                      else "Required number of wholesale items")
             })
         if (kind == "installation") {
-            Text("No accurate plant count yet? Describe the space and goals. " +
-                 "Plantupia can scope quantities during the real conversation or site visit.",
+            Text("Leave the count blank if unknown.",
                 style = PlantupiaText.supporting)
         }
         OutlinedTextField(description, { description = it.take(2000) },
