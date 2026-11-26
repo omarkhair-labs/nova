@@ -424,7 +424,7 @@ class PlantupiaRepository(
 
     internal suspend fun fieldEvidence(plant: String, event: String, action: String = "", data: JSONObject? = null): ApiResult<JSONObject> =
         authorized { token ->
-            require(action in setOf("", "regions/", "reviews/"))
+            require(action in setOf("", "regions/", "reviews/", "suggest-region/"))
             api.requestJson(path = "plantupia/plants/$plant/events/$event/evidence/$action",
                 method = if (data == null) "GET" else "POST", body = data, bearerToken = token)
         }

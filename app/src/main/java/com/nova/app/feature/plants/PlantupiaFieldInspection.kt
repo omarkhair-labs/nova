@@ -65,8 +65,10 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                                 regions = fieldRegions(data.optJSONArray("regions"), width, height),
                                 totalRegions = data.optInt("region_count"),
                                 canTrace = plant.canRecord && plant.active,
+                                canSuggest = data.optBoolean("can_suggest_region"),
                                 busy = busy,
                                 revision = generation,
+                                suggest = { body, result -> submit("suggest-region/", body, result) },
                             ) { body -> submit("regions/", body) { generation++ } }
                             CaptureNotes(quality)
                         } else {
