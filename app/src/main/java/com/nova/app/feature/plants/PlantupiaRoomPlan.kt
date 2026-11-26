@@ -1,6 +1,12 @@
 package com.nova.app.feature.plants
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
+import android.content.Intent
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.platform.LocalContext
+import java.util.Locale
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -65,7 +71,7 @@ internal fun PlantupiaRoomPlan(
             if (editing && space.canAddPlant && !current.historical) {
                 Text("Record this room", style = PlantupiaText.editorialHeading)
                 TextButton(enabled = !saving, onClick = { returnToPlan() }) { Text("Cancel edit") }
-                RoomEditor(current, plants, saving) { w, l, h, positions, openings ->
+                RoomEditor(current, plants, saving, repository::isCurrentSession) { w, l, h, positions, openings ->
                     saving = true
                     scope.launch {
                         when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings, h))) {
@@ -203,6 +209,7 @@ private fun LayoutRevisionPicker(room: PlantupiaRoom, saving: Boolean, onSelect:
 @Composable
 private fun RoomEditor(
     room: PlantupiaRoom, plants: List<PlantupiaPlant>, saving: Boolean,
+    sessionCurrent: () -> Boolean,
     save: (Double, Double, Double?, List<RoomPlant>, List<RoomWindow>) -> Unit,
 ) {
     var width by remember(room) { mutableStateOf(room.width?.toString().orEmpty()) }
@@ -214,11 +221,40 @@ private fun RoomEditor(
     var windowOffset by remember(room) { mutableStateOf("") }
     var windowName by remember(room) { mutableStateOf("") }
     var choose by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    var arCandidate by remember(room) { mutableStateOf<Pair<Double, Double>?>(null) }
+    val currentSession by rememberUpdatedState(sessionCurrent)
+    val surveyLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK && currentSession()) {
+            val w = result.data?.getDoubleExtra(PlantupiaFloorSurveyActivity.WIDTH, Double.NaN) ?: Double.NaN
+            val l = result.data?.getDoubleExtra(PlantupiaFloorSurveyActivity.LENGTH, Double.NaN) ?: Double.NaN
+            if (w.isFinite() && l.isFinite() && w in .3..30.0 && l in .3..30.0) arCandidate = w to l
+        }
+    }
     val prior = room.plants.find { it.id == selected?.id }
     var x by remember(selected) { mutableStateOf(prior?.x?.toString().orEmpty()) }
     var y by remember(selected) { mutableStateOf(prior?.y?.toString().orEmpty()) }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("Use metres from the same marked corner. Follow the same two walls on every visit.")
+        OutlinedButton(enabled = !saving, onClick = {
+            surveyLauncher.launch(Intent(context, PlantupiaFloorSurveyActivity::class.java))
+        }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Measure floor with AR camera") }
+        arCandidate?.let { (measuredWidth, measuredLength) ->
+            Surface(color = PlantupiaColors.softSage, shape = PlantupiaShapes.inset, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(String.format(Locale.ROOT, "%.2f × %.2f m", measuredWidth, measuredLength), style = PlantupiaText.editorialHeading)
+                    Text("AR estimate. Check both lengths with a physical measure before saving.", style = PlantupiaText.supporting)
+                    if (room.plants.isEmpty() && room.windows.isEmpty()) {
+                        TextButton(enabled = !saving, onClick = {
+                            width = String.format(Locale.ROOT, "%.3f", measuredWidth)
+                            length = String.format(Locale.ROOT, "%.3f", measuredLength)
+                            arCandidate = null
+                        }) { Text("Use in draft") }
+                    } else Text("Existing positions use the saved coordinate frame. Enter checked dimensions manually to preserve that frame.", style = PlantupiaText.supporting)
+                    TextButton(onClick = { arCandidate = null }) { Text("Dismiss measurement") }
+                }
+            }
+        }
         OutlinedTextField(width, { width = it }, label = { Text("Width (m)") }, singleLine = true)
         OutlinedTextField(length, { length = it }, label = { Text("Length (m)") }, singleLine = true)
         OutlinedTextField(height, { height = it.take(32) }, label = { Text("Measured height (m, optional)") },

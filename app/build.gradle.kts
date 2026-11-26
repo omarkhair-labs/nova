@@ -97,6 +97,8 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.view)
+    // AR Optional: ordinary app and manual room recording remain available without ARCore.
+    implementation("com.google.ar:core:1.54.0")
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.compose.material3)
     implementation("androidx.compose.material:material-icons-core")
