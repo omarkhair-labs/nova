@@ -90,10 +90,9 @@ fun CreateAccountScreen(
     BackHandler(enabled = identityStep || isLoading) { goBack() }
 
     AuthPage(
-        eyebrow = if (identityStep) "STEP 2 OF 2 / YOUR PROFILE" else "STEP 1 OF 2 / YOUR ACCOUNT",
-        title = if (identityStep) "Make it yours." else "A little more life.",
-        subtitle = if (identityStep) "Choose how people recognize you in Plantupia." else
-            "One account for your plants, places and the moments between.",
+        eyebrow = if (identityStep) "2 of 2" else "1 of 2",
+        title = if (identityStep) "Your profile" else "Create account",
+        subtitle = "",
         buttonText = if (identityStep) "Create account" else "Continue",
         busyText = "Creating account…",
         buttonEnabled = !isLoading,
@@ -198,9 +197,9 @@ fun LoginScreen(
         }
     }
     AuthPage(
-        eyebrow = "YOUR PLANTUPIA",
-        title = "Welcome back.",
-        subtitle = "Pick up where you left off.",
+        eyebrow = "",
+        title = "Welcome back",
+        subtitle = "",
         buttonText = "Log in",
         busyText = "Opening your space…",
         buttonEnabled = !isLoading,
@@ -288,16 +287,19 @@ private fun AuthPage(
                     Spacer(Modifier.weight(1f))
                     PlantupiaBrandGlyph(Modifier.size(28.dp))
                 }
-                Spacer(Modifier.height(28.dp))
-                Text(eyebrow, style = PlantupiaText.sectionLabel)
-                Spacer(Modifier.height(8.dp))
-                Text(title, style = PlantupiaText.pageHeading.copy(fontSize = 34.sp, lineHeight = 41.sp),
-                    modifier = Modifier.semantics { heading() })
-                Spacer(Modifier.height(10.dp))
-                Text(subtitle, style = PlantupiaText.body)
-                Spacer(Modifier.height(26.dp))
-                Surface(color = PlantupiaColors.paper, shape = PlantupiaShapes.card) {
-                    Column(Modifier.fillMaxWidth().padding(18.dp)) {
+                Spacer(Modifier.height(20.dp))
+                if (eyebrow.isNotBlank()) {
+                    Text(eyebrow, style = PlantupiaText.supporting)
+                    Spacer(Modifier.height(8.dp))
+                }
+                Text(title, style = PlantupiaText.pageHeading, modifier = Modifier.semantics { heading() })
+                if (subtitle.isNotBlank()) {
+                    Spacer(Modifier.height(10.dp))
+                    Text(subtitle, style = PlantupiaText.body)
+                }
+                Spacer(Modifier.height(24.dp))
+                Surface(color = PlantupiaColors.cream, shape = PlantupiaShapes.card) {
+                    Column(Modifier.fillMaxWidth()) {
                         content()
                         if (secondaryActionText != null && onSecondaryAction != null) {
                             TextButton(onClick = onSecondaryAction, enabled = !isLoading,

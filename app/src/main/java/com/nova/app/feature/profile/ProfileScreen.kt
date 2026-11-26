@@ -1,5 +1,6 @@
 package com.nova.app.feature.profile
 
+import com.nova.app.feature.plants.PlantupiaActionRow
 import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -118,7 +119,6 @@ fun ProfileScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(text = "PLANTUPIA / ME", style = PlantupiaText.sectionLabel)
                     if (!largeText) Text(
                         text = "My Plantupia",
                         style = PlantupiaText.editorialHeading,
@@ -155,44 +155,31 @@ fun ProfileScreen(
                 modifier = Modifier.padding(top = 8.dp).semantics { heading() },
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                "Private places, care and orders first. Public identity and shared moments stay separate.",
-                style = PlantupiaText.supporting,
-            )
-
-            Spacer(modifier = Modifier.height(NovaSpacing.xl))
+            Spacer(modifier = Modifier.height(NovaSpacing.lg))
             PlantupiaProfileSpaces(accountId = userId, onOpenSpaces = onPlantsClick)
 
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
             PlantupiaProfileSectionHeading(
-                eyebrow = "SERVICE / YOUR PLANTUPIA",
-                description = "Care access and purchases belong to your private account, not your public profile.",
+                eyebrow = "Account",
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             PlantupiaProfileActionCard(
                 icon = NovaIconAsset.CareCalendar,
-                eyebrow = "CARE & ACCESS",
                 title = "Plans and service",
-                body = "See the Plantupia care access attached to your account.",
-                action = "Open care access",
                 onClick = { showCarePlans = true },
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             PlantupiaProfileActionCard(
                 icon = NovaIconAsset.Shop,
-                eyebrow = "ORDERS",
-                title = "Purchases and status",
-                body = "Open orders, receipts and the latest status attached to this account.",
-                action = "Open my orders",
+                title = "Orders",
                 enabled = userId > 0L,
                 onClick = { PlantupiaShopOpenSignal.openOrders(userId) },
             )
 
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
             PlantupiaProfileSectionHeading(
-                eyebrow = "PUBLIC / WHAT YOU SHARE",
-                description = "Only these profile details and moments are public. Your plants, places and care records stay private.",
+                eyebrow = "Public profile",
+                description = "Your plants and care records stay private.",
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             PlantupiaMeIdentity(
@@ -217,8 +204,7 @@ fun ProfileScreen(
 
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
             PlantupiaProfileSectionHeading(
-                eyebrow = "SHARED MOMENTS",
-                description = "What you choose to make public, separate from your private plants and care.",
+                eyebrow = "Shared moments",
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             PlantupiaProfileSocialStats(
@@ -247,47 +233,10 @@ fun ProfileScreen(
 @Composable
 private fun PlantupiaProfileActionCard(
     icon: NovaIconAsset,
-    eyebrow: String,
     title: String,
-    body: String,
-    action: String,
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
-    Surface(
-        onClick = onClick,
-        enabled = enabled,
-        modifier = Modifier.fillMaxWidth(),
-        color = if (enabled) PlantupiaColors.paper else PlantupiaColors.cream,
-        shape = PlantupiaShapes.card,
-        border = BorderStroke(1.dp, PlantupiaColors.border),
-    ) {
-        Row(
-            Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Surface(
-                color = PlantupiaColors.softSage,
-                shape = PlantupiaShapes.inset,
-            ) {
-                Box(Modifier.padding(11.dp)) {
-                    NovaIcon(
-                        asset = icon,
-                        contentDescription = null,
-                        tint = PlantupiaColors.forest,
-                    )
-                }
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(eyebrow, style = PlantupiaText.sectionLabel)
-                Text(title, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                Text(body, style = PlantupiaText.supporting)
-                Text(
-                    if (enabled) "$action \u2192" else "Unavailable",
-                    style = PlantupiaText.sectionLabel,
-                )
-            }
-        }
-    }
+    PlantupiaActionRow(icon = icon, title = title, enabled = enabled,
+        detail = if (enabled) null else "Unavailable", onClick = onClick)
 }

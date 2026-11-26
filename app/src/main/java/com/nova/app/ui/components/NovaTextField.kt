@@ -36,11 +36,9 @@ fun NovaTextField(
         onValueChange = onValueChange,
         modifier = modifier.fillMaxWidth(),
         label = { Text(label) },
-        placeholder = {
-            if (placeholder.isNotBlank()) {
-                Text(placeholder, color = NovaMuted)
-            }
-        },
+        placeholder = if (placeholder.isNotBlank()) {
+            { Text(placeholder, color = NovaMuted) }
+        } else null,
         singleLine = true,
         enabled = enabled,
         isError = isError,

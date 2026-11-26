@@ -75,12 +75,8 @@ internal fun PlantupiaTodayPanel(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Column(Modifier.weight(1f)) {
-                Text("PERSONAL RHYTHM", style = PlantupiaText.sectionLabel)
-                Text(
-                    if (due.isNotEmpty()) "What needs your attention"
-                    else "What you chose to revisit",
-                    style = PlantupiaText.editorialHeading,
-                )
+                Text(if (due.isNotEmpty()) "Check-ins" else "Upcoming",
+                    style = PlantupiaText.itemTitle)
             }
             Surface(
                 color = if (due.isNotEmpty()) PlantupiaColors.forest else PlantupiaColors.softSage,
@@ -105,7 +101,7 @@ internal fun PlantupiaTodayPanel(
             PersonalCheckInHero(
                 plant = first,
                 eyebrow = personalCheckInDateLabel(first.nextFollowUpOn, today).uppercase(Locale.ENGLISH),
-                supporting = "A check-in you chose. Open the plant before recording anything.",
+                supporting = "Personal check-in",
                 onOpen = { onOpenPlant(first) },
             )
 
@@ -149,7 +145,7 @@ internal fun PlantupiaTodayPanel(
             PersonalCheckInHero(
                 plant = upcoming,
                 eyebrow = "NEXT CHECK-IN \u00B7 ${personalCheckInDateLabel(upcoming.nextFollowUpOn, today).uppercase(Locale.ENGLISH)}",
-                supporting = "A date you chose for yourself. Nothing is marked done until you record what actually happened.",
+                supporting = "Personal check-in",
                 onOpen = { onOpenPlant(upcoming) },
             )
         }
@@ -188,7 +184,7 @@ private fun PersonalCheckInHero(
                 Text(eyebrow, style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
                 Text(plant.name, style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper))
                 Text(supporting, style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream))
-                Text("Review plant \u2192", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.paper))
+                Text("Review", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.paper))
             }
         }
     }

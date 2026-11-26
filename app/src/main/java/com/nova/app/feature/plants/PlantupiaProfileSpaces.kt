@@ -85,7 +85,7 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("YOUR LIVING PLACES · PRIVATE", style = PlantupiaText.sectionLabel,
+            Text("Private spaces", style = PlantupiaText.itemTitle,
                 modifier = Modifier.weight(1f))
             if (state is PrivateSpacesSummary.Loaded) {
                 TextButton(onClick = { retry += 1 }) {
@@ -127,7 +127,7 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                     ) {
                         Text("Your spaces are unavailable", style = PlantupiaText.editorialHeading)
                         Text(
-                            "We won't substitute sample photos or counts for your real data. Try again when the service is available.",
+                            "Try again when connected.",
                             style = PlantupiaText.supporting,
                         )
                         TextButton(onClick = { retry++ }) {
@@ -161,7 +161,7 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                         )
                         if (current.spaces.isEmpty()) {
                             Text(
-                                "No spaces yet. Add a place to begin recording its plants and changes.",
+                                "No spaces yet",
                                 style = PlantupiaText.body,
                             )
                             EmptySpacesIllustration()

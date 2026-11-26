@@ -59,16 +59,11 @@ fun WelcomeScreen(
             }
             Spacer(Modifier.height(22.dp))
             Text(
-                "A living space starts here.",
-                style = PlantupiaText.pageHeading.copy(fontSize = 36.sp, lineHeight = 43.sp),
+                "A place for life.",
+                style = PlantupiaText.display,
                 modifier = Modifier.semantics { heading() },
             )
-            Spacer(Modifier.height(12.dp))
-            Text(
-                "A place for your plants, the care you give them, and the life you build around them.",
-                style = PlantupiaText.body.copy(fontSize = 15.sp, lineHeight = 23.sp),
-            )
-            Spacer(Modifier.height(15.dp))
+            Spacer(Modifier.height(16.dp))
             WelcomeLivingFrame()
             Spacer(Modifier.height(17.dp))
             NovaPrimaryButton(text = "Create account", onClick = onCreateAccount)
@@ -82,10 +77,8 @@ fun WelcomeScreen(
                 modifier = Modifier.fillMaxWidth().semantics { role = Role.Button },
             ) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Text("RECEIVED PLANTUPIA PLANTS?", style = PlantupiaText.sectionLabel)
-                    Text("Your delivery has a story.", style = PlantupiaText.editorialHeading)
-                    Text("Scan its QR to review your plants and connect them to your account.", style = PlantupiaText.supporting)
-                    Text("Connect delivery", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                    Text("Connect delivery", style = PlantupiaText.itemTitle)
+                    Text("Scan your delivery QR", style = PlantupiaText.supporting)
                 }
             }
             Spacer(Modifier.height(20.dp))
@@ -164,8 +157,7 @@ private fun WelcomeLivingFrame() {
                 modifier = Modifier.align(Alignment.CenterStart).fillMaxWidth(.49f).padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
-                Text("LIVING FORM", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
-                Text("A place for life.", style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper, fontSize = 21.sp, lineHeight = 26.sp))
+                PlantupiaBrandGlyph(Modifier.size(42.dp))
             }
         }
     }

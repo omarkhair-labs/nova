@@ -83,7 +83,7 @@ class PlantupiaEntranceInstrumentedTest {
         compose.onNodeWithText("Continue").performClick()
         field("Name").performScrollTo().performTextInput("Fictional Test")
         restoration.emulateSavedInstanceStateRestore()
-        compose.onNodeWithText("STEP 1 OF 2 / YOUR ACCOUNT").assertExists()
+        compose.onNodeWithText("1 of 2").assertExists()
         field("Email").assertTextContains("fictional@example.com")
         field("Password").assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText,
             androidx.compose.ui.text.AnnotatedString("")))
