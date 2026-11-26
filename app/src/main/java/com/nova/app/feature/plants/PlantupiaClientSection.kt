@@ -2156,13 +2156,13 @@ private fun PlantupiaAccountClientSection(
             if (openDetailMode != PlantupiaCreateMode.QUESTION &&
                 activeChapter == PlantupiaDetailChapter.HISTORY
             ) {
-            Text(selectedPlant.name, style = PlantupiaText.editorialHeading)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(if (showFullHistory) "All records" else "Recent activity", style = PlantupiaText.itemTitle)
+                Text(if (showFullHistory) "All records" else "Recent activity", style = PlantupiaText.itemTitle,
+                    modifier = Modifier.weight(1f))
                 if (!detailLoading && !historyLoadFailed && events.isNotEmpty()) {
                     TextButton(onClick = { showFullHistory = !showFullHistory }) {
                         Text(if (showFullHistory) "Show recent only ↑" else "See all history →", color = deepGreen)

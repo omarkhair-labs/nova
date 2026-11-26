@@ -50,14 +50,8 @@ internal fun PlantupiaPhotoIndex(
     val comparison = if (choosing) signatureComparisonPair(events, firstId, secondId) else defaultPair
 
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        Text("RECORDED PHOTOS", style = PlantupiaText.sectionLabel)
-        Text(
-            if (photos.size == 1)
-                "One real photo so far. New photos will join your plant's living history."
-            else
-                "${photos.size} actual photos in the loaded history. Tap one to examine it.",
-            style = PlantupiaText.supporting,
-        )
+        Text(if (photos.size == 1) "1 saved photograph" else "${photos.size} saved photographs",
+            style = PlantupiaText.itemTitle)
         // Two verified snapshots of the same person's private plant history.
         // The oldest *loaded* photo is not necessarily the first ever recorded.
         if (photos.size > 1) {
@@ -122,7 +116,7 @@ internal fun PlantupiaPhotoIndex(
                 }
             }
         }
-        if (hasOlderPages) {
+        if (hasOlderPages && comparison == null) {
             Text(
                 "Older photos may appear when you load earlier history.",
                 style = PlantupiaText.supporting,

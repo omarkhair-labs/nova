@@ -34,7 +34,8 @@ class PlantupiaPhotoTimeLensInstrumentedTest {
                 PlantupiaPhotoTimeLens(pair = pair, hasOlderPages = true, onOpenPhoto = {}, alignmentEnabled = true)
             }
         }
-        compose.onNodeWithText("See it at another point in time").assertExists()
+        compose.onNodeWithText("Across time").assertExists()
+        compose.onNodeWithText("47 days apart").assertExists()
         compose.onNodeWithContentDescription(
             "Later recorded photo, 2026-11-18",
         ).assertIsSelected()
@@ -59,6 +60,6 @@ class PlantupiaPhotoTimeLensInstrumentedTest {
         compose.onNodeWithText("Align two visits").assertExists()
         compose.onNodeWithText("2026-10-02 · 0 of 4 marks").assertExists()
         compose.onNodeWithText("Close alignment").performScrollTo().performClick()
-        compose.onNodeWithText("See it at another point in time").assertExists()
+        compose.onNodeWithText("Across time").assertExists()
     }
 }
