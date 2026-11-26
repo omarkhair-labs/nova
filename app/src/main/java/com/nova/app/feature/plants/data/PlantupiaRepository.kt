@@ -24,6 +24,7 @@ data class PlantupiaSpace(
     // A missing flag on an older deployed preview is NOT proof of denied access.
     // Creation stays disabled until authority is confirmed by the server.
     val canAddPlantPermissionReported: Boolean = true,
+    val livingSystemsEnabled: Boolean = false,
 )
 
 /** A curated reference type; not evidence verifying a customer's physical plant. */
@@ -73,6 +74,7 @@ data class PlantupiaCareEvent(
     val followUpCompletedAt: String,
     // UUID of the original private care/observation event closed by an outcome.
     val followUpFor: String = "",
+    val captureFlags: List<String> = emptyList(),
 )
 
 
@@ -387,6 +389,7 @@ class PlantupiaRepository(
                     location = raw.optString("location_note"),
                     canAddPlant = raw.optBoolean("can_add_plant", false),
                     canAddPlantPermissionReported = raw.has("can_add_plant"),
+                    livingSystemsEnabled = raw.optBoolean("living_systems_enabled"),
                 )
             }
         }
@@ -413,6 +416,20 @@ class PlantupiaRepository(
                 )
             }
         }
+
+    internal suspend fun room(spaceId: String): ApiResult<PlantupiaRoom> = authorized { token ->
+        when (val response = api.requestJson(path = "plantupia/spaces/$spaceId/room/", bearerToken = token)) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) { parseRoom(it, spaceId) }
+        }
+    }
+
+    internal suspend fun saveRoom(spaceId: String, body: JSONObject): ApiResult<Int> = authorized { token ->
+        when (val response = api.requestJson(path = "plantupia/spaces/$spaceId/room/", method = "POST", body = body, bearerToken = token)) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) { it.getInt("revision") }
+        }
+    }
 
     /** One bounded, read-only projection of actual Living History events in the visible grid. */
     suspend fun calendarHistory(from: String, through: String): ApiResult<List<JSONObject>> =
@@ -448,6 +465,9 @@ class PlantupiaRepository(
                             photoUrl = api.resolveMediaUrl(raw.optString("photo")),
                             followUpOn = raw.optString("follow_up_on").takeUnless { it == "null" }.orEmpty(),
                             followUpCompletedAt = raw.optString("follow_up_completed_at").takeUnless { it == "null" }.orEmpty(),
+                            captureFlags = raw.optJSONObject("capture_quality")?.optJSONArray("capture_flags")?.let { flags ->
+                                List(flags.length()) { flags.optString(it) }
+                            }.orEmpty(),
                             followUpFor = raw.optString("follow_up_for").takeUnless { it == "null" }.orEmpty(),
                         )
                     }

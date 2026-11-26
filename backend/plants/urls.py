@@ -1,3 +1,4 @@
+from .living_api import FieldEvidenceView, ReviewView, RoomView
 from django.urls import path
 from .commerce_storefront_api import CommerceCatalogView, CommerceCatalogPhotoView, CommerceCartView
 from .commerce_public_catalog_api import PublicCommerceCatalogView, PublicCommerceCoverView
@@ -18,6 +19,9 @@ from .views import SpaceDetailView, PlantDetailView, PlantCoverPhotoView, PlantE
 from .website_inbox import receive_website_enquiry
 
 urlpatterns = [
+    path("spaces/<uuid:space_id>/room/", RoomView.as_view(), name="plantupia-room"),
+    path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/", FieldEvidenceView.as_view(), name="plantupia-field-evidence"),
+    path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/reviews/", ReviewView.as_view(), name="plantupia-evidence-review"),
     path("website/enquiries/", receive_website_enquiry, name="plantupia-website-enquiries"),
     # The sole future customer Shop data source; no QA models or active checkout.
     # Curated anonymous web showcase. Never exposes private carts, prices in draft or checkout.

@@ -1,0 +1,131 @@
+package com.nova.app.feature.plants
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.unit.dp
+import com.nova.app.core.network.ApiResult
+import com.nova.app.feature.plants.data.*
+import kotlinx.coroutines.launch
+import kotlin.math.min
+
+@Composable
+internal fun PlantupiaRoomPlan(
+    space: PlantupiaSpace, plants: List<PlantupiaPlant>, repository: PlantupiaRepository,
+    openPlant: (PlantupiaPlant) -> Unit,
+) = key(space.id, repository) {
+    var expanded by remember { mutableStateOf(false) }
+    TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Close floor plan" else "Open floor plan") }
+    if (expanded) {
+        var room by remember { mutableStateOf<PlantupiaRoom?>(null) }
+        var generation by remember { mutableIntStateOf(0) }
+        var message by remember { mutableStateOf("") }
+        var saving by remember { mutableStateOf(false) }
+        var editing by remember { mutableStateOf(false) }
+        val scope = rememberCoroutineScope()
+        LaunchedEffect(generation) {
+            room = null
+            message = ""
+            when (val response = repository.room(space.id)) {
+                is ApiResult.Failure -> message = response.message
+                is ApiResult.Success -> if (repository.isCurrentSession()) room = response.value
+            }
+        }
+        TextButton(enabled = !saving, onClick = { editing = false; generation++ }) { Text("Refresh floor plan") }
+        if (message.isNotBlank()) Text(message)
+        val current = room
+        if (current != null) {
+            val width = current.width
+            val length = current.length
+            if (width != null && length != null) {
+                Text("Reported room · $width × $length m · revision ${current.revision}")
+                val ink = MaterialTheme.colorScheme.primary
+                Canvas(Modifier.fillMaxWidth().height(180.dp).padding(8.dp)) {
+                    val scale = min(size.width / width, size.height / length).toFloat()
+                    val frame = Size((width * scale).toFloat(), (length * scale).toFloat())
+                    val origin = Offset((size.width-frame.width)/2f, (size.height-frame.height)/2f)
+                    drawRect(ink, origin, frame, style = Stroke(2.dp.toPx()))
+                    current.windows.forEach {
+                        drawCircle(ink, 4.dp.toPx(), origin + Offset((it.x*scale).toFloat(), (it.y*scale).toFloat()), style = Stroke(1.dp.toPx()))
+                    }
+                    current.plants.forEach {
+                        drawCircle(ink, 5.dp.toPx(), origin + Offset((it.x*scale).toFloat(), (it.y*scale).toFloat()))
+                    }
+                }
+                current.plants.forEach { point ->
+                    plants.find { it.id == point.id }?.let { plant ->
+                        TextButton(onClick = { openPlant(plant) }) {
+                            Text("${plant.name} · ${point.x}, ${point.y} m" +
+                                if (point.latest.isEmpty()) "" else " · last record ${point.latest.take(10)}")
+                        }
+                    }
+                }
+            } else Text("This space has no recorded room dimensions.")
+            if (space.canAddPlant) {
+                TextButton(enabled = !saving, onClick = { editing = !editing }) {
+                    Text(if (editing) "Cancel edit" else "Record dimensions or placement")
+                }
+                if (editing) RoomEditor(current, plants, saving) { w, l, positions ->
+                    saving = true
+                    scope.launch {
+                        when (val result = repository.saveRoom(space.id, current.submission(w, l, positions))) {
+                            is ApiResult.Failure -> message = result.message
+                            is ApiResult.Success -> { editing = false; generation++ }
+                        }
+                        saving = false
+                    }
+                }
+            }
+        } else if (message.isEmpty()) Text("Loading room…")
+    }
+}
+
+@Composable
+private fun RoomEditor(
+    room: PlantupiaRoom, plants: List<PlantupiaPlant>, saving: Boolean,
+    save: (Double, Double, List<RoomPlant>) -> Unit,
+) {
+    var width by remember(room) { mutableStateOf(room.width?.toString().orEmpty()) }
+    var length by remember(room) { mutableStateOf(room.length?.toString().orEmpty()) }
+    var selected by remember(room) { mutableStateOf<PlantupiaPlant?>(null) }
+    var choose by remember { mutableStateOf(false) }
+    val prior = room.plants.find { it.id == selected?.id }
+    var x by remember(selected) { mutableStateOf(prior?.x?.toString().orEmpty()) }
+    var y by remember(selected) { mutableStateOf(prior?.y?.toString().orEmpty()) }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("Use metres from the same marked corner. Follow the same two walls on every visit.")
+        OutlinedTextField(width, { width = it }, label = { Text("Width (m)") }, singleLine = true)
+        OutlinedTextField(length, { length = it }, label = { Text("Length (m)") }, singleLine = true)
+        Box {
+            TextButton(onClick = { choose = true }) { Text(selected?.name ?: "Choose a plant to position") }
+            DropdownMenu(expanded = choose, onDismissRequest = { choose = false }) {
+                plants.forEach { plant ->
+                    DropdownMenuItem(text = { Text(plant.name) }, onClick = { selected = plant; choose = false })
+                }
+            }
+        }
+        val id = selected?.id
+        if (id != null) {
+            OutlinedTextField(x, { x = it }, label = { Text("Along width (m)") }, singleLine = true)
+            OutlinedTextField(y, { y = it }, label = { Text("Along length (m)") }, singleLine = true)
+        }
+        val w = width.toDoubleOrNull()
+        val l = length.toDoubleOrNull()
+        val px = x.toDoubleOrNull()
+        val py = y.toDoubleOrNull()
+        val valid = w != null && l != null && w > 0 && l > 0 && w <= 1000 && l <= 1000 &&
+            (id == null || (px != null && py != null && px in 0.0..w && py in 0.0..l))
+        Button(enabled = valid && !saving, onClick = {
+            if (w != null && l != null) {
+                val points = if (id != null && px != null && py != null)
+                    room.plants.filter { it.id != id } + RoomPlant(id, px, py, "") else room.plants
+                save(w, l, points)
+            }
+        }) { Text(if (saving) "Saving…" else "Save room revision") }
+    }
+}
