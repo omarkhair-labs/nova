@@ -101,7 +101,7 @@ export DJANGO_ENV=development DJANGO_DEBUG=1
 export DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 export DATABASE_URL="sqlite:///$qa_root/qa.sqlite3"
 export PLANTUPIA_LOCAL_QA_MEDIA_ROOT="$qa_root/media"
-export PLANTUPIA_HANDOVER_QA_ENABLED=1
+export PLANTUPIA_HANDOVER_QA_ENABLED=1 PLANTUPIA_LIVING_SYSTEMS_ENABLED=1
 export PLANTUPIA_COMPANY_DASHBOARD_ENABLED=0 PLANTUPIA_CEO_DEMO_ENABLED=0
 export PLANTUPIA_PREVIEW_HOSTED_QA_ENABLED=0 PLANTUPIA_STOREFRONT_PUBLICATION_ENABLED=0
 export REDIS_URL='' RAILWAY_PUBLIC_DOMAIN=''
@@ -309,8 +309,8 @@ lines = [line.strip() for line in raw.splitlines()]
 errors = []
 if process_status:
     errors.append(f"Instrumentation process exited {process_status}.")
-if lines.count("OK (2 tests)") != 1 or "INSTRUMENTATION_CODE: -1" not in lines:
-    errors.append("Expected exactly two completed, successful instrumentation tests.")
+if lines.count("OK (3 tests)") != 1 or "INSTRUMENTATION_CODE: -1" not in lines:
+    errors.append("Expected exactly three completed, successful instrumentation tests.")
 if re.search(r"^INSTRUMENTATION_STATUS_CODE: -\d+\s*$", raw, re.MULTILINE):
     errors.append("The runner reported a failed, ignored or assumption-skipped test.")
 if pull_status:
@@ -321,6 +321,7 @@ names = [
     "09-settings", "10-settings-about", "11-shop-empty", "12-shop-cart",
     "13-ask", "14-today-return", "15-owner-today", "16-owner-plants", "17-owner-profile",
     "18-owner-plant-detail", "19-owner-plant-care", "20-owner-plant-history", "21-owner-plant-guide",
+    "22-room-placements", "23-room-daylight", "24-capture-permission",
 ]
 captures = []
 for name in names:
@@ -336,14 +337,14 @@ for name in names:
         errors.append(f"Missing, incomplete or invalid required screenshot: {filename}.")
 result = {
     "pass": directory.name, "logical_width_dp": int(width), "font_scale": float(font),
-    "expected_tests": 2, "process_exit": process_status, "capture_exit": pull_status,
+    "expected_tests": 3, "process_exit": process_status, "capture_exit": pull_status,
     "required_images": len(names), "captures": captures, "passed": not errors, "errors": errors,
 }
 (directory / "result.json").write_text(json.dumps(result, indent=2) + "\n")
 status = "PASS" if not errors else "FAIL"
 summary = (
     f"### {directory.name}: {status}\n\n"
-    f"Two read-only journeys at {width} dp, font scale {font}; "
+    f"Three journeys against disposable QA at {width} dp, font scale {font}; "
     f"collected {len(captures)}/{len(names)} required native screenshots.\n\n"
 )
 if errors:

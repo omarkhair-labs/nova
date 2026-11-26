@@ -2249,6 +2249,7 @@ private fun PlantupiaAccountClientSection(
                     PlantupiaPhotoIndex(
                         events = events,
                         hasOlderPages = nextHistoryOffset != null,
+                        alignmentEnabled = spaces.any { it.id == selectedPlant.spaceId && it.livingSystemsEnabled },
                         onOpenPhoto = { photo ->
                             photoToView = photo.photoUrl to selectedPlant.name
                         },

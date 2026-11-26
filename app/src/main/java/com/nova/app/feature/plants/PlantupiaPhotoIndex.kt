@@ -39,6 +39,7 @@ internal fun PlantupiaPhotoIndex(
     events: List<PlantupiaCareEvent>,
     hasOlderPages: Boolean,
     onOpenPhoto: (PlantupiaCareEvent) -> Unit,
+    alignmentEnabled: Boolean = false,
 ) {
     val photos = recordedPlantPhotos(events)
     val defaultPair = plantupiaLoadedPhotoPair(events)
@@ -87,6 +88,7 @@ internal fun PlantupiaPhotoIndex(
                 pair = comparison,
                 hasOlderPages = hasOlderPages,
                 onOpenPhoto = onOpenPhoto,
+                alignmentEnabled = alignmentEnabled,
             )
         }
         if (photos.size != 2 || comparison == null) LazyRow(

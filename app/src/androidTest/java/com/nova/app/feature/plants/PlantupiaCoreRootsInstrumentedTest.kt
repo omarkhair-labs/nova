@@ -7,6 +7,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso.closeSoftKeyboard
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nova.app.MainActivity
@@ -28,9 +29,9 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * Read-only navigation through the real app against the guarded disposable seed.
- * The seed's customer has no claimed delivery; the existing staff owner holds
- * the seven synthetic plants. No claim, order, publication or account is created.
+ * Navigation through the real app against the guarded disposable seed.
+ * The field journey adds a reported room to the seven-plant fixture. No claim,
+ * order, care record, publication or account is created by these tests.
  */
 class PlantupiaCoreRootsInstrumentedTest {
     @get:Rule val compose = createEmptyComposeRule()
@@ -243,6 +244,55 @@ class PlantupiaCoreRootsInstrumentedTest {
         assertTrue("Read-only navigation must retain the original inventory.",
             after is ApiResult.Success && after.value.map { it.id }.toSet() == expectedIds &&
                 after.value.associate { it.id to it.active } == plants.associate { it.id to it.active })
+    }
+
+    @Test fun livingRoomDaylightAndCaptureReachCurrentPlant() {
+        val repository = openSeedAccount("staff")
+        val id = fixture.getString("space_id")
+        val specimenId = fixture.getJSONArray("plant_ids").getString(0)
+        val payload = JSONObject("""
+            {"base_revision":0,"width_m":4,"length_m":3,
+             "plants":[{"plant_id":"$specimenId","x_m":3.7,"y_m":1.5}],
+             "windows":[{"id":"East window","x_m":4,"y_m":1.5}]}
+        """.trimIndent())
+        val saved = runBlocking { repository.saveRoom(id, payload) }
+        assertTrue("The disposable room revision must be acknowledged.", saved is ApiResult.Success && saved.value == 1)
+        tab("Plants")
+        clickText("Explore this place")
+        scrollToText("Reported room", substring = true)
+        capture("22-room-placements")
+        clickText("Explore direct sunlight")
+        fillScenario("Opening width (m)", "2")
+        fillScenario("Sill above floor (m)", ".4")
+        fillScenario("Head above floor (m)", "2.4")
+        fillScenario("Top wall outward bearing from true north (°)", "0")
+        fillScenario("Along width (m)", "3.7")
+        fillScenario("Along length (m)", "1.5")
+        fillScenario("Sample height (m)", "1.1")
+        fillScenario("Latitude (°)", "0")
+        fillScenario("Longitude (°)", "0")
+        fillScenario("Date (YYYY-MM-DD)", "2026-03-20")
+        fillScenario("Time zone (e.g. Africa/Cairo)", "UTC")
+        clickText("Simulate this day")
+        scrollToText("Direct sun reaches this point", substring = true)
+        capture("23-room-daylight")
+        clickText("Return to placements")
+        clickText("Synthetic plant 01 ·", substring = true)
+        clickText("Care")
+        clickText("Record care")
+        clickText("Add a note, photo or optional next check", substring = true)
+        clickText("Photograph this plant")
+        scrollToText("Allow camera", clickable = true)
+        capture("24-capture-permission")
+        pressBack()
+        assertTrue("Entering and leaving capture creates no private record.",
+            (runBlocking { repository.historyPage(specimenId) } as? ApiResult.Success)?.value?.events?.isEmpty() == true)
+    }
+
+    private fun fillScenario(label: String, value: String) {
+        val field = scrollToText(label)
+        field.performTextReplacement(value)
+        closeSoftKeyboard()
     }
 
     private fun openSeedAccount(role: String): PlantupiaRepository {

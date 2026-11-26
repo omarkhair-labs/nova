@@ -31,7 +31,7 @@ class PlantupiaPhotoTimeLensInstrumentedTest {
         )
         compose.setContent {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                PlantupiaPhotoTimeLens(pair = pair, hasOlderPages = true, onOpenPhoto = {})
+                PlantupiaPhotoTimeLens(pair = pair, hasOlderPages = true, onOpenPhoto = {}, alignmentEnabled = true)
             }
         }
         compose.onNodeWithText("See it at another point in time").assertExists()
@@ -55,5 +55,10 @@ class PlantupiaPhotoTimeLensInstrumentedTest {
         compose.onNodeWithText("Single photo").performClick()
         compose.onNodeWithText("Only photos loaded so far.", substring = true).assertExists()
         compose.onAllNodesWithText("Healthy", substring = true).assertCountEquals(0)
+        compose.onNodeWithText("Align using reference marks").performScrollTo().performClick()
+        compose.onNodeWithText("Align two visits").assertExists()
+        compose.onNodeWithText("2026-10-02 · 0 of 4 marks").assertExists()
+        compose.onNodeWithText("Close alignment").performScrollTo().performClick()
+        compose.onNodeWithText("See it at another point in time").assertExists()
     }
 }

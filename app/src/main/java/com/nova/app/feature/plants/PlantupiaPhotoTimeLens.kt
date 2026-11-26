@@ -51,7 +51,15 @@ internal fun PlantupiaPhotoTimeLens(
     pair: PlantupiaLoadedPhotoPair,
     hasOlderPages: Boolean,
     onOpenPhoto: (PlantupiaCareEvent) -> Unit,
+    alignmentEnabled: Boolean = false,
 ) {
+    var align by remember(pair.earlier.id, pair.later.id) { mutableStateOf(false) }
+    if (align && alignmentEnabled) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            PlantupiaAlignedVisits(pair) { align = false }
+        }
+        return
+    }
     var showLater by rememberSaveable(pair.earlier.id, pair.later.id) {
         mutableStateOf(true)
     }
@@ -160,6 +168,11 @@ internal fun PlantupiaPhotoTimeLens(
                 )
                 Text("Recorded on " + visible.observedAt.take(10),
                     style = PlantupiaText.sectionLabel)
+                }
+            }
+            if (alignmentEnabled) {
+                TextButton(onClick = { align = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                    Text("Align using reference marks")
                 }
             }
             if (hasOlderPages) {
