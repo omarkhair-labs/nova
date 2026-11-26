@@ -9,13 +9,13 @@ internal data class PlantupiaRoom(
     val revision: Int, val width: Double?, val length: Double?,
     val plants: List<RoomPlant>, val windows: List<RoomWindow>,
 ) {
-    fun submission(width: Double, length: Double, placements: List<RoomPlant>) = JSONObject()
+    fun submission(width: Double, length: Double, placements: List<RoomPlant>, openings: List<RoomWindow>) = JSONObject()
         .put("base_revision", revision).put("width_m", width).put("length_m", length)
         .put("plants", JSONArray().apply {
             placements.forEach { put(JSONObject().put("plant_id", it.id).put("x_m", it.x).put("y_m", it.y)) }
         })
         .put("windows", JSONArray().apply {
-            windows.forEach { put(JSONObject().put("id", it.id).put("x_m", it.x).put("y_m", it.y)) }
+            openings.forEach { put(JSONObject().put("id", it.id).put("x_m", it.x).put("y_m", it.y)) }
         })
 }
 

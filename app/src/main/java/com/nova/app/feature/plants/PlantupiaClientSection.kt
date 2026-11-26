@@ -2250,6 +2250,9 @@ private fun PlantupiaAccountClientSection(
                         }
                     },
                 )
+                if (spaces.any { it.id == selectedPlant.spaceId && it.livingSystemsEnabled }) {
+                    PlantupiaFieldInspection(repository, selectedPlant, moment.event)
+                }
             }
             if (showFullHistory && historyReady && nextHistoryOffset != null) {
                 OutlinedButton(

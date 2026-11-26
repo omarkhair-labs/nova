@@ -417,6 +417,13 @@ class PlantupiaRepository(
             }
         }
 
+    internal suspend fun fieldEvidence(plant: String, event: String, action: String = "", data: JSONObject? = null): ApiResult<JSONObject> =
+        authorized { token ->
+            require(action in setOf("", "regions/", "reviews/"))
+            api.requestJson(path = "plantupia/plants/$plant/events/$event/evidence/$action",
+                method = if (data == null) "GET" else "POST", body = data, bearerToken = token)
+        }
+
     internal suspend fun room(spaceId: String): ApiResult<PlantupiaRoom> = authorized { token ->
         when (val response = api.requestJson(path = "plantupia/spaces/$spaceId/room/", bearerToken = token)) {
             is ApiResult.Failure -> response

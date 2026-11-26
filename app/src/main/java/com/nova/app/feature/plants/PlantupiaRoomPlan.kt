@@ -70,10 +70,10 @@ internal fun PlantupiaRoomPlan(
                 TextButton(enabled = !saving, onClick = { editing = !editing }) {
                     Text(if (editing) "Cancel edit" else "Record dimensions or placement")
                 }
-                if (editing) RoomEditor(current, plants, saving) { w, l, positions ->
+                if (editing) RoomEditor(current, plants, saving) { w, l, positions, openings ->
                     saving = true
                     scope.launch {
-                        when (val result = repository.saveRoom(space.id, current.submission(w, l, positions))) {
+                        when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings))) {
                             is ApiResult.Failure -> message = result.message
                             is ApiResult.Success -> { editing = false; generation++ }
                         }
@@ -88,11 +88,15 @@ internal fun PlantupiaRoomPlan(
 @Composable
 private fun RoomEditor(
     room: PlantupiaRoom, plants: List<PlantupiaPlant>, saving: Boolean,
-    save: (Double, Double, List<RoomPlant>) -> Unit,
+    save: (Double, Double, List<RoomPlant>, List<RoomWindow>) -> Unit,
 ) {
     var width by remember(room) { mutableStateOf(room.width?.toString().orEmpty()) }
     var length by remember(room) { mutableStateOf(room.length?.toString().orEmpty()) }
     var selected by remember(room) { mutableStateOf<PlantupiaPlant?>(null) }
+    var addWindow by remember(room) { mutableStateOf(false) }
+    var wall by remember(room) { mutableStateOf("Top") }
+    var windowOffset by remember(room) { mutableStateOf("") }
+    var windowName by remember(room) { mutableStateOf("") }
     var choose by remember { mutableStateOf(false) }
     val prior = room.plants.find { it.id == selected?.id }
     var x by remember(selected) { mutableStateOf(prior?.x?.toString().orEmpty()) }
@@ -118,13 +122,37 @@ private fun RoomEditor(
         val l = length.toDoubleOrNull()
         val px = x.toDoubleOrNull()
         val py = y.toDoubleOrNull()
-        val valid = w != null && l != null && w > 0 && l > 0 && w <= 1000 && l <= 1000 &&
+        TextButton(onClick = { addWindow = !addWindow }) { Text(if (addWindow) "Cancel window" else "Add window centre") }
+        if (addWindow) {
+            OutlinedTextField(windowName, { windowName = it.take(128) }, label = { Text("Window name") }, singleLine = true)
+            var menu by remember { mutableStateOf(false) }
+            Box {
+                TextButton(onClick = { menu = true }) { Text("Wall · $wall") }
+                DropdownMenu(menu, { menu = false }) {
+                    listOf("Top", "Right", "Bottom", "Left").forEach {
+                        DropdownMenuItem(text = { Text(it) }, onClick = { wall = it; menu = false })
+                    }
+                }
+            }
+            OutlinedTextField(windowOffset, { windowOffset = it }, singleLine = true,
+                label = { Text(if (wall == "Top" || wall == "Bottom") "From left (m)" else "From top (m)") })
+        }
+        val distance = windowOffset.toDoubleOrNull()
+        val span = if (wall == "Top" || wall == "Bottom") w else l
+        val windowValid = !addWindow || (distance != null && span != null && distance > 0 && distance < span &&
+            windowName.isNotBlank() && room.windows.none { it.id == windowName.trim() })
+        val valid = windowValid && w != null && l != null && w > 0 && l > 0 && w <= 1000 && l <= 1000 &&
             (id == null || (px != null && py != null && px in 0.0..w && py in 0.0..l))
         Button(enabled = valid && !saving, onClick = {
             if (w != null && l != null) {
                 val points = if (id != null && px != null && py != null)
                     room.plants.filter { it.id != id } + RoomPlant(id, px, py, "") else room.plants
-                save(w, l, points)
+                val windows = if (addWindow && distance != null) {
+                    val wx = when (wall) { "Left" -> 0.0; "Right" -> w; else -> distance }
+                    val wy = when (wall) { "Top" -> 0.0; "Bottom" -> l; else -> distance }
+                    room.windows + RoomWindow(windowName.trim(), wx, wy)
+                } else room.windows
+                save(w, l, points, windows)
             }
         }) { Text(if (saving) "Saving…" else "Save room revision") }
     }

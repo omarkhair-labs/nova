@@ -1,4 +1,6 @@
 """Authenticated, opt-in field research within the existing plant and space authorities."""
+from hashlib import sha256
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models import OuterRef, Subquery
@@ -11,7 +13,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .living_space import build_room
-from .models import CareGuideVersion, EvidenceReview, PlantEvent, PlantUnit, RoomRevision, Space, SpaceMember
+from .living_regions import measure_trace
+from .living_daylight import window_scenario
+from .vision_evidence import MAX_BYTES
+from .models import CareGuideVersion, EvidenceReview, PlantEvent, PlantUnit, RoomRevision, Space, SpaceMember, TracedRegion
 from .views import accessible_plants, accessible_spaces, can_record
 
 
@@ -128,8 +133,11 @@ class FieldEvidenceView(ResearchView):
         event = self.event(request, plant_id, event_id)
         reviews = event.evidence_reviews.order_by("-pk")
         return Response({"event_id": event.pk, "quality": event.capture_quality,
+                         "can_review": event.plant.is_active and request.user.has_perm("plants.review_visual_evidence") and can_record(request.user, event.plant),
                          "reviews": list(reviews.values("id", "finding", "rationale", "created_at")[:20]),
-                         "review_count": reviews.count()})
+                         "regions": list(event.traced_regions.order_by("-pk").values(
+                             "id", "source_sha256", "annotation", "measurements", "created_at")[:20]),
+                         "region_count": event.traced_regions.count(), "review_count": reviews.count()})
 
     def post(self, request, plant_id, event_id):
         event = self.event(request, plant_id, event_id)
@@ -171,3 +179,83 @@ class ReviewView(FieldEvidenceView):
         if not created and any(getattr(review, k) != v for k, v in data.validated_data.items()):
             return Response({"detail": "Submission ID already used for another review."}, status=409)
         return Response({"id": review.pk}, status=201 if created else 200)
+
+
+class ScaleReference(serializers.Serializer):
+    rectified_coplanar = serializers.BooleanField()
+    reference_cm = serializers.FloatField(min_value=0.0001, max_value=10000)
+    reference_px = serializers.FloatField(min_value=1, max_value=50000)
+    check_cm = serializers.FloatField(min_value=0.0001, max_value=10000)
+    check_px = serializers.FloatField(min_value=1, max_value=50000)
+
+
+class RegionInput(serializers.Serializer):
+    submission_id = serializers.UUIDField()
+    part = serializers.ChoiceField(choices=["plant", "leaf", "stem", "flower", "pot", "soil", "exposed_root", "visible_damage"])
+    vertices = serializers.ListField(min_length=3, max_length=64, child=serializers.ListField(
+        min_length=2, max_length=2, child=serializers.IntegerField(min_value=0, max_value=20000000)))
+    reference = ScaleReference(required=False)
+
+
+class RegionView(FieldEvidenceView):
+    http_method_names = ["post", "options"]
+
+    def post(self, request, plant_id, event_id):
+        event = self.event(request, plant_id, event_id)
+        if not can_record(request.user, event.plant):
+            raise PermissionDenied
+        if not event.plant.is_active or not event.photo:
+            return Response({"detail": "An active plant and a recorded photo are required."}, status=409)
+        data = RegionInput(data=request.data)
+        data.is_valid(raise_exception=True)
+        annotation = dict(data.validated_data)
+        key = annotation.pop("submission_id")
+        lookup = dict(event=event, author=request.user, submission_id=key)
+        def replay(existing):
+            if existing.annotation != annotation:
+                return Response({"detail": "This submission ID refers to a different trace."}, status=409)
+            return Response({"id": existing.pk, "measurements": existing.measurements})
+        prior = TracedRegion.objects.filter(**lookup).first()
+        if prior:
+            return replay(prior)
+        try:
+            with event.photo.open("rb") as f:
+                raw = f.read(MAX_BYTES+1)
+            result = measure_trace(raw, annotation["vertices"], annotation.get("reference"))
+        except (ValueError, OSError) as exc:
+            raise serializers.ValidationError("Photo or region could not be measured.") from exc
+        result.update(method="upright-operator-trace-v1", identity_basis="operator_label")
+        trace, created = TracedRegion.objects.get_or_create(**lookup, defaults=dict(
+            annotation=annotation, measurements=result, source_sha256=sha256(raw).hexdigest()))
+        return Response({"id": trace.pk, "measurements": result}, status=201) if created else replay(trace)
+
+
+class ScenarioInput(serializers.Serializer):
+    revision = serializers.IntegerField(min_value=1)
+    window_id = serializers.CharField(max_length=128)
+    point = serializers.ListField(min_length=3, max_length=3, child=serializers.FloatField())
+    top_normal_deg = serializers.FloatField(min_value=0, max_value=360)
+    width_m = serializers.FloatField(min_value=.001, max_value=1000)
+    sill_m = serializers.FloatField(min_value=0, max_value=1000)
+    head_m = serializers.FloatField(min_value=.001, max_value=1000)
+    latitude = serializers.FloatField(min_value=-90, max_value=90)
+    longitude = serializers.FloatField(min_value=-180, max_value=180)
+    timestamps = serializers.ListField(min_length=1, max_length=96, child=serializers.CharField(max_length=40))
+
+
+class DaylightView(ResearchView):
+    def post(self, request, space_id):
+        from datetime import datetime
+        space = get_object_or_404(accessible_spaces(request.user), pk=space_id)
+        data = ScenarioInput(data=request.data)
+        data.is_valid(raise_exception=True)
+        fields = dict(data.validated_data)
+        latest = space.room_revisions.order_by("-revision").first()
+        if not latest or latest.revision != fields.pop("revision"):
+            return Response({"detail": "Refresh the room revision before simulating."}, status=409)
+        try:
+            fields["timestamps"] = [datetime.fromisoformat(s) for s in fields["timestamps"]]
+            result = window_scenario(latest.geometry, **fields)
+        except ValueError as error:
+            raise serializers.ValidationError(str(error)) from error
+        return Response({**result, "revision": latest.revision})

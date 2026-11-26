@@ -52,6 +52,25 @@ class FieldWorkflowTests(TestCase):
             legacy = self.client.post(self.events, {**params, "client_submission_id": "", "capture_quality": {"health": 1}}, format="json")
             self.assertIsNone(legacy.data["capture_quality"])
 
+    def test_annotated_region_is_private_replayable_and_reproducible(self):
+        with TemporaryDirectory() as media, self.settings(MEDIA_ROOT=media):
+            event = PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="observation", observed_at=timezone.now(),
+                photo=SimpleUploadedFile("frame.png", png("RGB", (64, 64), "green"), content_type="image/png"))
+            url = reverse("plantupia-trace-region", args=[self.plant.pk, event.pk])
+            trace = dict(submission_id="8ec9aed3-1bda-41cc-9538-dabc9870d3ef", part="leaf",
+                         vertices=[[10,10],[19,10],[19,19],[10,19]])
+            result = self.client.post(url, trace, format="json")
+            self.assertEqual(result.status_code, 201)
+            geometry = result.data["measurements"]["geometry"]
+            self.assertEqual(geometry["projected_area_px2"], 100)
+            self.assertIsNone(geometry["projected_area_cm2"])
+            self.assertEqual(self.client.post(url, trace, format="json").status_code, 200)
+            self.assertEqual(self.client.post(url, {**trace, "part": "pot"}, format="json").status_code, 409)
+            self.assertEqual(self.client.post(url, {**trace, "submission_id": "1699c321-846e-43cb-8830-1cba9c070c9a",
+                "vertices": [[1,1],[8,8],[1,8],[8,1]]}, format="json").status_code, 400)
+            self.client.force_authenticate(self.other)
+            self.assertEqual(self.client.post(url, trace, format="json").status_code, 404)
+
     def test_room_revisions_replay_conflicts_live_sync_and_transfer(self):
         self.assertEqual(self.client.post(self.room, self.geometry, format="json").status_code, 201)
         self.assertEqual(self.client.post(self.room, self.geometry, format="json").status_code, 200)
@@ -65,6 +84,22 @@ class FieldWorkflowTests(TestCase):
         self.plant.save()
         self.assertEqual(self.client.get(self.room).data["room"]["plants"], [])
         self.assertEqual(self.client.post(self.room, {**self.geometry, "base_revision": 1}, format="json").status_code, 400)
+
+    def test_daylight_uses_current_window_time_and_orientation(self):
+        room = {**self.geometry, "windows": [dict(id="east", x_m=4, y_m=1.5)]}
+        self.client.post(self.room, room, format="json")
+        url = reverse("plantupia-daylight", args=[self.site.pk])
+        scenario = dict(revision=1, window_id="east", top_normal_deg=0, point=[3.7, 1.5, 1.1],
+                        width_m=2, sill_m=.4, head_m=2.4, latitude=0, longitude=0,
+                        timestamps=["2026-03-20T07:00:00Z", "2026-03-20T19:00:00Z"])
+        response = self.client.post(url, scenario, format="json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([x["direct_ray"] for x in response.data["samples"]], [True,False])
+        self.assertIsNone(response.data["illuminance_lux"])
+        self.assertEqual(self.client.post(url, {**scenario,"revision":2}, format="json").status_code, 409)
+        self.assertEqual(self.client.post(url, {**scenario,"timestamps":["2026-03-20T07:00:00"]}, format="json").status_code, 400)
+        self.client.force_authenticate(self.other)
+        self.assertEqual(self.client.post(url, scenario, format="json").status_code, 404)
 
     def test_private_space_and_feature_gate(self):
         self.client.force_authenticate(None)

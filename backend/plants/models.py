@@ -444,6 +444,19 @@ class RoomRevision(models.Model):
         constraints = [models.UniqueConstraint(fields=["space", "revision"], name="plant_room_revision_unique")]
 
 
+class TracedRegion(models.Model):
+    event = models.ForeignKey(PlantEvent, on_delete=models.CASCADE, related_name="traced_regions")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    submission_id = models.UUIDField()
+    source_sha256 = models.CharField(max_length=64)
+    annotation = models.JSONField()
+    measurements = models.JSONField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["event", "author", "submission_id"], name="plant_trace_submission_unique")]
+
+
 class EvidenceReview(models.Model):
     event = models.ForeignKey(PlantEvent, on_delete=models.CASCADE, related_name="evidence_reviews")
     reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
