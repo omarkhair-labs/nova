@@ -2,6 +2,8 @@ package com.nova.app.feature.plants
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -13,6 +15,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Button
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -23,6 +27,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
@@ -40,6 +46,7 @@ import java.util.UUID
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import kotlin.math.min
+import java.util.Locale
 
 internal data class FieldRegion(
     val id: Long,
@@ -84,6 +91,7 @@ private class RegionPhotoFrame(width: Int, height: Int, canvas: Size) {
     fun project(point: IntOffset) = origin + Offset(point.x * scale, point.y * scale)
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun PlantupiaRegionStudy(
     url: String,
@@ -114,50 +122,65 @@ internal fun PlantupiaRegionStudy(
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         }
     }
+    val pickRegion = rememberUpdatedState<(IntOffset) -> Unit> { point ->
+        selected = fieldRegionAtPoint(regions, point)?.id
+    }
     val photoAnchor = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
     Box(Modifier.fillMaxWidth().height(300.dp).bringIntoViewRequester(photoAnchor)) {
         PlantupiaEvidencePhoto(
             url, "Original recorded plant photograph", Modifier.fillMaxSize(), cornerRadius = 4.dp,
             framing = PlantupiaPhotoFraming.FULL_RECORD,
-            onOpenPhoto = if (tracing) null else { { viewPhoto = true } },
+            onOpenPhoto = if (tracing || regions.isNotEmpty()) null else { { viewPhoto = true } },
             onPhotoLoadChanged = { loaded = it },
         )
         if (loaded) {
-            val traceGesture = if (tracingEnabled) Modifier.pointerInput(width, height) {
+            val traceGesture = if (tracingEnabled || (!busy && !tracing && regions.isNotEmpty()))
+                Modifier.pointerInput(width, height, tracingEnabled, regions) {
                 detectTapGestures { tap ->
                     val frame = RegionPhotoFrame(width, height, Size(size.width.toFloat(), size.height.toFloat()))
                     if (frame.scale <= 0f) return@detectTapGestures
                     val position = (tap - frame.origin) / frame.scale
                     if (position.x >= 0 && position.x < width && position.y >= 0 && position.y < height) {
-                        addPoint.value(IntOffset(position.x.toInt(), position.y.toInt()))
+                        val point = IntOffset(position.x.toInt(), position.y.toInt())
+                        if (tracingEnabled) addPoint.value(point) else pickRegion.value(point)
                     }
                 }
             } else Modifier
             Canvas(Modifier.fillMaxSize().then(traceGesture)) {
                 val frame = RegionPhotoFrame(width, height, size)
-                val outline = if (tracing) points else chosen?.vertices.orEmpty()
-                if (outline.isEmpty()) return@Canvas
-                val projected = outline.map(frame::project)
-                val path = Path().apply {
-                    moveTo(projected.first().x, projected.first().y)
-                    for (point in projected.drop(1)) lineTo(point.x, point.y)
-                    if (projected.size >= 3) close()
-                }
-                if (projected.size >= 3) drawPath(path, ink.copy(alpha = 0.27f))
-                drawPath(path, ink, style = Stroke(4.dp.toPx()))
-                drawPath(path, paper, style = Stroke(1.5.dp.toPx()))
-                if (tracing) projected.forEach { point ->
-                    drawCircle(ink, 4.dp.toPx(), point)
-                    drawCircle(paper, 2.dp.toPx(), point)
+                val outlines = if (tracing) listOf(points to true)
+                    else regions.sortedBy { it.id == selected }.map { it.vertices to (it.id == selected) }
+                for ((outline, active) in outlines) {
+                    if (outline.isEmpty()) continue
+                    val projected = outline.map(frame::project)
+                    val path = Path().apply {
+                        moveTo(projected.first().x, projected.first().y)
+                        for (point in projected.drop(1)) lineTo(point.x, point.y)
+                        if (projected.size >= 3) close()
+                    }
+                    if (projected.size >= 3 && active) drawPath(path, ink.copy(alpha = .28f))
+                    drawPath(path, ink.copy(alpha = if (active) 1f else .65f),
+                        style = Stroke(if (active) 4.dp.toPx() else 2.5.dp.toPx()))
+                    drawPath(path, paper.copy(alpha = if (active) 1f else .8f),
+                        style = Stroke(1.5.dp.toPx()))
+                    if (tracing) projected.forEach { point ->
+                        drawCircle(ink, 4.dp.toPx(), point)
+                        drawCircle(paper, 2.dp.toPx(), point)
+                    }
                 }
             }
         }
     }
     if (viewPhoto) PlantupiaPhotoViewer(url, "this record") { viewPhoto = false }
 
-    if (canTrace) TextButton(enabled = !busy && (loaded || tracing), onClick = { tracing = !tracing }) {
-        Text(if (tracing) "Cancel trace" else "Trace a visible region")
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (!tracing) TextButton(enabled = loaded && !busy, onClick = { viewPhoto = true }) {
+            Text("Open original photo")
+        }
+        if (canTrace) TextButton(enabled = !busy && (loaded || tracing), onClick = { tracing = !tracing }) {
+            Text(if (tracing) "Cancel trace" else "Trace a visible region")
+        }
     }
     if (tracing) {
         Text("Tap around one outline in order. Each point is placed on the original photograph.",
@@ -176,20 +199,28 @@ internal fun PlantupiaRegionStudy(
     } else {
         Text("Visible regions", style = PlantupiaText.editorialHeading)
         val regionCount = if (totalRegions > regions.size) "Showing ${regions.size} of $totalRegions saved outlines."
-            else if (regions.isEmpty()) "No traced regions in this record." else "Select an outline to see it on the photograph."
+            else if (regions.isEmpty()) "No traced regions in this record." else "Tap an outline on the photo or choose one below."
         Text(regionCount, style = PlantupiaText.supporting)
         if (chosen != null) RegionMeasurements(chosen)
         regions.forEach { region ->
             val active = selected == region.id
-            TextButton(
+            Surface(
                 enabled = loaded && !busy,
                 onClick = {
                     selected = if (active) null else region.id
                     if (!active) scope.launch { photoAnchor.bringIntoView() }
                 },
-                modifier = Modifier.heightIn(min = 48.dp).semantics { this.selected = active },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).semantics { this.selected = active },
+                color = if (active) PlantupiaColors.softSage else PlantupiaColors.paper,
+                shape = PlantupiaShapes.inset,
+                border = BorderStroke(1.dp, if (active) PlantupiaColors.forest else PlantupiaColors.border),
             ) {
-                Text("${region.label.replaceFirstChar { it.uppercase() }} · ${region.pixels} px²")
+                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(region.label.replaceFirstChar { it.uppercase() },
+                        style = PlantupiaText.itemTitle, modifier = Modifier.weight(1f))
+                    Text("${region.pixels} px²", style = PlantupiaText.supporting)
+                }
             }
         }
     }
@@ -200,8 +231,10 @@ private fun RegionMeasurements(region: FieldRegion) {
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
         Text("${region.label.replaceFirstChar { it.uppercase() }} · image measurement",
             style = PlantupiaText.itemTitle)
-        Text("Visible area ${region.pixels} px²", style = PlantupiaText.body)
-        region.outlineLength?.let { Text("Traced outline $it px", style = PlantupiaText.body) }
+        Text("${region.pixels} px²", style = PlantupiaText.display)
+        Text("Visible image area · not physical size", style = PlantupiaText.supporting)
+        region.outlineLength?.let { Text("Traced outline " + String.format(Locale.ROOT, "%.1f", it) + " px",
+            style = PlantupiaText.body) }
         if (region.colors.isNotEmpty()) {
             val swatches = listOf(
                 androidx.compose.ui.graphics.Color(0xFF58794F), androidx.compose.ui.graphics.Color(0xFFDAC76B),
@@ -223,3 +256,19 @@ private fun RegionMeasurements(region: FieldRegion) {
         }
     }
 }
+
+/** A tap selects a saved human trace, never a newly inferred region. Overlap prefers the smallest traced area. */
+internal fun fieldRegionAtPoint(regions: List<FieldRegion>, point: IntOffset): FieldRegion? =
+    regions.filter { region ->
+        val vertices = region.vertices
+        var inside = false
+        for (i in vertices.indices) {
+            val a = vertices[i]
+            val b = vertices[(i + 1) % vertices.size]
+            if ((a.y > point.y) != (b.y > point.y)) {
+                val crossing = a.x + (b.x - a.x).toDouble() * (point.y - a.y) / (b.y - a.y)
+                if (point.x < crossing) inside = !inside
+            }
+        }
+        inside
+    }.minWithOrNull(compareBy<FieldRegion> { it.pixels }.thenBy { it.id })

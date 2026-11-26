@@ -23,9 +23,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -34,6 +39,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -71,11 +78,13 @@ internal fun PlantupiaCaptureStudio(
     val requestPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { permission = it }
     var view by remember { mutableStateOf(CaptureView.WHOLE) }
     var writing by remember { mutableStateOf(false) }
-    PlantupiaLivingWorkspace("PRIVATE PHOTOGRAPH", plantName, view.guidance, writing, onClose) {
+    PlantupiaLivingWorkspace("PRIVATE PHOTOGRAPH", plantName, "", writing, onClose) {
         if (!permission) {
-            Text("Allow camera access to take a photo here. The existing photo picker is available when you go back.",
+            Text("Photograph your plant", style = PlantupiaText.editorialHeading)
+            Text("Camera access is needed for a new photograph. You can still choose an existing photo instead.",
                 style = PlantupiaText.body)
-            Button(onClick = { requestPermission.launch(Manifest.permission.CAMERA) }) { Text("Allow camera") }
+            Button(modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                onClick = { requestPermission.launch(Manifest.permission.CAMERA) }) { Text("Allow camera") }
         } else {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CaptureView.entries.forEach { option ->
@@ -169,17 +178,26 @@ private fun PlantupiaCameraPreview(
         }
     }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth().height((maxWidth * 1.16f).coerceIn(230.dp, 460.dp)).background(Color(0xFF192820))) {
+        Box(Modifier.fillMaxWidth().height((maxWidth * 1.02f).coerceIn(230.dp, 420.dp))
+            .clip(PlantupiaShapes.card).background(Color(0xFF192820))) {
             AndroidView(factory = { preview }, modifier = Modifier.fillMaxSize())
             Canvas(Modifier.fillMaxSize()) {
                 val width = size.width * view.frameWidth
                 val height = size.height * view.frameHeight
                 val corner = CornerRadius(18.dp.toPx())
                 val start = Offset((size.width - width) / 2f, (size.height - height) / 2f)
-                drawRoundRect(Color.Black.copy(alpha = 0.56f), start, Size(width, height), corner,
-                    style = Stroke(4.dp.toPx()))
+                val shade = Color.Black.copy(alpha = .36f)
+                drawRect(shade, Offset.Zero, Size(size.width, start.y))
+                drawRect(shade, Offset(0f, start.y + height), Size(size.width, start.y))
+                drawRect(shade, Offset(0f, start.y), Size(start.x, height))
+                drawRect(shade, Offset(start.x + width, start.y), Size(start.x, height))
                 drawRoundRect(PlantupiaColors.cream, start, Size(width, height), corner,
                     style = Stroke(1.5.dp.toPx()))
+                val tick = 12.dp.toPx()
+                val mid = size.width / 2f
+                drawLine(PlantupiaColors.cream, Offset(mid - tick, start.y), Offset(mid + tick, start.y), 2.dp.toPx())
+                drawLine(PlantupiaColors.cream, Offset(mid - tick, start.y + height),
+                    Offset(mid + tick, start.y + height), 2.dp.toPx())
             }
         }
     }
@@ -191,10 +209,12 @@ private fun PlantupiaCameraPreview(
         quality == PlantupiaCaptureQuality.LOW_DETAIL -> "Hold still and tap the subject to focus."
         else -> "Keep the subject inside the guide."
     }
-    Text(guidance, style = PlantupiaText.body)
-    Button(
+    Text(guidance, style = PlantupiaText.itemTitle)
+    Surface(
         enabled = ready && !writing,
-        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
+        color = if (ready && !writing) PlantupiaColors.forest else PlantupiaColors.softSage,
+        shape = PlantupiaShapes.card,
         onClick = {
             val file = runCatching {
                 val directory = File(context.cacheDir, "plantupia-captures").apply { mkdirs() }
@@ -204,7 +224,7 @@ private fun PlantupiaCameraPreview(
             }.getOrNull()
             if (file == null) {
                 error = "There is no space available for this photograph."
-                return@Button
+                return@Surface
             }
             error = ""
             latestWriting.value(true)
@@ -240,6 +260,20 @@ private fun PlantupiaCameraPreview(
                 error = "The camera is no longer ready. Reopen the preview to try again."
             }
         },
-    ) { Text(if (writing) "Keeping photograph…" else "Take photograph") }
-    Text("The photo stays in this draft until you save the private record.", style = PlantupiaText.supporting)
+    ) {
+        val shutterInk = if (ready && !writing) PlantupiaColors.paper else PlantupiaColors.secondaryText
+        Row(Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Canvas(Modifier.size(42.dp)) {
+                drawCircle(shutterInk, radius = size.minDimension / 2f - 2.dp.toPx(),
+                    style = Stroke(2.dp.toPx()))
+                drawCircle(shutterInk, radius = size.minDimension / 2f - 8.dp.toPx())
+            }
+            Text(if (writing) "Keeping photograph…" else "Take photograph",
+                style = PlantupiaText.itemTitle.copy(color = shutterInk), modifier = Modifier.weight(1f))
+        }
+    }
+    Text(view.guidance, style = PlantupiaText.supporting)
+    Text("Saved only when you submit the private record.", style = PlantupiaText.supporting)
 }

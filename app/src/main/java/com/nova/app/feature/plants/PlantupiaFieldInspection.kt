@@ -47,10 +47,11 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                 }
             }
             PlantupiaLivingWorkspace("FIELD NOTES", plant.name, "Recorded " + event.observedAt.take(10), busy, { expanded = false }) {
-                Text("Observe what is visible; a photograph alone does not establish a diagnosis.", style = PlantupiaText.supporting)
                 if (feedback.isNotBlank()) Text(feedback, color = MaterialTheme.colorScheme.error)
-                if (record == null && feedback.isBlank()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                TextButton(enabled = !busy, onClick = { generation++ }) { Text("Refresh inspection") }
+                if (record == null) {
+                    if (feedback.isBlank()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    else TextButton(enabled = !busy, onClick = { generation++ }) { Text("Refresh inspection") }
+                }
                 record?.let { data ->
                     val quality = data.optJSONObject("quality")
                     val width = quality?.optInt("width") ?: 0
@@ -74,6 +75,7 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                             Text("Image dimensions are unavailable for tracing.", style = PlantupiaText.supporting)
                         }
                     }
+                    Text("A photograph alone does not establish a diagnosis.", style = PlantupiaText.supporting)
                     val reviews = data.optJSONArray("reviews") ?: JSONArray()
                     if (reviews.length() > 0) Text("Specialist findings", style = PlantupiaText.editorialHeading)
                     for (index in 0 until reviews.length()) {
@@ -100,13 +102,15 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                         var rationale by remember { mutableStateOf("") }
                         val submission = remember(finding, rationale, generation) { UUID.randomUUID().toString() }
                         InspectionChoice("Specialist review", finding, listOf("insufficient_evidence", "corrected_observation", "supported_observation"), !busy) { finding = it }
-                        OutlinedTextField(rationale, { rationale = it.take(1000) }, enabled = !busy, label = { Text("Reason for this finding") })
+                        OutlinedTextField(rationale, { rationale = it.take(1000) }, enabled = !busy,
+                            modifier = Modifier.fillMaxWidth(), label = { Text("Reason for this finding") })
                         TextButton(enabled = !busy && rationale.isNotBlank(), onClick = {
                             submit("reviews/", JSONObject().put("submission_id", submission).put("finding", finding).put("rationale", rationale)) {
                                 rationale = ""; generation++
                             }
                         }) { Text("Save review to this record") }
                     }
+                    TextButton(enabled = !busy, onClick = { generation++ }) { Text("Refresh inspection") }
                 }
             }
         }
