@@ -80,6 +80,7 @@ internal fun PlantupiaCaptureStudio(
     onCapture: (Uri) -> Boolean,
     reference: com.nova.app.feature.plants.data.PlantupiaCareEvent? = null,
     saveAsPortrait: Boolean = false,
+    onVisitPart: ((String) -> Unit)? = null,
 ) {
     val context = LocalContext.current
     var permission by remember {
@@ -129,7 +130,12 @@ internal fun PlantupiaCaptureStudio(
             if (previewError) Text("This photo could not be opened. Choose another photograph.")
             if (rejected) Text("The draft is no longer available. Return and try again.",
                 color = PlantupiaColors.forestText)
+            if (onVisitPart != null) {
+                InspectionChoice("Photographed view", view.name.lowercase(), CaptureView.entries.map { it.name.lowercase() },
+                    !writing) { name -> view = CaptureView.valueOf(name.uppercase(java.util.Locale.ROOT)) }
+            }
             Button(enabled = previewReady, onClick = {
+                onVisitPart?.invoke(view.name.lowercase(java.util.Locale.ROOT))
                 if ((!fromCamera || ownedCaptureFile(context.cacheDir, current)?.isFile == true) &&
                     onCapture(current)) {
                     // Transfer to the private draft. The caller owns subsequent cleanup.
@@ -146,6 +152,7 @@ internal fun PlantupiaCaptureStudio(
             }
             TextButton(onClick = { discard(); onClose() }) { Text("Cancel photograph") }
             Text(if (saveAsPortrait) "Saving updates this plant’s private portrait."
+                else if (onVisitPart != null) "Review and save this view in the visit."
                 else "This photo will be attached when you save the plant or care record.", style = PlantupiaText.supporting)
         } else if (!permission) {
             Text("Photograph your plant", style = PlantupiaText.editorialHeading)

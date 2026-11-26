@@ -433,6 +433,21 @@ class PlantEvent(models.Model):
         ordering = ["-observed_at", "-created_at"]
 
 
+class VisitPhotograph(models.Model):
+    event = models.ForeignKey(PlantEvent, on_delete=models.CASCADE, related_name="visit_photographs")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    submission_id = models.UUIDField()
+    part = models.CharField(max_length=12)
+    source_sha256 = models.CharField(max_length=64)
+    jpeg = models.BinaryField(editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=("event", "author", "submission_id"), name="plant_visit_photo_submission")
+        ]
+
+
 class RoomRevision(models.Model):
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="room_revisions")
     revision = models.PositiveIntegerField()

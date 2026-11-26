@@ -782,6 +782,39 @@ class PlantupiaRepository(
         }
     }
 
+    internal suspend fun visitPhoto(plantId: String, eventId: String, photoId: Long): ApiResult<ByteArray> = authorized { token ->
+        require(photoId > 0)
+        when (val result = api.requestJson(path = "plantupia/plants/$plantId/events/$eventId/evidence/photos/$photoId/",
+            bearerToken = token)) {
+            is ApiResult.Failure -> result
+            is ApiResult.Success -> parsePlantupiaResponse(result.value) { body ->
+                require(body.getLong("id") == photoId)
+                val data = body.getString("jpeg")
+                require(data.length in 1..1_400_000)
+                android.util.Base64.decode(data, android.util.Base64.DEFAULT)
+            }
+        }
+    }
+
+    internal suspend fun addVisitPhoto(plantId: String, eventId: String, submission: String, part: String,
+                                       uri: Uri): ApiResult<JSONObject> = authorized { token ->
+        val file = when (val loaded = loadPrivatePhoto(uri)) {
+            is ApiResult.Failure -> return@authorized loaded
+            is ApiResult.Success -> loaded.value
+        }
+        when (val result = api.requestMultipart(
+            path = "plantupia/plants/$plantId/events/$eventId/evidence/photos/", method = "POST",
+            fields = mapOf("submission_id" to submission, "part" to part), fileField = "photo", file = file,
+            bearerToken = token,
+        )) {
+            is ApiResult.Failure -> result
+            is ApiResult.Success -> parsePlantupiaResponse(result.value) { body ->
+                require(body.getString("event_id") == eventId && body.getLong("id") > 0)
+                body
+            }
+        }
+    }
+
     internal suspend fun demoMutation(slot: String, path: String, body: JSONObject): ApiResult<JSONObject> {
         if (!isCurrentSession()) return changedSession()
         val intent = try { withContext(Dispatchers.IO) {

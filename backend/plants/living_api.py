@@ -178,6 +178,7 @@ class FieldEvidenceView(ResearchView):
                 quality = None
         species = event.plant.verified_species or event.plant.selected_species
         return Response({"event_id": event.pk, "quality": quality,
+                         "visit_photos": list(event.visit_photographs.order_by("pk").values("id", "part", "created_at")[:6]),
                          "current_identity": {"scientific_name": species.scientific_name if species else None,
                                               "basis": "staff_verified" if event.plant.verified_species_id else
                                               "user_selected" if species else "unknown"},

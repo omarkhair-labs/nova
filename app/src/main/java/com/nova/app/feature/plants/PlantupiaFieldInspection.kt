@@ -62,6 +62,10 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                         Text(if (label == null) "Plant type awaiting identification"
                             else "$label · " + identity.optString("scientific_name"), style = PlantupiaText.itemTitle)
                     }
+                    data.optJSONArray("visit_photos")?.let { photos ->
+                        PlantupiaVisitPhotographs(repository, plant, event, photos, busy,
+                            onBusy = { busy = it }, onSaved = { generation++ })
+                    }
                     val quality = data.optJSONObject("quality")
                     val width = quality?.optInt("width") ?: 0
                     val height = quality?.optInt("height") ?: 0

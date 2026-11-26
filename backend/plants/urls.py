@@ -1,5 +1,6 @@
 from .living_api import DaylightView, FieldEvidenceView, ProjectedComparisonView, RegionView, RegionSuggestionView, ReviewView, RoomView
 from django.urls import path
+from .visit_photographs import VisitPhotoView
 from .commerce_storefront_api import CommerceCatalogView, CommerceCatalogPhotoView, CommerceCartView
 from .commerce_public_catalog_api import PublicCommerceCatalogView, PublicCommerceCoverView
 from .commerce_business_real_api import BusinessInquiriesView, BusinessAcceptQuoteView
@@ -19,6 +20,8 @@ from .views import SpaceDetailView, PlantDetailView, PlantCoverPhotoView, PlantE
 from .website_inbox import receive_website_enquiry
 
 urlpatterns = [
+    path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/photos/", VisitPhotoView.as_view(), name="plantupia-visit-photos"),
+    path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/photos/<int:photo_id>/", VisitPhotoView.as_view(), name="plantupia-visit-photo"),
     path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/regions/", RegionView.as_view(), name="plantupia-trace-region"),
     path("plants/<uuid:plant_id>/compare-regions/", ProjectedComparisonView.as_view(), name="plantupia-compare-regions"),
     path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/suggest-region/", RegionSuggestionView.as_view(), name="plantupia-suggest-region"),
