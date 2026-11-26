@@ -105,6 +105,8 @@ class PlantupiaCreationDraftInstrumentedTest {
             }
         }
         compose.onNodeWithText("+ Add plant").performClick()
+        compose.onNodeWithText("Take a plant photo").assertExists()
+        compose.onNodeWithText("Choose existing photo").assertExists()
         compose.onNodeWithText("I don't know the type — add my plant anyway")
             .performScrollTo().performClick()
         compose.onNodeWithText("Plant name *").performScrollTo().performTextInput("FICTIONAL QA fern")

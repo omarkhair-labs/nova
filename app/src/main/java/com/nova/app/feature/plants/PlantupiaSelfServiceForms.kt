@@ -34,6 +34,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -108,6 +110,7 @@ private fun PlantupiaAccountSelfServiceForms(
     onRequestConsumed: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     // Create → Home opens a real editor below the photo-led space hero.
     // Bring only its heading into view; avoid trying to scroll a long form in full.
     val creationEditorHeading = remember { BringIntoViewRequester() }
@@ -134,10 +137,23 @@ private fun PlantupiaAccountSelfServiceForms(
     var justCreatedSpace by remember { mutableStateOf<Pair<String, String>?>(null) }
     var spaceMenuOpen by remember { mutableStateOf(false) }
     var plantPhoto by remember { mutableStateOf<Uri?>(null) }
+    var cameraOpen by remember { mutableStateOf(false) }
+    val latestPhoto = rememberUpdatedState(plantPhoto)
+    fun replacePhoto(photo: Uri?) {
+        if (plantPhoto != photo) plantPhoto?.let { ownedCaptureFile(context.cacheDir, it)?.delete() }
+        plantPhoto = photo
+    }
+    DisposableEffect(repository) {
+        onDispose { latestPhoto.value?.let { ownedCaptureFile(context.cacheDir, it)?.delete() } }
+    }
     var photoPickerOrigin by remember { mutableStateOf<PlantupiaRepository?>(null) }
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
-        if (photoPickerOrigin === repository && repository.isCurrentSession()) plantPhoto = it
+        if (it != null && photoPickerOrigin === repository && repository.isCurrentSession()) replacePhoto(it)
         photoPickerOrigin = null
+    }
+    fun browsePhoto() {
+        photoPickerOrigin = repository
+        photoPicker.launch("image/*")
     }
 
     LaunchedEffect(spaces, enabled) {
@@ -368,16 +384,20 @@ private fun PlantupiaAccountSelfServiceForms(
                     else -> "Its first record"
                 },
                 description = when (currentChapter) {
-                    0 -> "Start with what you know. A confirmed species is not required."
-                    1 -> "Make this particular plant recognizable in your own space."
-                    else -> "Keep a real photograph, or begin without one. This is the beginning of its private history."
+                    0 -> "Begin with your plant. A photo and confirmed species are optional."
+                    1 -> "Give it a name and choose its place."
+                    else -> "Review the private plant you are about to add."
                 },
-                artwork = if (currentChapter == 0) R.drawable.plantupia_signature_plate_inspection else null,
+                artwork = null,
                 busy = saving,
-                onClose = { plantOpen = false; error = null; plantChapter = 0 },
+                onClose = { cameraOpen = false; plantOpen = false; error = null; plantChapter = 0 },
                 onBack = if (currentChapter > 0) ({ plantChapter = currentChapter - 1; error = null }) else null,
             ) {
                 if (currentChapter == 0) {
+                    PlantupiaCreationPhotograph(plantPhoto, saving, { cameraOpen = true }, ::browsePhoto) {
+                        replacePhoto(null)
+                    }
+                    HorizontalDivider(color = PlantupiaColors.border)
                     PlantupiaSpeciesPicker(
                         repository = repository,
                         selectedKey = selectedSpeciesKey,
@@ -461,22 +481,9 @@ private fun PlantupiaAccountSelfServiceForms(
                 } else {
                     Text(plantName, style = PlantupiaText.pageHeading)
                     Text(spaceLabel ?: "Space access needs to be refreshed", style = PlantupiaText.supporting)
-                    PlantupiaActionRow(
-                        icon = com.nova.app.ui.icons.NovaIconAsset.Photo,
-                        title = if (plantPhoto == null) "Add photo" else "Change photo",
-                        detail = if (plantPhoto == null) "Optional · actual plant" else null,
-                        enabled = !saving,
-                        onClick = { photoPickerOrigin = repository; photoPicker.launch("image/*") },
-                    )
-                    plantPhoto?.let { uri ->
-                        AsyncImage(
-                            model = uri, contentDescription = "Selected plant photo",
-                            modifier = Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(12.dp)),
-                            contentScale = ContentScale.Fit,
-                        )
-                        TextButton(onClick = { plantPhoto = null }, enabled = !saving) {
-                            Text("Remove photo", color = textMuted)
-                        }
+                    Text(if (unknownPlantType) "Type not confirmed" else species, style = PlantupiaText.supporting)
+                    PlantupiaCreationPhotograph(plantPhoto, saving, { cameraOpen = true }, ::browsePhoto) {
+                        replacePhoto(null)
                     }
                     Button(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
@@ -504,7 +511,8 @@ private fun PlantupiaAccountSelfServiceForms(
                                         selectedSpeciesKey = null
                                         unknownPlantType = false
                                         placement = ""
-                                        plantPhoto = null
+                                        replacePhoto(null)
+                                        cameraOpen = false
                                         plantOpen = false
                                         plantChapter = 0
                                         onPlantCreated(result.value, targetSpace)
@@ -520,7 +528,80 @@ private fun PlantupiaAccountSelfServiceForms(
             }
         }
 
+        if (plantOpen && cameraOpen) {
+            PlantupiaCaptureStudio(
+                plantName = plantName.ifBlank { "New plant" },
+                onClose = { cameraOpen = false },
+                onCapture = { photo ->
+                    val accepted = repository.isCurrentSession() && plantOpen && cameraOpen && !saving
+                    if (accepted) {
+                        replacePhoto(photo)
+                        cameraOpen = false
+                    }
+                    accepted
+                },
+            )
+        }
         if (!spaceOpen && !plantOpen) error?.let { Text(it, color = Color(0xFF9A4A31), fontSize = 12.sp) }
+    }
+}
+
+
+/** A real photo starts the specimen's identity; it never pretends to identify a species. */
+@Composable
+private fun PlantupiaCreationPhotograph(
+    photo: Uri?,
+    busy: Boolean,
+    openCamera: () -> Unit,
+    browse: () -> Unit,
+    remove: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (photo != null) {
+            AsyncImage(model = photo, contentDescription = "Selected plant photo",
+                modifier = Modifier.fillMaxWidth().height(218.dp).clip(PlantupiaShapes.card)
+                    .background(PlantupiaColors.softSage),
+                contentScale = ContentScale.Fit)
+            Text("Private photograph", style = PlantupiaText.supporting)
+        } else {
+            Surface(color = PlantupiaColors.softSage, shape = PlantupiaShapes.card,
+                modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Canvas(Modifier.size(54.dp)) {
+                        val stroke = 1.8.dp.toPx()
+                        val inset = size.width * .18f
+                        val leg = size.width * .2f
+                        val right = size.width - inset
+                        val bottom = size.height - inset
+                        val corners = listOf(
+                            Offset(inset, inset) to Offset(1f, 1f),
+                            Offset(right, inset) to Offset(-1f, 1f),
+                            Offset(inset, bottom) to Offset(1f, -1f),
+                            Offset(right, bottom) to Offset(-1f, -1f),
+                        )
+                        for ((point, direction) in corners) {
+                            drawLine(ink, point, point + Offset(direction.x * leg, 0f), stroke)
+                            drawLine(ink, point, point + Offset(0f, direction.y * leg), stroke)
+                        }
+                        drawCircle(ink, size.width * .14f, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+                    }
+                    Text("Meet your plant", style = PlantupiaText.editorialHeading)
+                    Text("Capture its actual appearance, or continue without a photo.", style = PlantupiaText.supporting)
+                }
+            }
+        }
+        Button(enabled = !busy, onClick = openCamera,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = ink)) {
+            Text(if (photo == null) "Take a plant photo" else "Retake plant photo")
+        }
+        OutlinedButton(enabled = !busy, onClick = browse,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text(if (photo == null) "Choose existing photo" else "Change photo")
+        }
+        if (photo != null) TextButton(onClick = remove, enabled = !busy) {
+            Text("Remove photo", color = textMuted)
+        }
     }
 }
 

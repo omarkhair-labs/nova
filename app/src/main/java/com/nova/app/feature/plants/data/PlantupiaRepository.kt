@@ -2,6 +2,7 @@ package com.nova.app.feature.plants.data
 
 import android.content.Context
 import android.net.Uri
+import com.nova.app.feature.plants.ownedCaptureFile
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.network.ApiResult
@@ -340,12 +341,16 @@ class PlantupiaRepository(
         }
 
     private suspend fun loadPrivatePhoto(uri: Uri): ApiResult<UploadFile> {
-        val mimeType = appContext.contentResolver.getType(uri)
-            ?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }
+        val cameraFile = ownedCaptureFile(appContext.cacheDir, uri)
+        val mimeType = when {
+            uri.scheme == "file" -> if (cameraFile?.isFile == true) "image/jpeg" else null
+            uri.scheme == "content" -> appContext.contentResolver.getType(uri)
+            else -> null
+        }?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }
             ?: return ApiResult.Failure("Choose a JPEG, PNG or WebP photo.")
         val bytes = withContext(Dispatchers.IO) {
             runCatching {
-                appContext.contentResolver.openInputStream(uri)?.use { input ->
+                (cameraFile?.inputStream() ?: appContext.contentResolver.openInputStream(uri))?.use { input ->
                     val output = ByteArrayOutputStream()
                     val buffer = ByteArray(8192)
                     while (true) {

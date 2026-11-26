@@ -30,6 +30,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -49,6 +51,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -57,6 +60,8 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+import coil3.compose.AsyncImage
 
 private enum class CaptureView(val title: String, val guidance: String, val frameWidth: Float, val frameHeight: Float) {
     WHOLE("Whole plant", "Include the whole plant and pot. For a future comparison, repeat this view at the same height.", .72f, .80f),
@@ -78,8 +83,50 @@ internal fun PlantupiaCaptureStudio(
     val requestPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { permission = it }
     var view by remember { mutableStateOf(CaptureView.WHOLE) }
     var writing by remember { mutableStateOf(false) }
-    PlantupiaLivingWorkspace("PRIVATE PHOTOGRAPH", plantName, "", writing, onClose) {
-        if (!permission) {
+    var candidate by remember { mutableStateOf<Uri?>(null) }
+    var rejected by remember { mutableStateOf(false) }
+    // The preview owns a temporary file until the caller explicitly accepts it.
+    // Activity/session disposal cannot publish or retain an abandoned candidate.
+    val owned = remember(context) { AtomicReference<Uri?>(null) }
+    fun discard() {
+        owned.getAndSet(null)?.let { ownedCaptureFile(context.cacheDir, it)?.delete() }
+        candidate = null
+        rejected = false
+    }
+    DisposableEffect(owned) {
+        onDispose { owned.getAndSet(null)?.let { ownedCaptureFile(context.cacheDir, it)?.delete() } }
+    }
+    PlantupiaLivingWorkspace("PRIVATE PHOTOGRAPH", plantName, "", writing,
+        close = { if (candidate != null) discard() else onClose() },
+        navigationKey = candidate != null) {
+        val current = candidate
+        if (current != null) {
+            AsyncImage(model = current, contentDescription = "Captured photograph preview",
+                modifier = Modifier.fillMaxWidth().heightIn(min = 220.dp, max = 420.dp)
+                    .clip(PlantupiaShapes.card).background(PlantupiaColors.softSage),
+                contentScale = ContentScale.Fit)
+            Text("Keep this photograph?", style = PlantupiaText.editorialHeading)
+            Text(view.title + " · " + view.guidance, style = PlantupiaText.supporting)
+            if (rejected) Text("The draft is no longer available. Return and try again.",
+                color = PlantupiaColors.forestText)
+            Button(onClick = {
+                if (owned.get() == current && ownedCaptureFile(context.cacheDir, current)?.isFile == true &&
+                    onCapture(current)) {
+                    // Transfer to the private draft. The caller owns subsequent cleanup.
+                    owned.compareAndSet(current, null)
+                    candidate = null
+                } else {
+                    rejected = true
+                }
+            }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text("Use photograph")
+            }
+            OutlinedButton(onClick = { discard() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                Text("Retake")
+            }
+            TextButton(onClick = { discard(); onClose() }) { Text("Cancel photograph") }
+            Text("Nothing is uploaded until you save the plant or care record.", style = PlantupiaText.supporting)
+        } else if (!permission) {
             Text("Photograph your plant", style = PlantupiaText.editorialHeading)
             Text("Camera access is needed for a new photograph. You can still choose an existing photo instead.",
                 style = PlantupiaText.body)
@@ -92,7 +139,17 @@ internal fun PlantupiaCaptureStudio(
                         label = { Text(option.title) })
                 }
             }
-            PlantupiaCameraPreview(view, writing, { writing = it }, onCapture)
+            PlantupiaCameraPreview(view, writing, { writing = it }) { photo ->
+                if (ownedCaptureFile(context.cacheDir, photo)?.isFile != true) false
+                else {
+                    owned.getAndSet(photo)?.let { previous ->
+                        if (previous != photo) ownedCaptureFile(context.cacheDir, previous)?.delete()
+                    }
+                    rejected = false
+                    candidate = photo
+                    true
+                }
+            }
         }
     }
 }
@@ -275,5 +332,5 @@ private fun PlantupiaCameraPreview(
         }
     }
     Text(view.guidance, style = PlantupiaText.supporting)
-    Text("Saved only when you submit the private record.", style = PlantupiaText.supporting)
+    Text("Review the photograph before keeping it.", style = PlantupiaText.supporting)
 }
