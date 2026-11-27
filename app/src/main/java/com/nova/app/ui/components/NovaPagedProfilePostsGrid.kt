@@ -17,9 +17,10 @@ fun NovaPagedProfilePostsGrid(
     username: String,
     owner: ProfileContentStateOwner,
     onPostClick: (NovaPost) -> Unit,
-    emptyTitle: String = "No posts yet",
+    emptyTitle: String = "No shared moments yet",
     emptyMessage: String = "Shared moments will show up here.",
-    sectionTitle: String? = "Posts",
+    sectionTitle: String? = "Shared moments",
+    plantupiaMomentsOnly: Boolean = false,
 ) {
     val state = owner.state
     NovaProfileContentTabs(
@@ -33,6 +34,7 @@ fun NovaPagedProfilePostsGrid(
         onPostClick = onPostClick,
         postsEmptyTitle = emptyTitle,
         postsEmptyMessage = emptyMessage,
+        plantupiaMomentsOnly = plantupiaMomentsOnly,
     )
 }
 
@@ -50,9 +52,10 @@ fun NovaPagedProfilePostsGrid(
     errorMessage: String?,
     onRetry: () -> Unit,
     onPostClick: (NovaPost) -> Unit,
-    emptyTitle: String = "No posts yet",
+    emptyTitle: String = "No shared moments yet",
     emptyMessage: String = "Shared moments will show up here.",
-    sectionTitle: String? = "Posts",
+    sectionTitle: String? = "Shared moments",
+    plantupiaMomentsOnly: Boolean = false,
 ) {
     val context = LocalContext.current
     val container = context.appContainer
@@ -92,5 +95,6 @@ fun NovaPagedProfilePostsGrid(
         onPostClick = onPostClick,
         postsEmptyTitle = emptyTitle,
         postsEmptyMessage = emptyMessage,
+        plantupiaMomentsOnly = plantupiaMomentsOnly,
     )
 }

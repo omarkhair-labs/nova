@@ -149,7 +149,7 @@ fun PulseScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
                     ) {
-                        Text("Pulse", color = NovaInk, style = NovaType.pageTitle)
+                        Text("Short updates", color = NovaInk, style = NovaType.pageTitle)
                         Surface(shape = MaterialTheme.shapes.small, color = NovaBaseLive) {
                             Text(
                                 "LIVE",
@@ -160,7 +160,7 @@ fun PulseScreen(
                         }
                     }
                     Text(
-                        "What’s happening in your orbit",
+                        "What’s happening in your Circle",
                         color = NovaMuted,
                         style = NovaType.bodyCompact,
                     )
@@ -227,16 +227,16 @@ fun PulseScreen(
                 )
 
                 state.error != null && state.pulses.isEmpty() -> NovaErrorState(
-                    title = "Pulse is quiet right now",
+                    title = "No short updates right now",
                     message = state.error,
                     onRetry = { owner.load(showSpinner = true) },
                     modifier = Modifier.weight(1f),
                 )
 
                 visiblePulses.isEmpty() -> NovaEmptyState(
-                    title = "Start the first Pulse",
-                    message = "Share a live or short moment with your orbit.",
-                    actionLabel = "Create Pulse",
+                    title = "Share the first update",
+                    message = "Share a live or short moment with your Circle.",
+                    actionLabel = "Share update",
                     onAction = { composerVisible = true },
                     modifier = Modifier.weight(1f),
                 )
@@ -262,8 +262,8 @@ fun PulseScreen(
 
     if (composerVisible) {
         PulseComposerDialog(
-            title = "Create Pulse",
-            subtitle = "Live for 12 hours in your orbit.",
+            title = "Share update",
+            subtitle = "Visible for 12 hours in your Circle.",
             pendingMedia = pendingMedia,
             uploading = state.uploading,
             error = state.error,
@@ -359,17 +359,17 @@ private fun PulseFeedCard(pulse: NovaPulse, onClick: () -> Unit) {
                 "image" -> NovaMediaImage(
                     source = pulse.mediaUrl,
                     modifier = Modifier.fillMaxSize(),
-                    contentDescription = "${pulse.author.username} Pulse",
+                    contentDescription = "${pulse.author.username} update",
                 )
                 "video" -> Box(modifier = Modifier.fillMaxWidth().height(180.dp)) {
                     NovaMediaImage(
                         source = pulse.thumbnailUrl,
                         modifier = Modifier.fillMaxSize(),
-                        contentDescription = "${pulse.author.username} Pulse video thumbnail",
+                        contentDescription = "${pulse.author.username} update video thumbnail",
                     )
                     NovaIcon(
                         asset = NovaIconAsset.Reels,
-                        contentDescription = "Play Pulse",
+                        contentDescription = "Play update",
                         tint = palette.ink,
                         modifier = Modifier.size(28.dp).align(Alignment.Center),
                     )

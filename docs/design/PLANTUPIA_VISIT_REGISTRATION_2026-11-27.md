@@ -1,0 +1,11 @@
+# Living Time — assisted photo registration
+
+Status: implementation and numerical/permission tests; not field accuracy acceptance.
+
+The existing Time Lens manual four-reference-mark overlay remains available. In the same comparison, a user may mark two corners around the moving plant area in each retained photograph, leaving stationary details outside. The private API checks the current account's plant scope, distinct chronological visits and distinct saved photo bytes. No new media upload, record, calibration, or inferred growth is created. It returns a temporary similarity transform only (no image pixels or descriptors).
+
+The earlier static ORB research path and the service now share one bounded geometry implementation. It uses reciprocal ratio matches, distinct matches, a separate held-out match check, spatial coverage of the marked region, limited scale/rotation/translation, overlap and a background appearance check. Matching excludes a descriptor-sized border around moving areas. Same upright frame geometry is required; the working image is at most 768px on its longest side. The Android overlay uses the fitted-image-width translation rather than the viewport width for automatic alignment. Manual reference marks, ordinary photo wipe, and independently calibrated projected areas retain their separate contracts. No stored or displayed growth percentage is inferred from registration.
+
+The gate remains the existing opt-in Living Systems setting; optional OpenCV is needed in the isolated backend. An unavailable engine or insufficient stationary texture falls back to reference marks or ordinary comparison. The stationarity of the selected background is an operator assumption, and flat similarity does not correct parallax, occlusion, 3D leaf rotation or lighting changes. Test across actual repeated indoor captures before field acceptance.
+
+Core roots test correction: the two compact/nominal emulator failures in a067c35 were the obsolete label "Inspect a reconstruction file"; current room navigation names this action "Explore photographic reconstruction". The instrumentation test now follows that action, checks the photographic reconstruction surface, reaches the existing PLY scene affordance, and still verifies read-only room state and subsequent daylight/care navigation. No test removed or bypassed.

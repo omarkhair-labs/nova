@@ -317,8 +317,8 @@ private fun ConversationSharedContentCard(
                 Text(
                     text = when (share.kind) {
                         "profile" -> "Shared profile"
-                        "reel" -> "Shared Reel"
-                        else -> "Shared post"
+                        "reel" -> "Shared video moment"
+                        else -> "Shared moment"
                     },
                     color = primary,
                     fontSize = 12.sp,
@@ -358,7 +358,7 @@ private fun ConversationSharedContentCard(
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                         )
-                        Text("@${post.author.username} · Shared post", color = secondary, fontSize = 9.sp, maxLines = 1)
+                        Text("@${post.author.username} · Shared moment", color = secondary, fontSize = 9.sp, maxLines = 1)
                     }
                     Text("Open", color = secondary, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                 }
@@ -368,15 +368,15 @@ private fun ConversationSharedContentCard(
                             source = post.previewUrl,
                             modifier = Modifier.fillMaxWidth().height(180.dp),
                             contentDescription = if (post.mediaType == "video") {
-                                "Shared post video thumbnail"
+                                "Shared moment video thumbnail"
                             } else {
-                                "Shared post photo"
+                                "Shared moment photo"
                             },
                         )
                         if (post.mediaType == "video") {
                             NovaIcon(
                                 asset = NovaIconAsset.Play,
-                                contentDescription = "Play shared post video",
+                                contentDescription = "Play shared moment video",
                                 modifier = Modifier.align(Alignment.Center).size(32.dp),
                                 tint = Color.White,
                             )
@@ -424,11 +424,11 @@ private fun ConversationSharedContentCard(
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                         )
-                        Text("@${reel.author.username} · Reel", color = secondary, fontSize = 9.sp, maxLines = 1)
+                        Text("@${reel.author.username} · Video moment", color = secondary, fontSize = 9.sp, maxLines = 1)
                     }
                     NovaIcon(
                         asset = NovaIconAsset.Play,
-                        contentDescription = "Open shared Reel",
+                        contentDescription = "Open shared video moment",
                         modifier = Modifier.size(20.dp),
                         tint = if (mine) NovaBackground else NovaAccent,
                     )
@@ -445,7 +445,7 @@ private fun ConversationSharedContentCard(
                 }
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "Watch Reel",
+                    text = "Watch video moment",
                     color = if (mine) NovaBackground else NovaAccent,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,

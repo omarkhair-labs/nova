@@ -26,6 +26,15 @@ class OrbitStateOwnerTest {
     }
 
     @Test
+    fun `circle event language does not expose orbit or pulse metaphors`() {
+        assertEquals("liked a shared moment", orbitActionText(event("like:1")))
+        assertEquals("joined a conversation", orbitActionText(event("comment:2")))
+        assertEquals("replied to a short update", orbitActionText(event("pulse_reply:3")))
+        assertEquals("shared activity", orbitActionText(event("unknown:4")))
+        assertEquals("\"Looks healthy\"", orbitContextText(event("comment:5").copy(commentPreview = "Looks healthy")))
+    }
+
+    @Test
     fun `initial load owns page and next cursor`() = runBlocking {
         val expected = listOf(event("like:1"), event("comment:2"))
         val owner = OrbitStateOwner(

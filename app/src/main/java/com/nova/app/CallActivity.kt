@@ -43,7 +43,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -63,8 +62,10 @@ import com.nova.app.feature.calls.CallStateOwner
 import com.nova.app.feature.calls.CallUiState
 import com.nova.app.feature.calls.domain.model.NovaCallKind
 import com.nova.app.feature.calls.domain.model.NovaCallPerson
-import com.nova.app.ui.components.NovaBrandMark
-import com.nova.app.ui.components.NovaMediaImage
+import com.nova.app.feature.plants.PlantupiaBrandGlyph
+import com.nova.app.ui.components.PlantupiaAvatar
+import com.nova.app.feature.plants.PlantupiaText
+import com.nova.app.feature.plants.PlantupiaColors
 import com.nova.app.ui.components.NovaPresenceIndicator
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
@@ -371,7 +372,7 @@ private fun CallScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(if (isVideo) Color(0xFF0A0B14) else NovaBackground),
+            .background(if (isVideo) Color(0xFF0D211B) else PlantupiaColors.cream),
     ) {
         if (videoLive) {
             WebRtcVideo(
@@ -453,7 +454,7 @@ private fun CallScreen(
                     .padding(top = 18.dp, start = 72.dp, end = 72.dp),
             ) {
                 Text(
-                    text = peer?.displayName ?: "Nova call",
+                    text = peer?.displayName ?: "Plantupia call",
                     color = Color.White,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -462,7 +463,7 @@ private fun CallScreen(
                 Text(
                     text = state.stage,
                     color = if (state.phase == CallPhase.Reconnecting) {
-                        Color(0xFFB8AEFF)
+                        PlantupiaColors.sage
                     } else {
                         Color.White.copy(alpha = 0.72f)
                     },
@@ -538,7 +539,7 @@ private fun CallIdentity(
         modifier = modifier,
     ) {
         Text(
-            text = if (isVideo) "NOVA VIDEO" else "NOVA VOICE",
+            text = if (isVideo) "VIDEO CALL" else "VOICE CALL",
             color = if (isVideo) Color.White.copy(alpha = 0.56f) else NovaMuted,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
@@ -551,47 +552,20 @@ private fun CallIdentity(
             modifier = Modifier.size(146.dp),
         ) {
             Box(contentAlignment = Alignment.Center) {
-                if (peer?.avatarUrl?.isNotBlank() == true) {
-                    NovaMediaImage(
-                        source = peer.avatarUrl,
-                        contentDescription = peer.displayName,
-                        modifier = Modifier
-                            .size(126.dp)
-                            .clip(CircleShape),
-                    )
+                if (peer != null && peer.username != "deleted" && (peer.id > 0 || peer.avatarUrl.isNotBlank())) {
+                    PlantupiaAvatar(userId = peer.id, displayName = peer.displayName,
+                        photoUrl = peer.avatarUrl, size = 126.dp)
                 } else {
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier
-                            .size(126.dp)
-                            .clip(CircleShape)
-                            .background(if (isVideo) Color.White.copy(alpha = 0.08f) else NovaSurface),
-                    ) {
-                        val fallbackInitial = peer?.displayName?.firstOrNull()?.uppercase()
-                        if (fallbackInitial != null) {
-                            Text(
-                                text = fallbackInitial,
-                                color = if (isVideo) Color.White else NovaAccent,
-                                fontSize = 44.sp,
-                                fontWeight = FontWeight.Bold,
-                            )
-                        } else {
-                            NovaBrandMark(
-                                modifier = Modifier.size(54.dp),
-                                monochrome = true,
-                                monochromeColor = if (isVideo) Color.White else NovaAccent,
-                            )
-                        }
-                    }
+                    PlantupiaBrandGlyph(modifier = Modifier.size(54.dp),
+                        color = if (isVideo) PlantupiaColors.sage else PlantupiaColors.forest)
                 }
             }
         }
         Spacer(Modifier.height(22.dp))
         Text(
-            text = peer?.displayName ?: "Nova call",
+            text = peer?.displayName ?: "Plantupia call",
             color = if (isVideo) Color.White else NovaInk,
-            fontSize = 27.sp,
-            fontWeight = FontWeight.Bold,
+            style = PlantupiaText.editorialHeading,
             textAlign = TextAlign.Center,
             maxLines = 1,
         )

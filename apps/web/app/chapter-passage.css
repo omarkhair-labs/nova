@@ -1,0 +1,10 @@
+.ch-passage{display:grid;grid-template-columns:minmax(110px,1fr) minmax(0,3fr);gap:24px;align-items:center;padding:clamp(32px,5vw,72px) var(--pl-gutter);background:#ede9dc;color:#173b2e;border-top:1px solid #173b2e25}
+.ch-kicker{font:600 11px/1.5 Arial,Helvetica,sans-serif;letter-spacing:.15em}
+.ch-main{display:flex;align-items:center;justify-content:space-between;gap:24px;min-height:48px;color:inherit;text-decoration:none;border-radius:3px}
+.ch-copy{display:grid;gap:10px;min-width:0}
+.ch-copy strong{font:400 clamp(28px,4vw,54px)/1.1 Georgia,"Times New Roman",serif;letter-spacing:-.025em}
+.ch-copy small{font:400 14px/1.6 Arial,Helvetica,sans-serif;max-width:44ch}
+.ch-arrow{flex:0 0 auto;width:40px;height:40px}
+.ch-main:hover .ch-copy strong{text-decoration:underline;text-decoration-thickness:1px;text-underline-offset:6px}
+.ch-main:focus-visible{outline:2px solid currentColor;outline-offset:10px}
+@media(max-width:600px){.ch-passage{grid-template-columns:1fr;gap:20px}.ch-main{gap:16px}.ch-copy small{font-size:13px}.ch-arrow{width:32px;height:32px}}

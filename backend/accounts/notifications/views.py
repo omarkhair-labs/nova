@@ -1,5 +1,5 @@
 from django.utils import timezone
-from rest_framework import status
+from rest_framework import status, serializers
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -38,7 +38,8 @@ class NotificationsView(APIView):
         has_more = len(page_with_extra) > NOTIFICATION_PAGE_SIZE
         page = page_with_extra[:NOTIFICATION_PAGE_SIZE]
         next_cursor = str(page[-1].id) if has_more and page else None
-        unread_count = notifications.filter(read_at__isnull=True).count()
+        # This is an account badge, independent of the pagination cursor.
+        unread_count = Notification.objects.filter(recipient=request.user, read_at__isnull=True).exclude(actor_id__in=blocked_user_ids(request.user)).count()
 
         return Response(
             {
@@ -57,15 +58,19 @@ class NotificationsReadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        marked_read = Notification.objects.filter(
+        notices = Notification.objects.filter(
             recipient=request.user,
             read_at__isnull=True,
-        ).update(read_at=timezone.now())
+        )
+        if "ids" in request.data:
+            ids = serializers.ListField(child=serializers.IntegerField(min_value=1), min_length=1, max_length=100).run_validation(request.data["ids"])
+            notices = notices.filter(pk__in=ids)
+        marked_read = notices.update(read_at=timezone.now())
 
         return Response(
             {
                 "marked_read": marked_read,
-                "unread_count": 0,
+                "unread_count": Notification.objects.filter(recipient=request.user, read_at__isnull=True).exclude(actor_id__in=blocked_user_ids(request.user)).count(),
             }
         )
 

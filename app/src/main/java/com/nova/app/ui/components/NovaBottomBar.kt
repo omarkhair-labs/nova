@@ -1,7 +1,7 @@
 package com.nova.app.ui.components
 
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -22,11 +23,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import com.nova.app.feature.plants.PlantupiaColors
 import androidx.compose.ui.unit.dp
-import com.nova.app.core.messaging.NovaMessagesSignal
-import com.nova.app.core.messaging.NovaMessagingNavigator
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
+import com.nova.app.navigation.NovaRootNavigationSignal
+import com.nova.app.navigation.NovaRootTab
 import com.nova.app.ui.icons.NovaIcon
 import com.nova.app.ui.icons.NovaIconAsset
 import com.nova.app.ui.theme.NovaAccent
@@ -37,7 +42,10 @@ import com.nova.app.ui.theme.NovaSurface
 import com.nova.app.ui.theme.NovaType
 
 
-/** Presentation owner for Home / Orbit / Create / Inbox / Profile. */
+/** Plantupia primary navigation: Today / Plants / Create / Shop / Ask.
+ * Me remains available through the top-right avatar on primary routes.
+ * Create stays an intentional hub, not a second, ambiguous feed destination.
+ */
 @Composable
 fun NovaBottomBar(
     selected: NovaTab?,
@@ -47,64 +55,63 @@ fun NovaBottomBar(
     onProfileClick: () -> Unit,
     onInboxClick: (() -> Unit)? = null,
     messagesUnreadCount: Int? = null,
-    containerColor: Color = NovaSurface,
-    inactiveContentColor: Color = NovaMuted,
+    containerColor: Color = PlantupiaColors.paper,
+    inactiveContentColor: Color = PlantupiaColors.secondaryText,
 ) {
-    val context = LocalContext.current
-    val resolvedUnreadCount = messagesUnreadCount ?: NovaMessagesSignal.unreadCount
-
     Surface(
         color = containerColor,
-        shadowElevation = NovaElevation.floating,
+        shadowElevation = NovaElevation.flat,
         tonalElevation = NovaElevation.flat,
     ) {
+        Column {
+        HorizontalDivider(color = PlantupiaColors.border)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .navigationBarsPadding()
-                .padding(horizontal = NovaSpacing.sm, vertical = NovaSpacing.xs),
+                .padding(horizontal = NovaSpacing.xs, vertical = NovaSpacing.xs),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             NovaTabItem(
-                label = "Home",
-                icon = NovaIconAsset.Home,
+                modifier = Modifier.weight(1f),
+                label = "Today",
+                icon = NovaIconAsset.Today,
                 selected = selected == NovaTab.Home,
                 inactiveContentColor = inactiveContentColor,
                 onClick = onHomeClick,
             )
             NovaTabItem(
-                label = "Orbit",
-                icon = NovaIconAsset.Orbit,
-                selected = selected == NovaTab.Orbit,
+                modifier = Modifier.weight(1f),
+                label = "Plants",
+                icon = NovaIconAsset.Plants,
+                selected = selected == NovaTab.Plants,
                 inactiveContentColor = inactiveContentColor,
-                onClick = onOrbitClick,
+                onClick = { NovaRootNavigationSignal.request(NovaRootTab.Plants) },
             )
             NovaCreateTabItem(
+                modifier = Modifier.weight(1f),
                 selected = selected == NovaTab.Create,
                 onClick = onCreateClick,
             )
             NovaTabItem(
-                label = "Inbox",
-                icon = NovaIconAsset.Inbox,
-                selected = selected == NovaTab.Inbox,
-                badgeCount = resolvedUnreadCount,
+                modifier = Modifier.weight(1f),
+                label = "Shop",
+                icon = NovaIconAsset.Shop,
+                selected = selected == NovaTab.Shop,
                 inactiveContentColor = inactiveContentColor,
-                onClick = {
-                    if (onInboxClick != null) {
-                        onInboxClick()
-                    } else if (selected != NovaTab.Inbox) {
-                        NovaMessagingNavigator.openInbox(context = context)
-                    }
-                },
+                onClick = { NovaRootNavigationSignal.request(NovaRootTab.Shop) },
             )
             NovaTabItem(
-                label = "Profile",
-                icon = NovaIconAsset.Profile,
-                selected = selected == NovaTab.Profile,
+                modifier = Modifier.weight(1f),
+                label = "Ask",
+                displayLabel = "Ask",
+                icon = NovaIconAsset.AI,
+                selected = selected == NovaTab.AI,
                 inactiveContentColor = inactiveContentColor,
-                onClick = onProfileClick,
+                onClick = { NovaRootNavigationSignal.request(NovaRootTab.AI) },
             )
+        }
         }
     }
 }
@@ -112,50 +119,19 @@ fun NovaBottomBar(
 
 @Composable
 private fun NovaCreateTabItem(
+    modifier: Modifier = Modifier,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val scale by animateFloatAsState(
-        targetValue = if (selected) 1.08f else 1f,
-        label = "nova-create-tab-scale",
-    )
-    val containerColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.primary else NovaAccent,
-        label = "nova-create-tab-color",
-    )
-
-    Box(
-        modifier = Modifier.widthIn(min = 58.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Surface(
-            onClick = onClick,
-            modifier = Modifier
-                .size(52.dp)
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                },
-            shape = CircleShape,
-            color = containerColor,
-            shadowElevation = NovaElevation.raised,
-        ) {
-            Box(contentAlignment = Alignment.Center) {
-                NovaIcon(
-                    asset = NovaIconAsset.Create,
-                    contentDescription = "Create",
-                    tint = Color.White,
-                    modifier = Modifier.size(25.dp),
-                )
-            }
-        }
-    }
+    NovaTabItem(modifier = modifier, label = "Create", icon = NovaIconAsset.SignatureCreate,
+        selected = selected, onClick = onClick)
 }
-
 
 @Composable
 private fun NovaTabItem(
+    modifier: Modifier = Modifier,
     label: String,
+    displayLabel: String = label,
     icon: NovaIconAsset,
     selected: Boolean,
     onClick: () -> Unit,
@@ -163,39 +139,34 @@ private fun NovaTabItem(
     inactiveContentColor: Color = NovaMuted,
 ) {
     val contentColor by animateColorAsState(
-        targetValue = if (selected) NovaAccent else inactiveContentColor,
+        targetValue = if (selected) PlantupiaColors.forest else inactiveContentColor,
         label = "nova-tab-content",
-    )
-    val iconScale by animateFloatAsState(
-        targetValue = if (selected) 1.08f else 1f,
-        label = "nova-tab-icon-scale",
     )
 
     Surface(
         onClick = onClick,
-        modifier = Modifier.widthIn(min = 58.dp),
+        modifier = modifier.heightIn(min = 48.dp).semantics { this.selected = selected; role = Role.Tab },
         color = Color.Transparent,
         shape = MaterialTheme.shapes.medium,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = 6.dp),
+            modifier = Modifier.padding(vertical = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                NovaIcon(
-                    asset = icon,
-                    contentDescription = label,
-                    tint = contentColor,
-                    modifier = Modifier
-                        .size(21.dp)
-                        .graphicsLayer {
-                            scaleX = iconScale
-                            scaleY = iconScale
-                        },
-                )
+                Surface(
+                    color = if (selected) PlantupiaColors.softSage else Color.Transparent,
+                    shape = CircleShape,
+                ) {
+                    Box(Modifier.padding(horizontal = 12.dp, vertical = 6.dp)) {
+                        // The visible label already names this merged tab for accessibility.
+                        NovaIcon(asset = icon, contentDescription = null,
+                            tint = contentColor, modifier = Modifier.size(21.dp))
+                    }
+                }
                 if (badgeCount > 0) {
                     Surface(shape = CircleShape, color = NovaAccent) {
                         Text(
@@ -209,9 +180,10 @@ private fun NovaTabItem(
             }
             Spacer(modifier = Modifier.height(NovaSpacing.xxs))
             Text(
-                text = label,
+                text = displayLabel,
                 color = contentColor,
                 style = if (selected) NovaType.navigationLabelSelected else NovaType.navigationLabel,
+                textAlign = TextAlign.Center,
             )
         }
     }
@@ -220,7 +192,10 @@ private fun NovaTabItem(
 
 enum class NovaTab {
     Home,
+    Plants,
+    Shop,
     Orbit,
+    AI,
     Create,
     Inbox,
     Profile,

@@ -216,7 +216,7 @@ for required in (
 for required in ("pulsePublishedVersion", "MediaPublishTarget.PULSE -> pulseVersion += 1"):
     if required not in publish_owner:
         errors.append(f"Pulse publish reconciliation seam is missing: {required}")
-if 'MediaPublishTarget.PULSE -> "Pulse"' not in publish_status:
+if 'MediaPublishTarget.PULSE -> "Short update"' not in publish_status:
     errors.append("Pulse publish status label is missing")
 
 for required in (

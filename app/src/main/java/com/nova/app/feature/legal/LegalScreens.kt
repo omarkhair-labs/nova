@@ -33,8 +33,8 @@ private data class LegalSection(
 fun TermsScreen(onBack: () -> Unit) {
     LegalScreen(
         title = "Terms of Use",
-        subtitle = "The basic rules for using Nova.",
-        intro = "By creating or using a Nova account, you agree to use the service lawfully and respectfully.",
+        subtitle = "The basic rules for using Plantupia.",
+        intro = "By creating or using a Plantupia account, you agree to use the service lawfully and respectfully.",
         sections = listOf(
             LegalSection(
                 "Your account",
@@ -42,11 +42,11 @@ fun TermsScreen(onBack: () -> Unit) {
             ),
             LegalSection(
                 "Your content",
-                "You keep ownership of content you create. You give Nova the permission needed to store, process and display that content so the product can work for you and the people you share it with.",
+                "You keep ownership of content you create. You give Plantupia the permission needed to store, process and display that content so the product can work for you and the people you share it with.",
             ),
             LegalSection(
                 "Respect and safety",
-                "Do not use Nova for harassment, impersonation, spam, unlawful content, threats, exploitation or attempts to compromise another person or the service. Nova may restrict content or accounts when needed to protect people or the service.",
+                "Do not use Plantupia for harassment, impersonation, spam, unlawful content, threats, exploitation or attempts to compromise another person or the service. Plantupia may restrict content or accounts when needed to protect people or the service.",
             ),
             LegalSection(
                 "Calls and messages",
@@ -54,7 +54,7 @@ fun TermsScreen(onBack: () -> Unit) {
             ),
             LegalSection(
                 "Service changes",
-                "Nova may change, improve or discontinue product features. Availability can also be affected by networks, devices and third-party infrastructure.",
+                "Plantupia may change, improve or discontinue product features. Availability can also be affected by networks, devices and third-party infrastructure.",
             ),
         ),
         onBack = onBack,
@@ -66,20 +66,20 @@ fun TermsScreen(onBack: () -> Unit) {
 fun PrivacyScreen(onBack: () -> Unit) {
     LegalScreen(
         title = "Privacy",
-        subtitle = "How Nova handles the data needed to run the product.",
-        intro = "Nova uses account and product data to provide social, messaging, calling, security and notification features.",
+        subtitle = "How Plantupia handles the data needed to run the product.",
+        intro = "Plantupia uses account and product data to provide plant-space, care, social, messaging, calling, security and notification features.",
         sections = listOf(
             LegalSection(
                 "Information you provide",
-                "This includes your email, username, display name, profile photo, posts, comments, messages, voice notes and reports you choose to submit.",
+                "This includes your email, username, display name, profile photo, shared moments, comments, messages, voice notes and reports you choose to submit.",
             ),
             LegalSection(
                 "Product and device data",
-                "Nova processes information such as follow relationships, message delivery/read state, presence, call state, notification tokens and security/session data so the app can function reliably.",
+                "Plantupia processes information such as plant and space records, care records, follow relationships, message delivery/read state, presence, call state, notification tokens and security/session data so the app can function reliably.",
             ),
             LegalSection(
                 "How it is used",
-                "Data is used to operate Nova, deliver content and messages, connect calls, prevent abuse, keep accounts secure, troubleshoot reliability and improve the product.",
+                "Data is used to operate Plantupia, deliver content and messages, connect calls, prevent abuse, keep accounts secure, troubleshoot reliability and improve the product.",
             ),
             LegalSection(
                 "Blocking and reports",
@@ -91,7 +91,7 @@ fun PrivacyScreen(onBack: () -> Unit) {
             ),
             LegalSection(
                 "Infrastructure",
-                "Nova relies on service providers for hosting, storage, notifications and network delivery. Those providers process only the data needed for the services Nova uses from them.",
+                "Plantupia relies on service providers for hosting, storage, notifications and network delivery. Those providers process only the data needed for the services Plantupia uses from them.",
             ),
         ),
         onBack = onBack,

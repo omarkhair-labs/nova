@@ -104,7 +104,7 @@ class NovaWebRtcEngine(
             }
         }
         if (rtcServers.isEmpty()) {
-            listener.onError("Nova couldn't load call network settings.")
+            listener.onError("Plantupia couldn't load call network settings.")
             return false
         }
 
@@ -123,7 +123,7 @@ class NovaWebRtcEngine(
 
         peerConnection = factory.createPeerConnection(rtcConfig, observer)
         if (peerConnection == null) {
-            listener.onError("Nova couldn't start the call connection.")
+            listener.onError("Plantupia couldn't start the call connection.")
             return false
         }
 
@@ -135,7 +135,7 @@ class NovaWebRtcEngine(
 
         if (kind == NovaCallKind.Video) {
             if (!startCamera()) {
-                listener.onError("Nova couldn't open the camera. You can continue with audio.")
+                listener.onError("Plantupia couldn't open the camera. You can continue with audio.")
                 cameraEnabled = false
             }
         }
@@ -166,7 +166,7 @@ class NovaWebRtcEngine(
         Log.i(TAG, "Requesting ICE restart")
         runCatching { peer.restartIce() }
             .onFailure {
-                listener.onError("Nova couldn't restart the call connection.")
+                listener.onError("Plantupia couldn't restart the call connection.")
                 return
             }
         createOfferInternal(onReady)
@@ -177,12 +177,12 @@ class NovaWebRtcEngine(
         peer.createOffer(
             object : SimpleSdpObserver() {
                 override fun onCreateSuccess(sdp: SessionDescription?) {
-                    if (sdp == null) return listener.onError("Nova couldn't create the call offer.")
+                    if (sdp == null) return listener.onError("Plantupia couldn't create the call offer.")
                     peer.setLocalDescription(
                         object : SimpleSdpObserver() {
                             override fun onSetSuccess() = onReady(sdp.description)
                             override fun onSetFailure(error: String?) {
-                                listener.onError(error ?: "Nova couldn't prepare the call offer.")
+                                listener.onError(error ?: "Plantupia couldn't prepare the call offer.")
                             }
                         },
                         sdp,
@@ -190,7 +190,7 @@ class NovaWebRtcEngine(
                 }
 
                 override fun onCreateFailure(error: String?) {
-                    listener.onError(error ?: "Nova couldn't create the call offer.")
+                    listener.onError(error ?: "Plantupia couldn't create the call offer.")
                 }
             },
             offerAnswerConstraints(),
@@ -206,12 +206,12 @@ class NovaWebRtcEngine(
         peer.createAnswer(
             object : SimpleSdpObserver() {
                 override fun onCreateSuccess(sdp: SessionDescription?) {
-                    if (sdp == null) return listener.onError("Nova couldn't create the call answer.")
+                    if (sdp == null) return listener.onError("Plantupia couldn't create the call answer.")
                     peer.setLocalDescription(
                         object : SimpleSdpObserver() {
                             override fun onSetSuccess() = onReady(sdp.description)
                             override fun onSetFailure(error: String?) {
-                                listener.onError(error ?: "Nova couldn't prepare the call answer.")
+                                listener.onError(error ?: "Plantupia couldn't prepare the call answer.")
                             }
                         },
                         sdp,
@@ -219,7 +219,7 @@ class NovaWebRtcEngine(
                 }
 
                 override fun onCreateFailure(error: String?) {
-                    listener.onError(error ?: "Nova couldn't create the call answer.")
+                    listener.onError(error ?: "Plantupia couldn't create the call answer.")
                 }
             },
             offerAnswerConstraints(),
@@ -296,7 +296,7 @@ class NovaWebRtcEngine(
             object : CameraVideoCapturer.CameraSwitchHandler {
                 override fun onCameraSwitchDone(isFrontCamera: Boolean) = Unit
                 override fun onCameraSwitchError(errorDescription: String?) {
-                    listener.onError(errorDescription ?: "Nova couldn't switch cameras.")
+                    listener.onError(errorDescription ?: "Plantupia couldn't switch cameras.")
                 }
             }
         )
@@ -398,7 +398,7 @@ class NovaWebRtcEngine(
 
                 override fun onSetFailure(error: String?) {
                     synchronized(pendingRemoteIce) { hasRemoteDescription = true }
-                    listener.onError(error ?: "Nova couldn't apply remote call settings.")
+                    listener.onError(error ?: "Plantupia couldn't apply remote call settings.")
                 }
             },
             SessionDescription(type, sdp),

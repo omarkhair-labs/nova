@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Original Plantupia art family portrait 3, hero. Artwork chosen manually, no demographic inference. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="100dp" android:height="100dp" android:viewportWidth="1000" android:viewportHeight="1000">
+  <group>
+    <clip-path android:pathData="M1000,500 A500,500 0 1,0 0,500 A500,500 0 1,0 1000,500 Z"/>
+    <path android:pathData="M0 0H1000V1000H0Z" android:fillColor="#F0E3CE"/>
+    <path android:pathData="M106 920V195H895V920" android:fillColor="#00000000" android:strokeColor="#263E37" android:strokeWidth="20" android:strokeLineCap="round" android:strokeLineJoin="round" android:strokeAlpha="0.2"/>
+    <path android:pathData="M131 264H868" android:fillColor="#00000000" android:strokeColor="#263E37" android:strokeWidth="20" android:strokeLineCap="round" android:strokeLineJoin="round" android:strokeAlpha="0.2"/>
+    <path android:pathData="M764 195V763" android:fillColor="#00000000" android:strokeColor="#263E37" android:strokeWidth="20" android:strokeLineCap="round" android:strokeLineJoin="round" android:strokeAlpha="0.2"/>
+    <path android:pathData="M183 794Q169 616 241 462" android:fillColor="#AFC1A3" android:fillAlpha="0.91"/>
+    <path android:pathData="M207 610Q99 581 126 499Q214 506 207 610Z" android:fillColor="#AFC1A3" android:fillAlpha="0.91"/>
+    <path android:pathData="M224 535Q292 489 293 422Q235 434 224 535Z" android:fillColor="#AFC1A3" android:fillAlpha="0.91"/>
+    <path android:pathData="M141 1055H878V941H141Z" android:fillColor="#AFC1A3" android:fillAlpha="0.18"/>
+    <path android:pathData="M151 1042Q153 794 366 727L477 779L566 744Q824 781 869 1042Z" android:fillColor="#263E37"/>
+    <path android:pathData="M334 759L468 999L566 761L633 1040H365Z" android:fillColor="#526A5A"/>
+    <path android:pathData="M372 864Q501 901 628 861" android:fillColor="#00000000" android:strokeColor="#AFC1A3" android:strokeWidth="18" android:strokeLineCap="round" android:strokeLineJoin="round" android:strokeAlpha="0.9"/>
+    <path android:pathData="M443 620L442 773Q512 818 600 773L578 626Z" android:fillColor="#D09A73"/>
+    <path android:pathData="M393 373Q410 290 511 268Q628 271 662 384L672 520Q645 651 543 709Q431 695 382 577Z" android:fillColor="#D09A73"/>
+    <path android:pathData="M547 291Q651 314 651 433L640 565Q610 666 540 699L563 486Z" android:fillColor="#263E37" android:fillAlpha="0.12"/>
+    <path android:pathData="M327 471Q286 342 376 268Q442 206 551 222Q659 224 700 300Q742 393 670 479L641 373Q596 392 556 358Q447 409 384 389L355 488Z" android:fillColor="#31433E"/>
+    <path android:pathData="M394 480Q439 459 475 474" android:fillColor="#00000000" android:strokeColor="#263E37" android:strokeWidth="14" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M565 473Q610 459 635 473" android:fillColor="#00000000" android:strokeColor="#263E37" android:strokeWidth="14" android:strokeLineCap="round" android:strokeLineJoin="round"/>
+    <path android:pathData="M451 501A12 13 0 1 0 452 501Z" android:fillColor="#263E37"/>
+    <path android:pathData="M587 499A12 13 0 1 0 588 499Z" android:fillColor="#263E37"/>
+    <path android:pathData="M530 505L510 568L546 577" android:fillColor="#00000000" android:strokeColor="#263E37" android:strokeWidth="10" android:strokeLineCap="round" android:strokeLineJoin="round" android:strokeAlpha="0.6"/>
+    <path android:pathData="M477 622Q522 650 573 619" android:fillColor="#00000000" android:strokeColor="#263E37" android:strokeWidth="14" android:strokeLineCap="round" android:strokeLineJoin="round" android:strokeAlpha="0.65"/>
+    <path android:pathData="M407 772Q499 816 598 772" android:fillColor="#00000000" android:strokeColor="#F0E3CE" android:strokeWidth="11" android:strokeLineCap="round" android:strokeLineJoin="round" android:strokeAlpha="0.76"/>
+  </group>
+</vector>

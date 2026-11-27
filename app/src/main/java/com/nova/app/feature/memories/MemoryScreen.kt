@@ -132,7 +132,7 @@ fun MemoryScreen(
             }
 
             state.memory == null -> MemoryError(
-                message = state.error ?: "Nova couldn't build this memory.",
+                message = state.error ?: "Plantupia couldn't build this memory.",
                 onBack = onBack,
                 onRetry = {
                     owner.load(memoryUtcOffsetMinutes(), state.weeksAgo, showSpinner = true)
@@ -279,7 +279,7 @@ private fun MemoryContent(
                     }
                 }
                 if (drafts.isEmpty()) {
-                    Text("Start a recap or film and Nova will autosave it here.", color = NovaMuted, fontSize = 10.sp)
+                    Text("Keep a living timeline of your space and the people around it.", color = NovaMuted, fontSize = 10.sp)
                 } else {
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         items(drafts, key = { it.id }) { draft ->
@@ -357,7 +357,7 @@ private fun MemoryContent(
         if (memory.rooms.isNotEmpty()) {
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SectionTitle("Rooms you lived in")
+                    SectionTitle("Gatherings you joined")
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                         items(memory.rooms, key = { it.room.id }) { row ->
                             Surface(
@@ -428,7 +428,7 @@ private fun MemoryContent(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = "Nova didn't find shared moments to replay here.",
+                            text = "No shared moments were found to replay here.",
                             color = NovaMuted,
                             fontSize = 10.sp,
                         )
@@ -563,7 +563,7 @@ private fun StatsCard(stats: MemoryStats) {
         "${stats.highlights} moments",
         "${stats.nights} nights",
         "${stats.people} people",
-        "${stats.rooms} rooms",
+        "${stats.rooms} gatherings",
     )
     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         items(chips) { label ->
@@ -824,7 +824,7 @@ private fun MemoryDraftDialog(
                     onValueChange = { if (it.length <= 120) title = it },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text("Title") },
-                    placeholder = { Text("Seoul nights") },
+                    placeholder = { Text("A month of growth") },
                     supportingText = { Text("${title.length}/120") },
                 )
                 OutlinedTextField(
@@ -938,9 +938,9 @@ private fun parseMemoryTime(raw: String): OffsetDateTime? =
 
 
 private fun memorySourceLabel(source: String): String = when (source) {
-    "pulse" -> "PULSE"
-    "post" -> "POST"
-    "room_item" -> "ROOM"
+    "pulse" -> "SHORT UPDATE"
+    "post" -> "SHARED MOMENT"
+    "room_item" -> "GATHERING"
     else -> "MEMORY"
 }
 
@@ -955,17 +955,17 @@ private fun memoryHeroLine(stats: MemoryStats): String = when {
 
 private fun shareMemory(context: android.content.Context, memory: WeeklyMemory) {
     val text = buildString {
-        append("My Nova week · ${memoryDateRange(memory)}\n")
+        append("My Plantupia week · ${memoryDateRange(memory)}\n")
         append("${memory.stats.highlights} moments")
         if (memory.stats.nights > 0) append(" · ${memory.stats.nights} nights")
         if (memory.stats.people > 0) append(" · ${memory.stats.people} people")
-        if (memory.stats.rooms > 0) append(" · ${memory.stats.rooms} rooms")
+        if (memory.stats.rooms > 0) append(" · ${memory.stats.rooms} gatherings")
     }
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, text)
     }
-    context.startActivity(Intent.createChooser(intent, "Share your Nova week"))
+    context.startActivity(Intent.createChooser(intent, "Share your Plantupia week"))
 }
 
 

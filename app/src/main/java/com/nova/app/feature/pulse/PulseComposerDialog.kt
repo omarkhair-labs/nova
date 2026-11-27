@@ -92,7 +92,7 @@ fun PulseComposerDialog(
                         NovaMediaImage(
                             source = pendingMedia.toString(),
                             modifier = Modifier.fillMaxWidth().height(150.dp),
-                            contentDescription = "Selected Pulse photo",
+                            contentDescription = "Selected short-update photo",
                         )
                     } else {
                         Box(modifier = Modifier.fillMaxWidth().height(180.dp)) {
@@ -103,7 +103,7 @@ fun PulseComposerDialog(
                                 repeat = true,
                                 muted = muted,
                                 useController = false,
-                                description = "Selected Pulse video preview",
+                                description = "Selected short-update video preview",
                             )
                             Surface(
                                 onClick = { muted = !muted },
@@ -122,9 +122,9 @@ fun PulseComposerDialog(
                                             NovaIconAsset.VolumeOn
                                         },
                                         contentDescription = if (muted) {
-                                            "Turn on Pulse preview sound"
+                                            "Turn on update preview sound"
                                         } else {
-                                            "Mute Pulse preview"
+                                            "Mute update preview"
                                         },
                                         modifier = Modifier.size(22.dp),
                                         tint = Color.White,

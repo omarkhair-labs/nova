@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.media.NovaVideoPreparer
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
@@ -66,16 +67,17 @@ class NovaReelsRepository(
         onProgress: (Int?) -> Unit,
         expectedUserId: Long?,
     ): ApiResult<NovaReel> {
-        if (!reelPublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!reelPublishAccountMatches(expectedUserId, origin.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
         resolveVideoMimeType(videoUri)
-            ?: return ApiResult.Failure("Reels support video files only.")
+            ?: return ApiResult.Failure("Video moments support video files only.")
         val prepared = when (
             val result = videoPreparer.prepare(
                 source = videoUri,
                 maxSourceBytes = MAX_REEL_VIDEO_BYTES,
-                sizeMessage = "Reel video must be 120 MB or smaller.",
+                sizeMessage = "Video-moment file must be 120 MB or smaller.",
                 onProgress = onProgress,
             )
         ) {
@@ -83,7 +85,7 @@ class NovaReelsRepository(
             is ApiResult.Failure -> return result
         }
         return try {
-            authenticatedCall(expectedUserId) { token ->
+            authenticatedCall(expectedUserId, origin = origin) { token ->
                 when (
                     val response = authApi.requestMultipart(
                         path = "reels/",
@@ -205,7 +207,7 @@ class NovaReelsRepository(
                     val comment = result.value.optJSONObject("comment")
                     val reel = result.value.optJSONObject("reel")
                     if (comment == null || reel == null) {
-                        ApiResult.Failure("Nova returned an invalid Reel comment response.")
+                        ApiResult.Failure("Plantupia returned an invalid video-moment comment response.")
                     } else {
                         ApiResult.Success(
                             NovaReelCommentMutation(
@@ -232,7 +234,7 @@ class NovaReelsRepository(
                 is ApiResult.Success -> {
                     val reel = result.value.optJSONObject("reel")
                     if (reel == null) {
-                        ApiResult.Failure("Nova returned an invalid Reel comment response.")
+                        ApiResult.Failure("Plantupia returned an invalid video-moment comment response.")
                     } else {
                         ApiResult.Success(parseReel(reel))
                     }
@@ -254,7 +256,7 @@ class NovaReelsRepository(
                 is ApiResult.Success -> {
                     val reel = result.value.optJSONObject("reel")
                     if (reel == null) {
-                        ApiResult.Failure("Nova returned an invalid Reel comment response.")
+                        ApiResult.Failure("Plantupia returned an invalid video-moment comment response.")
                     } else {
                         ApiResult.Success(parseReel(reel))
                     }
@@ -334,7 +336,7 @@ class NovaReelsRepository(
             }
             readJsonResponse(connection)
         } catch (_: Exception) {
-            ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+            ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
         } finally {
             connection?.disconnect()
         }
@@ -351,12 +353,12 @@ class NovaReelsRepository(
         } else {
             ApiResult.Failure(
                 message = when (statusCode) {
-                    400 -> json.optString("detail").ifBlank { "Nova couldn't process that Reel." }
+                    400 -> json.optString("detail").ifBlank { "Plantupia couldn't process that video moment." }
                     401 -> "Your session expired. Please log in again."
-                    403 -> json.optString("detail").ifBlank { "You can't interact with this Reel." }
-                    404 -> "That Reel is no longer available."
-                    413 -> "That Reel video is too large."
-                    in 500..599 -> "Nova's server had a problem. Try again in a moment."
+                    403 -> json.optString("detail").ifBlank { "You can't interact with this video moment." }
+                    404 -> "That video moment is no longer available."
+                    413 -> "That video-moment file is too large."
+                    in 500..599 -> "Plantupia's server had a problem. Try again in a moment."
                     else -> json.optString("detail").ifBlank { "Something went wrong. Please try again." }
                 },
                 statusCode = statusCode,
@@ -366,43 +368,19 @@ class NovaReelsRepository(
 
     private suspend fun <T> authenticatedCall(
         expectedUserId: Long? = null,
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         if (!reelPublishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
-        when (val first = call(stored.accessToken)) {
-            is ApiResult.Success -> return first
-            is ApiResult.Failure -> if (first.statusCode != 401) return first
-        }
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                if (!reelPublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
-                    return ApiResult.Failure(
-                        "This publish belongs to a different signed-in account.",
-                        409,
-                    )
-                }
-                sessionStore.updateAccessToken(refreshed.value)
-                when (val retried = call(refreshed.value)) {
-                    is ApiResult.Success -> retried
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    refreshed
-                }
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { authApi.refresh(stored.refreshToken) },
+            request = call,
+        )
     }
 
     private fun parseReel(json: JSONObject): NovaReel {
@@ -454,6 +432,7 @@ class NovaReelsRepository(
             username = json.optString("username"),
             name = json.optString("name"),
             avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
+            plantupiaAvatarVariant = json.optInt("plantupia_avatar_variant", -1),
         )
     }
 
@@ -467,7 +446,7 @@ class NovaReelsRepository(
     }
 
     private companion object {
-        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
+        val PRODUCTION_API_URL = com.nova.app.core.network.NovaServerConfig.API_URL
         const val MAX_REEL_VIDEO_BYTES = 120L * 1024 * 1024
     }
 }

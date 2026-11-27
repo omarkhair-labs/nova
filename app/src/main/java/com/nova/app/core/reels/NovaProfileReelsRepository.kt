@@ -2,6 +2,7 @@ package com.nova.app.core.reels
 
 import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.feature.reels.data.ProfileReelsRepository
@@ -94,18 +95,18 @@ class NovaProfileReelsRepository(
             } else {
                 ApiResult.Failure(
                     message = when (statusCode) {
-                        400 -> json.optString("detail").ifBlank { "Nova couldn't load those Reels." }
+                        400 -> json.optString("detail").ifBlank { "Plantupia couldn't load those video moments." }
                         401 -> "Your session expired. Please log in again."
-                        403 -> json.optString("detail").ifBlank { "You can't view these Reels." }
+                        403 -> json.optString("detail").ifBlank { "You can't view these video moments." }
                         404 -> "That profile is no longer available."
-                        in 500..599 -> "Nova's server had a problem. Try again in a moment."
+                        in 500..599 -> "Plantupia's server had a problem. Try again in a moment."
                         else -> json.optString("detail").ifBlank { "Something went wrong. Please try again." }
                     },
                     statusCode = statusCode,
                 )
             }
         } catch (_: Exception) {
-            ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+            ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
         } finally {
             connection?.disconnect()
         }
@@ -116,30 +117,11 @@ class NovaProfileReelsRepository(
     ): ApiResult<T> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-        when (val first = call(stored.accessToken)) {
-            is ApiResult.Success -> return first
-            is ApiResult.Failure -> if (first.statusCode != 401) return first
-        }
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-                when (val retried = call(refreshed.value)) {
-                    is ApiResult.Success -> retried
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    refreshed
-                }
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { authApi.refresh(stored.refreshToken) },
+            request = call,
+        )
     }
 
     private fun parseReel(json: JSONObject): NovaReel {
@@ -180,6 +162,6 @@ class NovaProfileReelsRepository(
     private fun encode(value: String): String = URLEncoder.encode(value, Charsets.UTF_8.name())
 
     private companion object {
-        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
+        val PRODUCTION_API_URL = com.nova.app.core.network.NovaServerConfig.API_URL
     }
 }

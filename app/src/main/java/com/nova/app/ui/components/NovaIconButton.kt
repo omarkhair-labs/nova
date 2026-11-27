@@ -28,9 +28,11 @@ fun NovaIconButton(
     containerColor: Color = NovaSurface,
     contentColor: Color = NovaInk,
     borderColor: Color = NovaBorder,
+    enabled: Boolean = true,
 ) {
     Surface(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.size(size),
         shape = CircleShape,
         color = containerColor,
@@ -40,7 +42,7 @@ fun NovaIconButton(
             NovaIcon(
                 asset = asset,
                 contentDescription = contentDescription,
-                tint = contentColor,
+                tint = if (enabled) contentColor else contentColor.copy(alpha = 0.38f),
                 modifier = Modifier.size(iconSize),
             )
         }
@@ -51,11 +53,13 @@ fun NovaIconButton(
 fun NovaBackButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     NovaIconButton(
         asset = NovaIconAsset.Back,
         contentDescription = "Back",
         onClick = onClick,
         modifier = modifier,
+        enabled = enabled,
     )
 }

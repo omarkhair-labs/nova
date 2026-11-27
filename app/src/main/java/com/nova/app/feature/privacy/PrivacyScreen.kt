@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -134,9 +135,9 @@ fun PrivacyScreen(
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = if (state.summary?.isPrivate == true) {
-                                "Only people you approve can see your posts, followers and following."
+                                "Only people you approve can see your shared moments, followers and following."
                             } else {
-                                "Anyone on Nova can follow you and see your posts."
+                                "Anyone on Plantupia can follow you and see what you share publicly."
                             },
                             color = NovaMuted,
                             fontSize = 12.sp,
@@ -148,6 +149,7 @@ fun PrivacyScreen(
                         onCheckedChange = owner::togglePrivate,
                         enabled = !state.privacyBusy,
                         modifier = Modifier.semantics {
+                            contentDescription = "Private account"
                             stateDescription = if (state.summary?.isPrivate == true) "Private" else "Public"
                         },
                         colors = SwitchDefaults.colors(checkedThumbColor = NovaBackground, checkedTrackColor = NovaAccent),
@@ -159,7 +161,7 @@ fun PrivacyScreen(
 
             PrivacyToggleRow(
                 title = "Activity status",
-                subtitle = "Show when you're active across Nova.",
+                subtitle = "Show when you're active across Plantupia.",
                 checked = state.summary?.showActivityStatus == true,
                 enabled = !state.privacyBusy,
                 onCheckedChange = owner::setActivityStatus,
@@ -412,6 +414,7 @@ private fun PrivacyToggleRow(
                 onCheckedChange = onCheckedChange,
                 enabled = enabled,
                 modifier = Modifier.semantics {
+                    contentDescription = title
                     stateDescription = if (checked) "On" else "Off"
                 },
                 colors = SwitchDefaults.colors(checkedTrackColor = NovaAccent),

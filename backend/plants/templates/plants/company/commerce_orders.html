@@ -1,0 +1,39 @@
+{% extends "plants/company/base.html" %}
+{% block content %}
+<header class="page-heading compact-workspace-heading">
+  <div>
+    <p class="eyebrow">SHOP / الطلبات</p>
+    <h1>Customer orders</h1>
+    <p class="lead">Follow new customer requests, confirm delivery details, then prepare and fulfil accepted orders.</p>
+  </div>
+</header>
+<div class="metrics order-queue">
+  <a href="{% url 'company:commerce-orders' %}?status=quote_pending"{% if status_filter == "quote_pending" %} aria-current="page"{% endif %}><div><span class="small-label">NEW REQUESTS</span><strong>{{ pending }}</strong><small>Review delivery cost and availability</small></div></a>
+  <a href="{% url 'company:commerce-orders' %}?status=quoted"{% if status_filter == "quoted" %} aria-current="page"{% endif %}><div><span class="small-label">WAITING FOR CUSTOMER</span><strong>{{ quoted }}</strong><small>Final total ready for customer review</small></div></a>
+  <a href="{% url 'company:commerce-orders' %}?status=confirmed"{% if status_filter == "confirmed" %} aria-current="page"{% endif %}><div><span class="small-label">CONFIRMED</span><strong>{{ confirmed }}</strong><small>Ready for company preparation</small></div></a>
+</div>
+<div class="task-shortcuts">
+  <a class="button" href="{% url 'company:commerce-orders' %}">All orders</a>
+  <a class="button" href="{% url 'company:commerce-delivery-rates' %}">Delivery prices</a>
+  {% if perms.plants.view_commerceproduct %}<a class="button" href="{% url 'company:commerce-products' %}">Products</a>{% endif %}
+  {% if perms.plants.view_commercestockmovement %}<a class="button" href="{% url 'company:commerce-stock' %}">Warehouse stock</a>{% endif %}
+</div>
+<section class="panel padded">
+  <div class="panel-heading">
+    <div><p class="eyebrow">ORDER INBOX / صندوق الطلبات</p><h2>{{ status_label }}</h2></div>
+  </div>
+  {% for order in records %}
+  <div class="record-row">
+    <div class="grow">
+      <strong>{% if order.status == "quote_pending" or order.status == "quoted" or order.status == "declined" %}Request{% else %}Order{% endif %} {{ order.pk|stringformat:"s"|slice:":8" }}</strong>
+      <small>{{ order.contact_name }} · {{ order.city }} · {{ order.created_at|date:"j M Y, H:i" }}</small>
+      <small>{% if order.status == "quote_pending" %}Request received{% elif order.status == "quoted" %}Delivery total awaiting customer acceptance{% else %}{{ order.get_status_display }}{% endif %} · Items EGP {{ order.subtotal }} · {% if order.shipping_fee != None %}Delivery EGP {{ order.shipping_fee }}{% else %}Delivery to be confirmed{% endif %} · {{ order.get_payment_status_display }}</small>
+    </div>
+    <a href="{% url 'company:commerce-order' order.pk %}">Review →</a>
+  </div>
+  {% empty %}
+  <div class="empty compact">No customer requests or orders in this view.</div>
+  {% endfor %}
+</section>
+{% include "plants/company/pagination.html" %}
+{% endblock %}

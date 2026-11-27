@@ -131,7 +131,7 @@ for required in (
     "Newer week",
     "Share",
     "Your people",
-    "Rooms you lived in",
+    "Gatherings you joined",
 ):
     if required not in screen:
         errors.append(f"Your Week experience is missing product seam: {required}")

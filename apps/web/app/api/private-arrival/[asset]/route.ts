@@ -1,0 +1,19 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import type { NextRequest } from "next/server";
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+const allowed = new Set(["home-pixels-courtyard.webp","home-pixels-landmark.webp","home-pixels-promenade.webp","home-pixels-architecture.webp","home-audi-lounge.webp","home-audi-brand.webp","home-villa-terrace.webp","home-villa-lounge.webp","shop-outdoor-greenery.webp","shop-office-greenery.webp","shop-indoor-greenery.webp","shop-augusta-wide.webp","shop-augusta-object.webp","shop-plant-collection.webp","shop-fiberglass-pots.webp","villa-choice-01.webp","villa-choice-02.webp","villa-choice-03.webp","villa-choice-04.webp","villa-choice-05.webp","villa-choice-06.webp","villa-choice-07.webp","villa-choice-08.webp","villa-choice-09.webp","villa-choice-10.webp","villa-choice-11.webp","villa-choice-12.webp","villa-choice-13.webp","villa-choice-14.webp","villa-choice-15.webp","villa-choice-16.webp","villa-choice-17.webp","villa-choice-18.webp","villa-choice-19.webp","villa-choice-20.webp","villa-choice-21.webp","villa-choice-22.webp","villa-choice-23.webp","villa-choice-24.webp","audi-chapter-01.webp","audi-chapter-02.webp","audi-chapter-03.webp","audi-chapter-04.webp","audi-chapter-05.webp","audi-chapter-06.webp","pixels-scene-01.webp","pixels-scene-02.webp","pixels-scene-03.webp","pixels-scene-04.webp","pixels-scene-05.webp","hallab-option-01.webp","hallab-option-02.webp","hallab-option-03.webp","hallab-option-04.webp","hallab-option-05.webp","em-option-01.webp","em-option-02.webp","em-option-03.webp","em-option-04.webp","em-option-05.webp","em-option-06.webp","em-option-07.webp","mazal-option-01.webp","mazal-option-02.webp","mazal-option-03.webp","mazal-option-04.webp","mazal-option-05.webp","mazal-option-06.webp","mazal-option-07.webp","mazal-option-08.webp","mazal-option-09.webp","sector-office-vessels.webp","sector-commercial-brand.webp","sector-hospitality-arrival.webp","sector-hospitality-seating.webp","sector-hospitality-terrace.webp","spaces-shared-terrace.webp","spaces-commercial.webp","spaces-commercial-showroom.webp","spaces-hospitality.webp","spaces-workplace-palette.webp","spaces-residential.webp","shop-bridge.webp","company-intro.webp","world-spaces.webp","world-studio.webp","world-systems.webp","arrival.webp","arrival-hero.webp","hospitality.webp","residence.webp","terrace-lavender.webp","terrace-evergreen.webp","inter.woff2","playfair.woff2","playfair-italic.woff2"]);
+export async function GET(request:NextRequest,{params}:{params:Promise<{asset:string}>}){
+  const {asset}=await params;
+  if (["preview","production"].includes(process.env.VERCEL_ENV ?? "") && allowed.has(asset)) {
+    return Response.redirect(new URL("/private-review-assets/"+asset,request.url),307);
+  }
+  const host=request.nextUrl.hostname;
+  const root=process.env.PLANTUPIA_PRIVATE_ARRIVAL_DIR;
+  if(process.env.NODE_ENV!=="development" || !root || !["localhost","127.0.0.1","[::1]"].includes(host) || !allowed.has(asset)) return new Response(null,{status:404});
+  try{
+    const picture=await readFile(path.join(root,asset));
+    return new Response(new Uint8Array(picture),{headers:{"Content-Type":asset.endsWith(".woff2")?"font/woff2":"image/webp","Cache-Control":"private, no-store","X-Robots-Tag":"noindex, nofollow","X-Content-Type-Options":"nosniff"}});
+  }catch{return new Response(null,{status:404});}
+}

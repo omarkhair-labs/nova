@@ -176,7 +176,7 @@ class CallStateOwner(
         cameraPermissionGranted = cameraGranted
         update { it.copy(permissionsPending = false) }
         if (!audioGranted) {
-            update { it.copy(error = "Microphone permission is required for Nova calls.") }
+            update { it.copy(error = "Microphone permission is required for Plantupia calls.") }
             if (pendingAccept) {
                 val call = mutableState.value.session
                 pendingAccept = false

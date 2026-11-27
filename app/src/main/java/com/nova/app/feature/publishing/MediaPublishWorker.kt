@@ -34,7 +34,7 @@ class MediaPublishWorker(
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         val target = MediaPublishTarget.fromWire(inputData.getString(KEY_TARGET).orEmpty())
-            ?: return failed("Nova lost the publishing destination. Please retry from Create.")
+            ?: return failed("Plantupia lost the publishing destination. Please retry from Create.")
         val userId = inputData.getLong(KEY_USER_ID, 0L)
         if (!publishAccountMatches(userId, applicationContext.appContainer.currentCachedUserId())) {
             return failed("This publish belongs to a different signed-in account.")
@@ -45,7 +45,7 @@ class MediaPublishWorker(
         val category = inputData.getString(KEY_CATEGORY).orEmpty().ifBlank { "vibes" }
         val clientPublishId = inputData.getString(KEY_CLIENT_PUBLISH_ID).orEmpty()
         if (source.isBlank() || clientPublishId.isBlank()) {
-            return failed("Nova lost access to the selected media. Pick it again and retry.")
+            return failed("Plantupia lost access to the selected media. Pick it again and retry.")
         }
 
         setProgress(progressData(STAGE_PREPARING))

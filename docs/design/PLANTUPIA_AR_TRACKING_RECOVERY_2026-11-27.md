@@ -1,0 +1,3 @@
+# Floor survey: physical-device tracking recovery
+
+The A26 QA device intermittently lost tracking before its first corner. ARCore logged missing feature-depth measurements and IMU/feature timestamp mismatches. The exact root cause remains unconfirmed. Standard horizontal plane tracking now starts with depth disabled and BLOCKING frame updates. Optional raw depth is still available as an explicit pre-survey choice on supported devices. A failed survey can restart without depth; the fallback to manually entered dimensions remains available. Measurements still require real tracked plane hits and valid anchors. No fabricated coordinates, saved-room changes, or claims of a verified physical fix. Retest on the actual handset.

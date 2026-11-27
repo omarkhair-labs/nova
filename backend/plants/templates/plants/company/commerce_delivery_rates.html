@@ -1,0 +1,54 @@
+{% extends "plants/company/base.html" %}
+{% block content %}
+<a class="back-link" href="{% url 'company:commerce-orders' %}">← Customer orders</a>
+<header class="page-heading compact-workspace-heading">
+  <div>
+    <p class="eyebrow">DELIVERY / PRICING</p>
+    <h1>Delivery prices</h1>
+    <p class="lead">Set one confirmed EGP delivery fee per city. Prices apply to future orders, not to already placed orders.</p>
+  </div>
+</header>
+<section class="panel padded">
+  <p class="eyebrow">CURRENT CITY PRICES</p>
+  <h2>Where Plantupia can deliver at a known price</h2>
+  {% for rate in rates %}
+    <div class="record-row">
+      <div class="grow">
+        <strong>{{ rate.city_label }}</strong>
+        <small>{% if rate.active %}Available for direct checkout{% else %}Inactive — manual delivery review{% endif %} · Version {{ rate.revision }}</small>
+        <small>Updated {{ rate.updated_at|date:"j M Y, H:i" }} by {{ rate.updated_by.username }}</small>
+      </div>
+      <strong>EGP {{ rate.fee }}</strong>
+    </div>
+  {% empty %}
+    <div class="empty compact">No delivery prices configured. Direct checkout is unavailable until a manager adds an approved rate. A missing price is never free shipping.</div>
+  {% endfor %}
+</section>
+{% if can_change_rates %}
+<section class="panel padded">
+  <p class="eyebrow">MANAGE / DELIVERY PRICE</p>
+  <h2>Add or update a city</h2>
+  <p>Entering an existing city updates its delivery rate and version. Unchecking "Active" removes that city from direct checkout. It does not change existing orders.</p>
+  <form method="post" action="{% url 'company:commerce-delivery-rate-save' %}" class="order-form">
+    {% csrf_token %}
+    <div class="order-field">
+      <label for="delivery-city">City / governorate</label>
+      <input id="delivery-city" name="city" maxlength="120" minlength="2" required placeholder="City served by Plantupia">
+    </div>
+    <div class="order-field">
+      <label for="delivery-fee">Approved delivery price (EGP)</label>
+      <input id="delivery-fee" name="fee" type="number" min="0" step=".01" required inputmode="decimal">
+      <p class="fine">Only enter 0 if this city's delivery is genuinely free. Do not enter example prices.</p>
+    </div>
+    <div class="order-field">
+      <label><input type="checkbox" name="active" checked> Active for new direct orders</label>
+    </div>
+    <div class="order-actions">
+      <button class="button primary" type="submit">Save delivery price</button>
+    </div>
+  </form>
+</section>
+{% else %}
+<section class="panel padded"><p class="fine">Your role may view prices, but cannot change them.</p></section>
+{% endif %}
+{% endblock %}

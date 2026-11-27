@@ -1,9 +1,11 @@
 package com.nova.app
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -36,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -61,7 +64,10 @@ import kotlinx.coroutines.launch
 class NotificationPreferencesActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+        )
         setContent {
             NovaTheme {
                 NotificationPreferencesScreen(
@@ -128,32 +134,35 @@ private fun NotificationPreferencesScreen(
             .padding(horizontal = 20.dp, vertical = 18.dp),
     ) {
         NovaHeader(
-            title = "Notifications",
-            subtitle = "Choose which Nova moments can interrupt you.",
+            title = "Activity preferences",
+            subtitle = "Choose which Plantupia updates can interrupt you.",
             onBack = onBack,
         )
         Spacer(Modifier.height(22.dp))
         when {
-            loading && preferences == null -> NovaLoadingState(message = "Loading notification preferences…")
+            loading && preferences == null -> NovaLoadingState(message = "Loading notification preferences...")
             preferences == null -> NovaErrorState(
                 title = "Couldn't load notifications",
                 message = error ?: "Try again to load your current preferences.",
                 onRetry = { loadRequest += 1 },
             )
             else -> {
-            Text("What's new", color = NovaMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text("Community", color = NovaMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
-            NotificationToggle("Likes, comments & shares", "People interacting with your content.", "likes_comments_shares", preferences?.likesCommentsShares == true, busyKey, ::update)
+            NotificationToggle("Shared moments", "Likes, comments and reshares on what you intentionally share.", "likes_comments_shares", preferences?.likesCommentsShares == true, busyKey, ::update)
             NotificationToggle("Mentions & tags", "When someone mentions you.", "mentions_tags", preferences?.mentionsTags == true, busyKey, ::update)
             NotificationToggle("Followers", "Follow requests and new followers.", "followers", preferences?.followers == true, busyKey, ::update)
-            NotificationToggle("Messages", "New messages and reactions.", "messages", preferences?.messages == true, busyKey, ::update)
+            NotificationToggle("Messages", "New private or group messages.", "messages", preferences?.messages == true, busyKey, ::update)
             Spacer(Modifier.height(18.dp))
-            Text("Live & activity", color = NovaMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text("Plantupia & activity", color = NovaMuted, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
-            NotificationToggle("Live sessions", "Calls and live invitations.", "live_sessions", preferences?.liveSessions == true, busyKey, ::update)
-            NotificationToggle("Reels & stories", "Updates from people you follow.", "reels_stories", preferences?.reelsStories == true, busyKey, ::update)
-            NotificationToggle("Events & spaces", "Rooms, plans and reminders.", "events_spaces", preferences?.eventsSpaces == true, busyKey, ::update)
-            NotificationToggle("Product updates", "Important changes to Nova.", "product_updates", preferences?.productUpdates == true, busyKey, ::update)
+            NotificationToggle("Calls & live", "Calls and live invitations.", "live_sessions", preferences?.liveSessions == true, busyKey, ::update)
+            NotificationToggle("Shared videos & stories", "Updates from people you follow.", "reels_stories", preferences?.reelsStories == true, busyKey, ::update)
+            NotificationToggle("Events & spaces", "Gatherings, plans and reminders.", "events_spaces", preferences?.eventsSpaces == true, busyKey, ::update)
+            NotificationToggle("Plantupia Team", "Private support reply alerts. The Messages preference also applies.", "plantupia_team", preferences?.plantupiaTeam == true, busyKey, ::update)
+            NotificationToggle("Order updates", "Status changes for orders attached to your account.", "plantupia_orders", preferences?.plantupiaOrders == true, busyKey, ::update)
+            Text("Care reminders are chosen for each check-in. Inspection schedules never enable alerts automatically.", color = NovaMuted)
+            NotificationToggle("Product updates", "Important Plantupia product changes.", "product_updates", preferences?.productUpdates == true, busyKey, ::update)
             if (error != null) {
                 Spacer(Modifier.height(4.dp))
                 NovaInlineRetry(
@@ -164,7 +173,7 @@ private fun NotificationPreferencesScreen(
             }
             if (loading) {
                 Spacer(Modifier.height(8.dp))
-                Text("Refreshing preferences…", color = NovaMuted, fontSize = 12.sp)
+                Text("Refreshing preferences...", color = NovaMuted, fontSize = 12.sp)
             }
             }
         }
@@ -214,6 +223,7 @@ private fun NotificationToggle(
                     onCheckedChange = { onChange(key, it) },
                     enabled = busyKey == null,
                     modifier = Modifier.semantics {
+                        contentDescription = title
                         stateDescription = if (checked) "On" else "Off"
                     },
                     colors = SwitchDefaults.colors(checkedTrackColor = NovaAccent),

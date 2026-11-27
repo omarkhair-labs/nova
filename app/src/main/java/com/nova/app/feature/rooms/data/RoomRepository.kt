@@ -15,10 +15,10 @@ interface RoomRepository {
     suspend fun rooms(view: String): ApiResult<List<RoomSummary>> = rooms()
 
     suspend fun joinRoom(conversationId: Long): ApiResult<RoomSummary> =
-        ApiResult.Failure("Room joining is unavailable.")
+        ApiResult.Failure("Joining this gathering is unavailable.")
 
     suspend fun followRoom(conversationId: Long, enabled: Boolean): ApiResult<RoomSummary> =
-        ApiResult.Failure("Room following is unavailable.")
+        ApiResult.Failure("Following this gathering is unavailable.")
 
     suspend fun room(conversationId: Long): ApiResult<RoomDetail>
 
@@ -58,5 +58,5 @@ interface RoomRepository {
         conversationId: Long,
         itemId: Long,
         enabled: Boolean,
-    ): ApiResult<RoomItem> = ApiResult.Failure("Room reminders are unavailable.")
+    ): ApiResult<RoomItem> = ApiResult.Failure("Gathering reminders are unavailable.")
 }

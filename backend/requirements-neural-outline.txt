@@ -1,0 +1,4 @@
+# Isolated field/research only, alongside requirements-living-vision.txt.
+# Model stays outside Git and outside the APK.
+mediapipe==0.10.32
+matplotlib==3.10.8

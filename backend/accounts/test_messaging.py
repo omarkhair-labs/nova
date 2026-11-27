@@ -41,9 +41,12 @@ class MessagingApiTests(APITestCase):
         )
 
     def test_direct_conversation_is_unique_and_cannot_target_self(self):
+        self.maya.plantupia_avatar_variant = 7
+        self.maya.save(update_fields=["plantupia_avatar_variant"])
         created = self.create_conversation()
         self.assertEqual(created.status_code, status.HTTP_201_CREATED)
         self.assertEqual(created.data["other_user"]["username"], "maya")
+        self.assertEqual(created.data["other_user"]["plantupia_avatar_variant"], 7)
         conversation_id = created.data["id"]
 
         self.authenticate(self.maya)

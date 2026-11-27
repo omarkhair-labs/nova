@@ -1,0 +1,82 @@
+package com.nova.app.feature.plants
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.nova.app.feature.plants.data.PlantupiaPlant
+import com.nova.app.feature.plants.data.PlantupiaSpace
+import com.nova.app.feature.plants.data.resolveFocusedSpace
+
+/**
+ * One real space at a time. All chip labels and counts come from the authorized
+ * API; selecting a site must never mix another site's plants into its hero/list.
+ */
+@Composable
+internal fun PlantupiaSpaceSwitcher(
+    spaces: List<PlantupiaSpace>,
+    plants: List<PlantupiaPlant>,
+    focusedSpaceId: String?,
+    onSelectSpace: (String) -> Unit,
+) {
+    if (spaces.size <= 1) return
+    val selected = resolveFocusedSpace(spaces, focusedSpaceId)
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("Spaces", style = PlantupiaText.itemTitle)
+            Text(
+                if (spaces.size == 1) "1 space" else "${spaces.size} spaces",
+                style = PlantupiaText.supporting,
+            )
+        }
+        if (spaces.size > 1) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                items(spaces, key = { it.id }) { space ->
+                    val activeCount = plants.count { it.spaceId == space.id && it.active }
+                    val isSelected = selected?.id == space.id
+                    Surface(
+                        onClick = { onSelectSpace(space.id) },
+                        modifier = Modifier.widthIn(max = 260.dp).heightIn(min = 48.dp).semantics {
+                            this.selected = isSelected
+                        },
+                        shape = PlantupiaShapes.inset,
+                        color = if (isSelected) PlantupiaColors.forest else PlantupiaColors.paper,
+                        border = BorderStroke(1.dp, if (isSelected) PlantupiaColors.forest else PlantupiaColors.border),
+                    ) {
+                        Column(modifier = Modifier.padding(horizontal = 15.dp, vertical = 10.dp)) {
+                            Text(
+                                space.name,
+                                color = if (isSelected) PlantupiaColors.paper else PlantupiaColors.forest,
+                                style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                            Text(
+                                spacePlantCountLabel(activeCount),
+                                color = if (isSelected) PlantupiaColors.softSage else PlantupiaColors.secondaryText,
+                                style = PlantupiaText.supporting,
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** Product copy shared by single-space and 100+ inventory UI states. */
+internal fun spacePlantCountLabel(count: Int): String =
+    if (count == 1) "1 plant" else "${count.coerceAtLeast(0)} plants"

@@ -1,0 +1,179 @@
+{
+  "model_sha256": "63fc7e20c9c6fd287dfa38322fa27d0f1c4f8cd84cd26c8bbad48685505a933e",
+  "feature_name": "/Div_output_0",
+  "feature_dimension": 768,
+  "derived_sha256": "1c568d631b86eed16f53a33911f0f4db1fa4b2b1a8fa197087d539dafaa4edc3",
+  "versions": {
+    "onnx": "1.20.1",
+    "onnxruntime": "1.31.1",
+    "numpy": "2.4.6",
+    "pillow": "13.0.0",
+    "requests": "2.34.2"
+  },
+  "cohort_manifest_sha256": {
+    "first": "9536dfd7b7f22b8ceffc8811b77919d1456c6068a5cf3a6364d11979b2f14f4f",
+    "fresh": "bcf18bafe92549e1eee7c7fbdf4b0bc22607e43cf067654585075e398f433e05",
+    "fresh_extension": "917324cd549f869d9034ebeda59b5075e7fb52380b0cea0b50ad20aab82f8266"
+  },
+  "first": {
+    "supported": [
+      "Monstera deliciosa",
+      "Ficus elastica",
+      "Crassula ovata",
+      "Epipremnum aureum",
+      "Aloe vera"
+    ],
+    "planned": 105,
+    "usable": 105,
+    "policies": {
+      "baseline": {
+        "calibration": {
+          "n": 33,
+          "known": 15,
+          "unknown": 18,
+          "correct": 1,
+          "wrong": 0,
+          "unknown_false_accepts": 0,
+          "abstain": 32
+        },
+        "test": {
+          "n": 44,
+          "known": 20,
+          "unknown": 24,
+          "correct": 3,
+          "wrong": 0,
+          "unknown_false_accepts": 0,
+          "abstain": 41
+        }
+      },
+      "selected": {
+        "policy": {
+          "kind": "retrieval",
+          "similarity": 0.525,
+          "margin": 0.075
+        },
+        "calibration": {
+          "n": 33,
+          "known": 15,
+          "unknown": 18,
+          "correct": 7,
+          "wrong": 0,
+          "unknown_false_accepts": 0,
+          "abstain": 26
+        },
+        "test": {
+          "n": 44,
+          "known": 20,
+          "unknown": 24,
+          "correct": 10,
+          "wrong": 4,
+          "unknown_false_accepts": 4,
+          "abstain": 30
+        }
+      }
+    },
+    "limitations": [
+      "small observer-disjoint public cohort; pretrained-data overlap unknown",
+      "no ZZ validation cohort; not supported in retrieval",
+      "reference-derived labels; not all cultivars or field conditions",
+      "threshold selection is calibration, not a calibrated probability"
+    ]
+  },
+  "second": {
+    "train_observations": 105,
+    "training_classes": [
+      "Aloe ferox",
+      "Aloe vera",
+      "Crassula ovata",
+      "Danaus plexippus",
+      "Epipremnum aureum",
+      "Felis catus",
+      "Ficus benjamina",
+      "Ficus elastica",
+      "Monstera adansonii",
+      "Monstera deliciosa",
+      "Pinus pinea",
+      "Zamioculcas zamiifolia"
+    ],
+    "train_class_photos": {
+      "Aloe ferox": 14,
+      "Aloe vera": 24,
+      "Crassula ovata": 24,
+      "Danaus plexippus": 14,
+      "Epipremnum aureum": 24,
+      "Felis catus": 14,
+      "Ficus benjamina": 14,
+      "Ficus elastica": 24,
+      "Monstera adansonii": 14,
+      "Monstera deliciosa": 24,
+      "Pinus pinea": 14,
+      "Zamioculcas zamiifolia": 6
+    },
+    "fresh_planned": 83,
+    "unusable_test": 1,
+    "selected_policy": {
+      "kind": "ridge",
+      "alpha": 1,
+      "score": 0.35,
+      "margin": 0.15,
+      "retrieval": true,
+      "original": false
+    },
+    "baseline": {
+      "calibration": {
+        "n": 33,
+        "known": 15,
+        "unknown": 18,
+        "novel_unknown": 0,
+        "correct": 0,
+        "wrong": 0,
+        "unknown_false_accepts": 0,
+        "novel_false_accepts": 0,
+        "abstain": 33
+      },
+      "test": {
+        "n": 49,
+        "known": 20,
+        "unknown": 29,
+        "novel_unknown": 12,
+        "correct": 3,
+        "wrong": 0,
+        "unknown_false_accepts": 0,
+        "novel_false_accepts": 0,
+        "abstain": 46
+      }
+    },
+    "ridge": {
+      "calibration": {
+        "n": 33,
+        "known": 15,
+        "unknown": 18,
+        "novel_unknown": 0,
+        "correct": 12,
+        "wrong": 0,
+        "unknown_false_accepts": 0,
+        "novel_false_accepts": 0,
+        "abstain": 21
+      },
+      "test": {
+        "n": 49,
+        "known": 20,
+        "unknown": 29,
+        "novel_unknown": 12,
+        "correct": 12,
+        "wrong": 5,
+        "unknown_false_accepts": 5,
+        "novel_false_accepts": 5,
+        "abstain": 32
+      }
+    },
+    "promotion_gate_passed": false,
+    "limitations": [
+      "Prior cohort retired entirely to training; only fresh test is evaluation.",
+      "Observer and exact-byte disjoint, possible pretrained-data overlap and visually similar images.",
+      "Five target species; small public-data cohort, not operational recognition validation.",
+      "Ridge outputs are scores, not calibrated probabilities."
+    ]
+  },
+  "decision": "Neither candidate replaces the current opt-in classifier. No operational activation or automatic species selection."
+}

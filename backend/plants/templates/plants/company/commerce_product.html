@@ -1,0 +1,100 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<a class="back-link" href="{% url 'company:commerce-products' %}">← Commercial draft catalogue</a>
+<div class="page-heading">
+  <div>
+    <p class="eyebrow">INTERNAL COMMERCE / {% if product.storefront_published_at %}PUBLISHED{% else %}NOT PUBLISHED{% endif %}</p>
+    <h1>{{ product.name }}</h1>
+    <p class="lead">{{ product.description|default:"Awaiting approved product copy." }}</p>
+  </div>
+  <div class="actions"><span class="badge">{% if product.catalog_review_status == "approved" %}Product data approved{% else %}Needs product review{% endif %}</span><span class="badge draft">{% if product.storefront_published_at %}Published to Shop{% else %}Not published{% endif %}</span>
+    {% if perms.plants.change_commerceproduct %}<a class="button" href="{% url 'company:commerce-product-edit' product.pk %}">Edit product</a>{% endif %}</div>
+</div>
+<div class="two-column">
+  <section class="panel padded">
+    <p class="eyebrow">PRODUCT TRUTH</p>
+    <h2>{{ product.get_kind_display }}</h2>
+    <p class="fine">{% if product.reference_species %}Botanical reference: {{ product.reference_species.scientific_name }} (not physical plant verification){% else %}No botanical reference supplied.{% endif %}</p>
+    {% if product.cover_photo %}
+    <div class="commerce-photo-board">
+      <figure><img src="{% url 'company:commerce-product-photo' product.pk %}" alt="{{ product.image_description }}" loading="lazy"><figcaption>Cover photo · {{ product.image_description }}</figcaption></figure>
+      {% for photo in gallery %}
+      <figure><img src="{% url 'company:commerce-product-photo' product.pk %}?photo={{ photo.pk }}" alt="{{ photo.alt_text }}" loading="lazy"><figcaption>{{ photo.alt_text }}</figcaption></figure>
+      {% endfor %}
+    </div>
+    {% else %}<p class="fine">No authorized product photo uploaded yet.</p>{% endif %}
+    {% if product.catalog_key %}<p class="fine">Imported product key: <code>{{ product.catalog_key }}</code></p>{% endif %}
+    <p class="fine">Created by {{ product.created_by.username }} · {{ product.created_at|date:'j M Y' }}</p>
+    <div class="notice warning">Approval confirms product content only. Customer publication is a separate staff action; payment and dispatch are never implied.</div>
+    <section class="catalog-approval" aria-label="Customer Shop publication">
+      <p class="eyebrow">CUSTOMER STORE / PUBLICATION</p>
+      {% if product.storefront_published_at %}
+        <p>Published {{ product.storefront_published_at|date:"j M Y, H:i" }}. This does not mark any order paid or shipped.</p>
+      {% elif not publication_enabled %}
+        <p>Customer publication is locked until the company approves operational go-live.</p>
+      {% elif product.catalog_review_status != "approved" %}
+        <p>Product content must be approved first.</p>
+      {% endif %}
+      {% if perms.plants.change_commerceproduct %}
+        {% if product.storefront_published_at %}
+          <form method="post" action="{% url 'company:commerce-product-publication' product.pk %}">
+            {% csrf_token %}
+            <button class="button" type="submit" name="action" value="unpublish">Remove from customer Shop</button>
+          </form>
+        {% elif publication_enabled and product.catalog_review_status == "approved" and not catalog_readiness_issues %}
+          <form method="post" action="{% url 'company:commerce-product-publication' product.pk %}">
+            {% csrf_token %}
+            <button class="button primary" type="submit" name="action" value="publish">Publish reviewed product to Shop</button>
+          </form>
+        {% endif %}
+      {% endif %}
+    </section>
+    <section class="catalog-approval" aria-label="Commercial product content review">
+      <p class="eyebrow">CATALOG REVIEW / مراجعة المنتج</p>
+      {% if product.catalog_review_status == "approved" %}
+        <p>Reviewed by {{ product.catalog_reviewed_by.username }} · {{ product.catalog_reviewed_at|date:"j M Y, H:i" }}</p>
+      {% else %}
+        <p>Product checklist before content approval:</p>
+        {% if catalog_readiness_issues %}
+          <ul>{% for issue in catalog_readiness_issues %}<li>{{ issue }}</li>{% endfor %}</ul>
+        {% else %}
+          <p>All required product data is present. Staff may approve its content.</p>
+        {% endif %}
+      {% endif %}
+      {% if perms.plants.change_commerceproduct %}
+        <form action="{% url 'company:commerce-product-review' product.pk %}" method="post">
+          {% csrf_token %}
+          {% if product.catalog_review_status == "approved" %}
+          <button type="submit" class="button" name="action" value="reopen">Reopen product review</button>
+          {% elif not catalog_readiness_issues %}
+          <button type="submit" class="button primary" name="action" value="approve">Approve product data</button>
+          {% endif %}
+        </form>
+      {% endif %}
+    </section>
+  </section>
+  <section class="panel padded">
+    <div class="panel-heading">
+      <div><p class="eyebrow">SKU OPTIONS</p><h2>Variants</h2></div>
+      {% if perms.plants.add_commercesku %}
+        <a href="{% url 'company:commerce-sku-create' product.pk %}">Add SKU +</a>
+      {% endif %}
+    </div>
+    {% for sku in variants %}
+      <div class="record-row">
+        <div class="grow">
+          <strong>{{ sku.code }}</strong>
+          <small>{{ sku.option_label|default:"Standard option" }} · {{ sku.currency }} {{ sku.price }}</small>
+          <small>{{ sku.counted_balance }} counted units, not reserved stock</small>
+          {% if perms.plants.change_commercesku %}<a href="{% url 'company:commerce-sku-edit' sku.pk %}">Edit draft variant →</a>{% endif %}
+        </div>
+        {% if perms.plants.add_commercestockmovement and perms.plants.view_commercestockmovement %}
+          <a href="{% url 'company:commerce-stock-count' sku.pk %}">Record count →</a>
+        {% endif %}
+      </div>
+    {% empty %}
+      <div class="empty compact"><p>No sellable SKU recorded. Add a real variant before stock counting.</p></div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

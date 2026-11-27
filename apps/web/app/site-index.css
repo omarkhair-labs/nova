@@ -1,0 +1,73 @@
+/* The plus opens a second architectural register, always above the current chapter. */
+.si-root{position:relative;z-index:70;display:grid;place-items:center;font-family:Arial,Helvetica,sans-serif}
+.si-root .si-trigger{width:50px;height:50px;border-radius:50%;border:1px solid #23452e73;color:#23452e;background:transparent;display:grid;place-items:center;cursor:pointer;transition:background .3s,color .3s}
+.si-root .si-trigger:hover{background:#244937;color:#f2f3e7}
+.si-tone-dark .si-trigger{border-color:#f0f3e0bf;color:#f5f2e7;background:#172d2045}
+.si-tone-dark .si-trigger:hover{color:#203e2c;background:#d8e8bb}
+.si-plus,.si-close i{position:relative;display:block;width:21px;height:21px;transition:transform .4s var(--pl-ease)}
+.si-plus::before,.si-plus::after,.si-close i::before,.si-close i::after{content:"";position:absolute;left:50%;top:50%;width:100%;height:1px;background:currentColor;transform:translate(-50%,-50%)}
+.si-plus::after,.si-close i::after{transform:translate(-50%,-50%) rotate(90deg)}
+.si-trigger:hover .si-plus{transform:rotate(90deg)}
+.si-root .si-trigger:focus-visible{outline:2px solid currentColor;outline-offset:4px}
+.si-overlay{position:fixed;inset:0;max-width:none;max-height:none;width:100%;height:100%;height:100dvh;margin:0;border:0;padding:clamp(18px,3vw,48px) clamp(20px,4.5vw,80px);background:#152c22;color:#f0f0e6;overflow:auto;overscroll-behavior:contain;font-family:Arial,Helvetica,sans-serif}
+.si-overlay:not([open]){display:none}
+.si-overlay[open]{display:flex;flex-direction:column;animation:si-open .45s var(--pl-ease) both}
+.si-overlay::backdrop{background:#10231ac9;backdrop-filter:blur(10px)}
+.si-overlay a{color:inherit;text-decoration:none}
+.si-overlay button{cursor:pointer;color:inherit;font:inherit}
+.si-overlay a:focus-visible,.si-overlay button:focus-visible{outline:2px solid #d7e7b1;outline-offset:3px}
+.si-top,.si-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;font:600 10px/1.5 Consolas,"Courier New",monospace;letter-spacing:.1em;color:#bfcebc}
+.si-top{border-bottom:1px solid #c3d4bd45;padding-bottom:14px}
+.si-top h2{font:400 clamp(17px,2vw,28px)/1.2 Georgia,serif;letter-spacing:-.035em;margin:0;color:#f2f2e8}
+.si-overlay .si-close{display:inline-flex;align-items:center;gap:12px;border:1px solid #c3d4bd60;background:transparent;min-height:44px;padding:7px 12px;color:#e8eddf;font:600 10px/1.2 Arial,sans-serif;letter-spacing:.12em}
+.si-close i{width:19px;height:19px;transform:rotate(45deg)}
+.si-close:hover{background:#c3d4bd16}
+.si-body{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(28px,5vw,100px);align-items:center;flex:1;padding:clamp(20px,3vw,46px) 0;min-height:0}
+.si-atlas{margin:0;min-width:0}
+.si-atlas-frame{height:clamp(320px,58dvh,690px);position:relative;isolation:isolate;overflow:hidden;background:#213f31;border:1px solid #c2d3bc40}
+.si-atlas-photo,.si-atlas-veil{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.si-atlas-photo{object-fit:cover;object-position:center;animation:si-photo-in .5s var(--pl-ease) both}
+.si-atlas-veil{background:linear-gradient(180deg,#142a20a8 0%,#142a2030 30%,#142a2040 47%,#10271de8 100%)}
+.si-atlas-meta,.si-atlas-copy{position:absolute;left:clamp(14px,2.2vw,35px);right:clamp(14px,2.2vw,35px)}
+.si-atlas-meta{top:16px;display:flex;justify-content:space-between;gap:8px;font:600 10px/1.5 Consolas,monospace;letter-spacing:.13em;color:#f4f5e9}
+.si-atlas-art{position:absolute;top:11%;left:9%;right:9%;bottom:24%;display:grid;place-items:center;pointer-events:none;color:#f3f4e6;opacity:.88}
+.si-study-drawing{display:block;width:100%;max-height:100%;filter:drop-shadow(0 0 6px #142a20)}
+.si-atlas-copy{bottom:clamp(16px,3vw,45px);animation:si-caption-in .4s var(--pl-ease) both;color:#f4f5e9}
+.si-atlas-copy>span{font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+.si-atlas-copy p{font:400 clamp(38px,5.4vw,83px)/.98 Georgia,serif;letter-spacing:-.06em;margin:12px 0 0;max-width:13ch}
+.si-atlas figcaption{font-size:10px;line-height:1.5;color:#bfcebc;padding-top:10px;min-height:25px}
+.si-reading{min-width:0}
+.si-reading-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding-bottom:12px;color:#c3d4be;font:600 10px/1.5 Consolas,monospace;letter-spacing:.1em}
+.si-links{border-top:1px solid #c3d4bd45}
+.si-links>a{display:grid;grid-template-columns:34px minmax(0,1fr) 23px;gap:11px;align-items:center;min-height:clamp(65px,9.6dvh,94px);padding:11px 8px;border-bottom:1px solid #c3d4bd45;transition:background .25s,color .25s}
+.si-links>a.si-preview{background:#cadbb516;color:#f9f8ed}
+.si-number{font:600 11px/1.4 Consolas,monospace;color:#b6cbb5;position:relative}
+.si-links .si-active .si-number::after{content:"";width:5px;height:5px;border-radius:50%;background:#d7e7b1;position:absolute;right:1px;top:5px}
+.si-link-text{min-width:0;display:flex;flex-direction:column;gap:6px}
+.si-link-text strong{font:400 clamp(23px,2.65vw,43px)/1.06 Georgia,serif;letter-spacing:-.04em;overflow-wrap:anywhere}
+.si-link-text small{font-size:12px;line-height:1.5;color:#c2d0c0}
+.si-links .si-active strong{color:#d7e7b1}
+.si-link-arrow{font-size:24px;color:#d5e8c8;transition:transform .3s var(--pl-ease)}
+.si-preview .si-link-arrow{transform:translate(3px,-3px)}
+.si-foot{border-top:1px solid #c3d4bd45;padding-top:14px;font-size:9px}
+@keyframes si-open{from{clip-path:inset(0 0 100% 0);opacity:.75}to{clip-path:inset(0);opacity:1}}
+@keyframes si-photo-in{from{opacity:0;transform:scale(1.025)}to{opacity:1;transform:none}}
+@keyframes si-caption-in{from{opacity:.3;transform:translateY(5px)}to{opacity:1;transform:none}}
+@media(max-width:900px){.si-body{grid-template-columns:minmax(0,1fr);gap:18px;align-items:start;min-height:auto;flex:none}.si-top h2{order:3;flex-basis:100%}.si-atlas-frame{height:clamp(150px,28dvh,280px)}.si-atlas-art{left:45%;right:4%;top:13%;bottom:8%}.si-atlas-copy{max-width:55%;bottom:17px}.si-atlas-copy p{font-size:clamp(29px,5vw,54px)}.si-links>a{min-height:65px}.si-reading-head{padding-bottom:8px}.si-links>a .si-link-text strong{font-size:clamp(23px,4vw,35px)}}
+@media(max-width:540px){.si-root .si-trigger{width:43px;height:43px}.si-overlay{padding:14px 16px}.si-top{gap:8px;padding-bottom:9px}.si-top h2{font-size:21px}.si-top>span{font-size:9px}.si-atlas-frame{height:165px}.si-atlas-meta{font-size:8px;top:11px}.si-atlas-copy>span{font-size:9px}.si-atlas-copy p{font-size:30px;margin-top:6px}.si-atlas figcaption{font-size:9px;padding-top:6px;min-height:0}.si-body{padding:14px 0 20px}.si-links>a{grid-template-columns:28px minmax(0,1fr) 20px;gap:7px;min-height:60px;padding:9px 4px}.si-link-text{gap:4px}.si-link-text small{font-size:11px}.si-foot{font-size:8px}}
+@media(max-height:760px) and (min-width:901px){.si-body{min-height:initial;flex:none;gap:clamp(24px,4vw,60px)}.si-links>a{min-height:59px;padding-block:7px}.si-link-text strong{font-size:clamp(24px,2.3vw,34px)}.si-atlas-frame{height:clamp(290px,62dvh,580px)}}
+@media(prefers-reduced-motion:reduce){.si-root *, .si-root *::before,.si-root *::after{animation:none!important;transition:none!important}}
+.si-foot .si-sidepath{color:#e2eccf;text-decoration:none;border-bottom:1px solid #a4be9f;padding:4px 0;letter-spacing:.09em;white-space:normal}
+.si-foot .si-sidepath:hover{color:#fff}
+.si-foot .si-sidepath:focus-visible{outline:2px solid #dfedc7;outline-offset:4px}
+
+/* Visual-first world index: project imagery leads; diagrams are removed from the review composition. */
+.si-body{grid-template-columns:minmax(0,1.35fr) minmax(310px,.65fr)}
+.si-atlas-frame{height:clamp(390px,66dvh,760px)}
+.si-atlas-photo{object-fit:cover}
+.si-atlas-veil{background:linear-gradient(180deg,#11261b25 0%,#11261b08 42%,#10271dcf 100%)}
+.si-atlas-copy{max-width:82%}.si-atlas-copy p{font-size:clamp(42px,5.8vw,92px);max-width:12ch}
+.si-atlas-art,.si-study-drawing{display:none!important}
+@media(max-width:900px){.si-body{grid-template-columns:1fr}.si-atlas-frame{height:clamp(230px,36dvh,380px)}.si-atlas-copy{max-width:76%}}
+
+.si-global-paths{display:flex;gap:18px;flex-wrap:wrap;align-items:center}

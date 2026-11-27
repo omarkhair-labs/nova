@@ -38,6 +38,18 @@ class PasswordRecoveryStateOwner(
         state = state.copy(email = value.trim())
     }
 
+    fun editEmail() {
+        if (state.loading) return
+        state = state.copy(
+            stage = PasswordRecoveryStage.Email,
+            code = "",
+            newPassword = "",
+            confirmPassword = "",
+            error = null,
+            info = null,
+        )
+    }
+
     fun setCode(value: String) {
         state = state.copy(code = value.filter(Char::isDigit).take(6))
     }
@@ -97,6 +109,7 @@ class PasswordRecoveryStateOwner(
             is ApiResult.Success -> state = state.copy(
                 info = result.value,
                 stage = PasswordRecoveryStage.Done,
+                code = "", newPassword = "", confirmPassword = "",
             )
             is ApiResult.Failure -> state = state.copy(error = result.message)
         }
@@ -210,7 +223,7 @@ class AccountSecurityStateOwner(
         if (state.loadingAction != null || state.currentPassword.isBlank()) return
         state = state.copy(loadingAction = "revoke", error = null, info = null)
         when (val result = repository.revokeOtherSessions(state.currentPassword)) {
-            is ApiResult.Success -> state = state.copy(info = "Other Nova sessions were signed out.")
+            is ApiResult.Success -> state = state.copy(info = "Other Plantupia sessions were signed out.")
             is ApiResult.Failure -> state = state.copy(error = result.message)
         }
         state = state.copy(loadingAction = null)

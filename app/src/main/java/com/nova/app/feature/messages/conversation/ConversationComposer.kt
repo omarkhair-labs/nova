@@ -126,7 +126,7 @@ internal class ConversationComposerState(
                 onRecordingChanged(true)
             }
             .onFailure {
-                onErrorMessage("Nova couldn't start the microphone. Try again.")
+                onErrorMessage("Plantupia couldn't start the microphone. Try again.")
             }
     }
 
@@ -144,7 +144,7 @@ internal class ConversationComposerState(
                 onErrorMessage(null)
             }
         }.onFailure {
-            onErrorMessage("Nova couldn't finish that recording. Record it again.")
+            onErrorMessage("Plantupia couldn't finish that recording. Record it again.")
         }
     }
 
@@ -544,9 +544,9 @@ internal fun isConversationComposerSendEnabled(
 
 private fun composerReplyPreview(message: NovaMessage): String = when {
     message.isDeleted -> "Message deleted"
-    message.share?.kind == "post" -> "Shared post"
+    message.share?.kind == "post" -> "Shared moment"
     message.share?.kind == "profile" -> "Shared profile"
-    message.share?.kind == "reel" -> "Shared Reel"
+    message.share?.kind == "reel" -> "Shared video moment"
     message.body.isNotBlank() -> message.body
     message.audioUrl.isNotBlank() -> "Voice message"
     message.imageUrl.isNotBlank() -> "Photo"

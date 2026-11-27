@@ -1,13 +1,12 @@
 package com.nova.app
 
-import android.Manifest
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 import android.os.Bundle
 import android.app.KeyguardManager
+import android.graphics.Color
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.ActivityResult
@@ -19,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.nova.app.app.NovaAppHost
 import com.nova.app.app.appContainer
+import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.feature.plants.PlantupiaInspectionOpenSignal
 import com.nova.app.core.messaging.NovaMessagesSignal
 import com.nova.app.core.messaging.NovaMessagingNavigator
 import com.nova.app.core.network.ApiResult
@@ -62,7 +63,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // Cream Plantupia screens require dark system-bar glyphs for readable
+        // time/battery indicators; keep edge-to-edge media and Nova navigation.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+        )
 
         inAppUpdateController = NovaInAppUpdateController(
             activity = this,
@@ -74,7 +80,6 @@ class MainActivity : ComponentActivity() {
         routePushIntent(intent)
         NovaPushRegistration.ensureChannel(this)
         NovaPushRegistration.syncForCurrentSession(this)
-        requestNotificationPermissionIfNeeded()
         syncMessageUnreadCount()
 
         setContent {
@@ -109,7 +114,7 @@ class MainActivity : ComponentActivity() {
         if (!appLock.requiresUnlock() || appLockPromptOpen) return
         val keyguard = getSystemService(KeyguardManager::class.java)
         val prompt = keyguard.createConfirmDeviceCredentialIntent(
-            "Unlock Nova",
+            "Unlock Plantupia",
             "Confirm your device screen lock to continue.",
         )
         if (prompt == null) {
@@ -140,6 +145,17 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun routePushIntent(intent: Intent?) {
+        if (intent?.getStringExtra("kind") == "plantupia_inspection_due") {
+            // Navigation is a hint only: the Plants screen resolves the
+            // authenticated plant again before showing any private content.
+            val recipient = intent.getStringExtra("recipient_id")?.toLongOrNull()
+            val current = NovaSessionStore(this).load()?.cachedUser?.id
+            val plant = intent.getStringExtra("plant_id").orEmpty()
+            if (recipient != null && current != null && current == recipient) {
+                PlantupiaInspectionOpenSignal.open(current, plant, intent.getStringExtra("plan_id").orEmpty())
+            }
+            return
+        }
         when (val decision = DeepLinkRouter.decide(intent)) {
             is NovaDeepLinkDecision.Conversation -> {
                 NovaMessagingNavigator.openConversation(
@@ -174,19 +190,4 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun requestNotificationPermissionIfNeeded() {
-        if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            requestPermissions(
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                NOTIFICATION_PERMISSION_REQUEST,
-            )
-        }
-    }
-
-    private companion object {
-        const val NOTIFICATION_PERMISSION_REQUEST = 4201
-    }
 }

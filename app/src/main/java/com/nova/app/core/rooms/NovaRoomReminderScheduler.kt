@@ -40,7 +40,7 @@ object NovaRoomReminderScheduler {
         Intent(context, NovaRoomReminderReceiver::class.java).apply {
             action = ACTION
             putExtra("item_id", item.id)
-            putExtra("title", item.title.ifBlank { "Room plan" })
+            putExtra("title", item.title.ifBlank { "Gathering plan" })
         },
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
@@ -49,7 +49,7 @@ object NovaRoomReminderScheduler {
         val manager = context.getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             manager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Room reminders", NotificationManager.IMPORTANCE_DEFAULT)
+                NotificationChannel(CHANNEL_ID, "Gathering reminders", NotificationManager.IMPORTANCE_DEFAULT)
             )
         }
         val open = PendingIntent.getActivity(
@@ -63,7 +63,7 @@ object NovaRoomReminderScheduler {
             NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_nova_notification)
                 .setContentTitle(title)
-                .setContentText("Starts in about 15 minutes in your Nova Room.")
+                .setContentText("Starts in about 15 minutes in your gathering.")
                 .setContentIntent(open)
                 .setAutoCancel(true)
                 .build(),
@@ -77,7 +77,7 @@ class NovaRoomReminderReceiver : BroadcastReceiver() {
         NovaRoomReminderScheduler.show(
             context,
             intent.getLongExtra("item_id", 0L),
-            intent.getStringExtra("title").orEmpty().ifBlank { "Room plan" },
+            intent.getStringExtra("title").orEmpty().ifBlank { "Gathering plan" },
         )
     }
 }

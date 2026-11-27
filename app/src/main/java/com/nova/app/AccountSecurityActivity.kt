@@ -1,9 +1,11 @@
 package com.nova.app
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import android.app.Activity
@@ -29,14 +31,24 @@ class AccountSecurityActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+        )
 
         val mode = intent.getStringExtra(EXTRA_MODE) ?: MODE_SECURITY
         appLockEnabled.value = appLock.enabled
         setContent {
             NovaTheme {
                 when (mode) {
-                    MODE_RECOVERY -> PasswordRecoveryScreen(onBack = { finish() })
+                    MODE_RECOVERY -> PasswordRecoveryScreen(
+                        onBack = { finish() },
+                        initialEmail = intent.getStringExtra(EXTRA_RECOVERY_EMAIL).orEmpty(),
+                        onRecovered = { email ->
+                            setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RECOVERY_EMAIL, email))
+                            finish()
+                        },
+                    )
                     MODE_BLOCKED -> BlockedAccountsScreen(
                         onBack = { finish() },
                         onSessionExpired = {
@@ -58,7 +70,7 @@ class AccountSecurityActivity : ComponentActivity() {
                             } else {
                                 val prompt = getSystemService(KeyguardManager::class.java)
                                     .createConfirmDeviceCredentialIntent(
-                                        "Enable Nova app lock",
+                                        "Enable Plantupia app lock",
                                         "Confirm your device screen lock.",
                                     )
                                 if (prompt != null) appLockLauncher.launch(prompt)
@@ -82,6 +94,7 @@ class AccountSecurityActivity : ComponentActivity() {
     companion object {
         const val EXTRA_MODE = "account_security_mode"
         const val MODE_RECOVERY = "recovery"
+        const val EXTRA_RECOVERY_EMAIL = "recovery_email"
         const val MODE_SECURITY = "security"
         const val MODE_BLOCKED = "blocked"
     }

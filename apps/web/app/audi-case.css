@@ -1,0 +1,50 @@
+.au-main{padding:clamp(18px,2.2vw,36px) clamp(16px,5vw,90px) 0}
+.au-crumb{display:flex;justify-content:space-between;gap:15px;align-items:center;font-size:10px;letter-spacing:.08em;color:#526258;margin-bottom:clamp(28px,5vw,72px)}
+.au-crumb .sx-underlink,.au-next .sx-underlink{min-height:44px;align-items:center}
+.au-hero,.au-palette,.au-care{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(28px,6vw,100px);align-items:end}
+.au-hero{min-height:min(70vh,760px);padding-bottom:clamp(56px,8vw,120px)}
+.au-hero h1{font:400 clamp(54px,8vw,124px)/.9 Georgia,serif;letter-spacing:-.072em;margin:0;max-width:9ch}
+.au-hero h1 em{font-weight:400;color:#617e66}
+.au-page h2{font:400 clamp(38px,5vw,76px)/.98 Georgia,serif;letter-spacing:-.058em;margin:0 0 18px}
+.au-page h3{font:400 clamp(30px,3.4vw,50px)/1 Georgia,serif;letter-spacing:-.04em;margin:0 0 12px}
+.au-main p:not(.sx-kicker){font-size:15px;line-height:1.72;color:#425a49;max-width:62ch}
+.au-hero dl{margin:26px 0 0}.au-hero dl>div{display:grid;grid-template-columns:82px 1fr;gap:12px;border-top:1px solid #bac7ba;padding:10px 0;font-size:12px}.au-hero dt{color:#647269}.au-hero dd{margin:0;font-weight:600}
+
+.au-sequence{border-top:1px solid #bac7ba;padding-top:clamp(42px,6vw,92px)}
+.au-sequence-head{display:grid;grid-template-columns:minmax(0,.35fr) minmax(0,.65fr);column-gap:clamp(24px,5vw,76px);align-items:start;margin-bottom:clamp(60px,9vw,140px)}
+.au-sequence-head>.sx-kicker{grid-column:1}.au-sequence-head h2{grid-column:1;margin-top:12px}.au-sequence-head>p:last-child{grid-column:2;grid-row:1/3;margin-top:0}
+.au-chapter{display:grid;grid-template-columns:minmax(0,1.48fr) minmax(260px,.52fr);gap:clamp(26px,5vw,80px);align-items:end;margin-bottom:clamp(86px,11vw,170px)}
+.au-chapter--reverse{grid-template-columns:minmax(260px,.52fr) minmax(0,1.48fr)}
+.au-chapter--reverse figure{order:2}.au-chapter--reverse .au-chapter-copy{order:1;justify-self:end}
+.au-chapter figure{margin:0;min-width:0}.au-chapter figure img{display:block;width:100%;height:auto;background:#e4e8e0}
+.au-chapter figure figcaption{font-size:10px;letter-spacing:.07em;color:#647269;padding-top:9px}
+.au-chapter-copy{max-width:390px;border-top:1px solid #bac7ba;padding-top:16px}
+.au-chapter-no{display:block;font:400 clamp(52px,6vw,88px)/.9 Georgia,serif;color:#718378;margin-bottom:clamp(40px,8vw,110px)}
+.au-chapter-copy p{margin:0 0 8px}
+
+.au-palette,.au-care{border-top:1px solid #bac7ba;padding:clamp(54px,8vw,120px) 0;align-items:start}
+.au-palette ol,.au-care ol{list-style:none;padding:0;margin:0}
+.au-palette li{display:grid;grid-template-columns:30px minmax(0,.8fr) minmax(0,1.2fr);gap:12px;border-bottom:1px solid #bac7ba;padding:11px 0;font-size:12px}
+.au-palette li:first-child{border-top:1px solid #bac7ba}
+.au-palette li span,.au-care li span{font-size:10px;color:#567663}
+.au-palette strong{font:400 17px Georgia,serif}.au-palette em{font-style:italic;color:#526258}
+.au-care li{display:flex;gap:15px;align-items:center;border-bottom:1px solid #bac7ba;min-height:58px;font:400 clamp(18px,1.8vw,25px) Georgia,serif}
+.au-care li:first-child{border-top:1px solid #bac7ba}
+.au-source-note{display:grid;grid-template-columns:minmax(120px,.3fr) minmax(0,.7fr);gap:28px;border-top:1px solid #bac7ba;padding:22px 0 clamp(54px,8vw,110px)}
+.au-source-note>span{font-size:10px;letter-spacing:.08em;color:#526258}.au-source-note p{margin:0}
+.au-next{border-top:1px solid #bac7ba;padding:clamp(48px,7vw,100px) 0}
+
+@media(max-width:900px){
+  .au-hero,.au-palette,.au-care{grid-template-columns:1fr;gap:24px}
+  .au-hero{min-height:auto}.au-hero h1{font-size:clamp(50px,13vw,92px);max-width:11ch}
+  .au-sequence-head{grid-template-columns:1fr;gap:12px}.au-sequence-head>.sx-kicker,.au-sequence-head h2,.au-sequence-head>p:last-child{grid-column:1;grid-row:auto}
+  .au-chapter,.au-chapter--reverse{grid-template-columns:1fr;gap:16px}
+  .au-chapter--reverse figure,.au-chapter--reverse .au-chapter-copy{order:initial;justify-self:stretch}
+  .au-chapter-copy{display:grid;grid-template-columns:54px 1fr;gap:16px;max-width:760px}
+  .au-chapter-no{font-size:38px;margin-bottom:0}
+}
+@media(max-width:520px){
+  .au-crumb>span{display:none}
+  .au-palette li{grid-template-columns:24px 1fr}.au-palette em{grid-column:2}
+  .au-source-note{grid-template-columns:1fr;gap:10px}
+}

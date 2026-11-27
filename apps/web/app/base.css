@@ -1,0 +1,23 @@
+:root{color-scheme:light;font-family:Arial,Helvetica,sans-serif}
+*,*::before,*::after{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;min-width:320px;background:#152920;color:#f4f0e5}
+a,button{-webkit-tap-highlight-color:transparent}
+::selection{background:#d7e7b1;color:#16352b}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+
+:root{--pl-ease:cubic-bezier(.22,.73,.22,1);--pl-gutter:clamp(20px,5vw,90px)}
+@keyframes pl-arrive{from{opacity:.55;transform:translateY(9px)}to{opacity:1;transform:none}}
+@keyframes pl-page-out{to{opacity:0;transform:translateY(-7px)}}
+@keyframes pl-page-in{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:no-preference){
+  @view-transition{navigation:auto}
+  ::view-transition-old(root){animation:180ms ease-in both pl-page-out}
+  ::view-transition-new(root){animation:380ms var(--pl-ease) both pl-page-in}
+  ::view-transition-image-pair(root){isolation:isolate}
+}
+@media(prefers-reduced-motion:reduce){@view-transition{navigation:none}::view-transition-old(root),::view-transition-new(root){animation:none}}
+
+/* Micro art direction: preserve editorial line breaks without leaving accidental widows. */
+:where(.ps-site,.sx-page,.cm-page,.hs-page,.of-page,.pa-page,.pc-page,.cs-page,.sr-world,.ct-page) :is(h1,h2,h3){text-wrap:balance;hyphens:none}
+:where(.ps-site,.sx-page,.cm-page,.hs-page,.of-page,.pa-page,.pc-page,.cs-page,.sr-world,.ct-page) :is(p,li,figcaption,dd){text-wrap:pretty}

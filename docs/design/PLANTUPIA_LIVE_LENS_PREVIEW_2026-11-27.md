@@ -1,0 +1,12 @@
+# Living Lens: local live outline preview
+Experimental, isolated Android QA only. This is a framing aid, not a species, organ or health model.
+
+Open the existing private photo camera, choose Leaf detail, and opt in to Live outline preview. Keep one complete part at the centre against a contrasting background. The candidate is computed from current YUV frames, not a drawn template: a bounded centre-seeded component, contrasting perimeter, boundary separation and two successive overlapping proposals. CameraX's sensor-to-view and sensor-to-buffer matrices map samples onto the actual preview; no assumption about portrait rotation or centre crop. The screen displays only a temporary mask and contour. No camera image, mask, size, or inference from live preview is sent or written. No automatic evidence record is created. The original photo review and saved-photo signed GrabCut/manual outline paths remain authoritative. Repeat-photograph overlay remains independent.
+
+The preview is capped at one proposal every 140 ms, keeps only the latest frame and clears a candidate when lost, stale, resized, disabled or no longer streaming. The camera retains its existing 300 ms capture-quality hints and shutter even when preview fails. The isolated QA build config enables the option; production and ordinary QA leave it absent.
+
+Limitations: this is a contrast-based, centre-prompted segmentation baseline. It can select a nonplant object and must not claim identity, healthy colour, medical/botanical status or centimetres. Similar backgrounds, overlapping foliage, holes, glare, shadows and movement can produce abstention or an incorrect contour. Consecutive overlap is a stability check, not a calibrated confidence. Synthetic JVM tests exercise a moving ellipse, rejection, distinct components, and stability. No real camera speed, quality, thermal or botanical accuracy has been established. A neural prompt-segmentation benchmark against expert-labelled real indoor plant parts is the next gate, not a reason to silently convert this aid into a semantic detector.
+
+Device acceptance: on the A26, exercise opt-in, real leaf and nonplant scenes, rotate/rescale, loss of streaming, permission denial, retake and previous-photo mode; verify alignment against the visible frame, measured latency and no network/frame writes, and that capture remains available without an outline. Keep ordinary builds and all prior saved evidence workflows unchanged.
+
+Coordinate contract: https://developer.android.com/reference/androidx/camera/core/ImageAnalysis.Analyzer

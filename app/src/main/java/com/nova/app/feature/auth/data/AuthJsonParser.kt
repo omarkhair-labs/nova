@@ -15,7 +15,7 @@ internal fun parseAuthSession(
     val userJson = json.optJSONObject("user")
 
     if (access.isBlank() || refresh.isBlank() || userJson == null) {
-        return ApiResult.Failure("Nova returned an invalid authentication response.")
+        return ApiResult.Failure("Plantupia returned an invalid authentication response.")
     }
 
     return ApiResult.Success(
@@ -50,6 +50,7 @@ internal fun parseNovaUser(
             }
         },
         profileTheme = json.optString("profile_theme", "violet"),
+        plantupiaAvatarVariant = json.optInt("plantupia_avatar_variant", -1),
         showOrbit = json.optBoolean("show_orbit", true),
         isVerified = json.optBoolean("is_verified", false),
         followersCount = json.optInt("followers_count", 0),

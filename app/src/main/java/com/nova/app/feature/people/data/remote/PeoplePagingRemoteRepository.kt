@@ -2,6 +2,7 @@ package com.nova.app.feature.people.data.remote
 
 import android.content.Context
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
 import com.nova.app.feature.auth.data.remote.AuthRemoteDataSource
@@ -187,32 +188,11 @@ class PeoplePagingRemoteRepository(
     ): ApiResult<T> {
         val stored = sessionStore.load()
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
-
-        when (val first = call(stored.accessToken)) {
-            is ApiResult.Success -> return first
-            is ApiResult.Failure -> if (first.statusCode != 401) return first
-        }
-
-        return when (val refreshed = authRemote.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                sessionStore.updateAccessToken(refreshed.value)
-                when (val retried = call(refreshed.value)) {
-                    is ApiResult.Success -> retried
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    refreshed
-                }
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { authRemote.refresh(stored.refreshToken) },
+            request = call,
+        )
     }
 
     private suspend fun requestJson(
@@ -243,8 +223,8 @@ class PeoplePagingRemoteRepository(
                         when (statusCode) {
                             401 -> "Your session expired. Please log in again."
                             403 -> "Follow this private account to see this content."
-                            404 -> "Nova couldn't find that profile."
-                            in 500..599 -> "Nova's server had a problem. Try again in a moment."
+                            404 -> "Plantupia couldn't find that profile."
+                            in 500..599 -> "Plantupia's server had a problem. Try again in a moment."
                             else -> "Something went wrong. Please try again."
                         }
                     },
@@ -252,7 +232,7 @@ class PeoplePagingRemoteRepository(
                 )
             }
         } catch (_: Exception) {
-            ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+            ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
         } finally {
             connection?.disconnect()
         }
@@ -284,6 +264,6 @@ class PeoplePagingRemoteRepository(
     }
 
     private companion object {
-        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
+        val PRODUCTION_API_URL = com.nova.app.core.network.NovaServerConfig.API_URL
     }
 }

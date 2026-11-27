@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -17,6 +18,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.toMutableStateList
+import androidx.activity.compose.BackHandler
+import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
+import com.nova.app.navigation.plantupiaRootStack
+import com.nova.app.navigation.plantupiaPrimaryRoutes
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +43,8 @@ import androidx.navigation3.ui.NavDisplay
 import com.nova.app.app.AppContainer
 import com.nova.app.app.AppViewModel
 import com.nova.app.core.network.ApiResult
+import com.nova.app.core.push.NovaPushOpenSignal
+import com.nova.app.feature.plants.PlantupiaSupportPushSignal
 import com.nova.app.feature.auth.CreateAccountScreen
 import com.nova.app.feature.auth.LoginScreen
 import com.nova.app.feature.create.CreateHubScreen
@@ -38,8 +52,10 @@ import com.nova.app.feature.feed.FeedStateOwner
 import com.nova.app.feature.home.HomeScreen
 import com.nova.app.feature.legal.PrivacyScreen
 import com.nova.app.feature.legal.TermsScreen
-import com.nova.app.feature.onboarding.ProfileSetupScreen
 import com.nova.app.feature.orbit.OrbitScreen
+import com.nova.app.feature.plants.PlantupiaAiRoute
+import com.nova.app.feature.plants.PlantupiaPlantsRoute
+import com.nova.app.feature.plants.PlantupiaShopRoute
 import com.nova.app.feature.people.PeopleScreen
 import com.nova.app.feature.people.PeopleStateOwner
 import com.nova.app.feature.people.PersonScreen
@@ -59,7 +75,6 @@ import com.nova.app.feature.publishing.MediaPublishWorker
 import com.nova.app.feature.publishing.MediaPublishingStateOwner
 import com.nova.app.feature.tonight.TonightScreen
 import com.nova.app.feature.welcome.WelcomeScreen
-import com.nova.app.navigation.AppDestination
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 import com.nova.app.navigation.NovaRoute
@@ -82,6 +97,14 @@ fun NovaApp(
     val appState = appViewModel.state
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var noticeCount by remember(appState.currentUser?.id) { mutableIntStateOf(0) }
+    suspend fun refreshNoticeBadge() {
+        val owner = appViewModel.state.currentUser?.id ?: return
+        when (val result = appContainer.notificationsRepository.notifications()) {
+            is ApiResult.Success -> if (appViewModel.state.currentUser?.id == owner) noticeCount = result.value.unreadCount
+            is ApiResult.Failure -> Unit
+        }
+    }
     val feedOwner = remember(feedRepository, postRepository, postRepostRepository, scope) {
         FeedStateOwner(feedRepository, postRepository, postRepostRepository, scope)
     }
@@ -89,17 +112,32 @@ fun NovaApp(
     val publishingOwner = remember(context, scope) { MediaPublishingStateOwner(context, scope) }
     val publishingState = publishingOwner.state
 
-    val backStack = remember {
-        mutableStateListOf<NovaRoute>(NovaRoute.Welcome)
+    var navigationAccount by rememberSaveable { mutableStateOf(appState.currentUser?.id) }
+    val backStack = rememberSaveable(saver = listSaver<SnapshotStateList<NovaRoute>, NovaRoute>(save = { it.toList() }, restore = { it.toMutableStateList() })) {
+        mutableStateListOf<NovaRoute>(if (appState.currentUser == null) NovaRoute.Welcome else NovaRoute.Home)
     }
     val rootRequestVersion = NovaRootNavigationSignal.requestVersion
+    val activityRequestVersion = NovaRootNavigationSignal.activityRequestVersion
+    LaunchedEffect(activityRequestVersion) {
+        if (activityRequestVersion > 0 && appState.currentUser != null && backStack.lastOrNull() != NovaRoute.Activity) backStack.add(NovaRoute.Activity)
+    }
     val tonightRequestVersion = NovaRootNavigationSignal.tonightRequestVersion
     val personRequestVersion = NovaRootNavigationSignal.personRequestVersion
 
-    var pendingEmail by remember { mutableStateOf("") }
-    var pendingPassword by remember { mutableStateOf("") }
     var authLoading by remember { mutableStateOf(false) }
     var authError by remember { mutableStateOf<String?>(null) }
+    var authEmail by rememberSaveable(appState.currentUser?.id) { mutableStateOf("") }
+    val handoverStore = remember(context) { com.nova.app.feature.plants.data.PlantupiaHandoverStore(context) }
+    var showHandover by remember { mutableStateOf(false) }
+    val handoverRequest = com.nova.app.feature.plants.PlantupiaHandoverNavigation.requestVersion
+    LaunchedEffect(handoverRequest) {
+        if (handoverRequest > 0) showHandover = true
+    }
+    LaunchedEffect(appState.currentUser?.id, appState.isBootstrapping) {
+        if (!appState.isBootstrapping) {
+            showHandover = handoverStore.read(appState.currentUser?.id) != null
+        }
+    }
 
     var handledFeedSessionExpiry by remember { mutableStateOf(0) }
     var handledProfileRefresh by remember { mutableStateOf(0) }
@@ -107,15 +145,19 @@ fun NovaApp(
     var handledBackgroundPostPublished by remember { mutableStateOf(0) }
 
     fun openRoot(tab: NovaRootTab) {
-        backStack.clear()
-        backStack.add(
+        val destination =
             when (tab) {
                 NovaRootTab.Home -> NovaRoute.Home
+                NovaRootTab.Plants -> NovaRoute.Plants
+                NovaRootTab.Shop -> NovaRoute.Shop
+                NovaRootTab.AI -> NovaRoute.AI
                 NovaRootTab.Orbit -> NovaRoute.Orbit
                 NovaRootTab.Create -> NovaRoute.Create
                 NovaRootTab.Profile -> NovaRoute.Profile
             }
-        )
+        val next = plantupiaRootStack(backStack.toList(), destination)
+        backStack.clear()
+        backStack.addAll(next)
     }
 
     fun openHome() = openRoot(NovaRootTab.Home)
@@ -132,15 +174,12 @@ fun NovaApp(
     }
 
     fun clearSessionUi() {
-        pendingEmail = ""
-        pendingPassword = ""
         authError = null
         resetToWelcome()
     }
 
     fun expireSession() {
-        appViewModel.expireSession()
-        clearSessionUi()
+        if (appViewModel.expireSession()) clearSessionUi()
     }
 
     fun refreshCurrentUser() {
@@ -149,6 +188,32 @@ fun NovaApp(
                 clearSessionUi()
             }
         }
+    }
+
+    // Support reply pushes stay outside Nova social Activity and require the
+    // currently authenticated customer before opening a private ticket.
+    val supportPush = NovaPushOpenSignal.pendingTarget
+    LaunchedEffect(appState.currentUser?.id, backStack.lastOrNull(), supportPush) {
+        refreshNoticeBadge()
+    }
+    LaunchedEffect(supportPush, appState.currentUser?.id, appState.isBootstrapping) {
+        val target = supportPush ?: return@LaunchedEffect
+        if (target.kind !in setOf("plantupia_support_reply", "plantupia_order_update")) return@LaunchedEffect
+        val userId = appState.currentUser?.id?.takeIf { it > 0 } ?: return@LaunchedEffect
+        if (!com.nova.app.core.push.authorizedPlantupiaPushRecipient(target.recipientId, userId)) {
+            NovaPushOpenSignal.consume()
+            return@LaunchedEffect
+        }
+        if (target.kind == "plantupia_order_update") {
+            target.qaOrderId?.let { com.nova.app.feature.plants.PlantupiaShopOpenSignal.open(userId, it) }
+            NovaPushOpenSignal.consume()
+            return@LaunchedEffect
+        }
+        val ticket = target.supportTicketId ?: return@LaunchedEffect
+        val plant = target.supportPlantId ?: return@LaunchedEffect
+        PlantupiaSupportPushSignal.offer(userId, ticket, plant)
+        NovaPushOpenSignal.consume()
+        NovaRootNavigationSignal.request(NovaRootTab.Plants)
     }
 
     LaunchedEffect(rootRequestVersion, appState.currentUser?.id) {
@@ -216,11 +281,11 @@ fun NovaApp(
     LaunchedEffect(Unit) {
         val hydratedFromCache = appViewModel.hydrateCachedSession()
         if (hydratedFromCache) {
-            openHome()
+            if (navigationAccount != appViewModel.state.currentUser?.id || backStack.lastOrNull() in setOf(NovaRoute.Welcome, NovaRoute.Login, NovaRoute.CreateAccount)) openHome()
         }
         appViewModel.bootstrapSession()
         if (appViewModel.state.currentUser != null) {
-            if (!hydratedFromCache) openHome()
+            if (!hydratedFromCache && navigationAccount != appViewModel.state.currentUser?.id) openHome()
         } else {
             resetToWelcome()
         }
@@ -231,6 +296,7 @@ fun NovaApp(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_START) {
                 appState.currentUser?.id?.let(feedOwner::onForeground)
+                scope.launch { refreshNoticeBadge() }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -241,9 +307,87 @@ fun NovaApp(
         NovaStartupScreen()
         return
     }
+    SideEffect {
+        if (navigationAccount != appState.currentUser?.id) {
+            navigationAccount = appState.currentUser?.id
+            backStack.clear()
+            backStack.add(if (appState.currentUser == null) NovaRoute.Welcome else NovaRoute.Home)
+        }
+    }
 
+    val homeContent: @Composable (Boolean) -> Unit = { communityOnly ->
+    val user = appState.currentUser
+    val homeFeedState = feedOwner.state
+    val homePublishingState = publishingOwner.state
+    LaunchedEffect(user?.id) {
+        if (user == null) feedOwner.reset() else feedOwner.enter(user.id)
+    }
+
+    val feedBelongsToUser = user != null && homeFeedState.userId == user.id
+
+    HomeScreen(
+        communityOnly = communityOnly,
+        displayName = user?.name?.ifBlank { user.username } ?: "Plantupia member",
+        username = user?.username ?: "plantupia",
+        avatarUrl = user?.avatarUrl.orEmpty(),
+        userId = user?.id ?: 0L,
+        avatarVariant = user?.plantupiaAvatarVariant ?: -1,
+        posts = homeFeedState.posts.takeIf { feedBelongsToUser }.orEmpty(),
+        isLoading = !feedBelongsToUser || homeFeedState.isLoading,
+        isRefreshing = feedBelongsToUser && homeFeedState.isRefreshing,
+        isLoadingMore = feedBelongsToUser && homeFeedState.isLoadingMore,
+        hasMore = feedBelongsToUser && homeFeedState.hasMore,
+        errorMessage = homeFeedState.errorMessage.takeIf { feedBelongsToUser },
+        deletingPostId = homeFeedState.deletingPostId.takeIf { feedBelongsToUser },
+        likingPostIds = homeFeedState.likingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
+        repostingPostIds = homeFeedState.repostingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
+        actionErrorPostId = homeFeedState.actionErrorPostId.takeIf { feedBelongsToUser },
+        actionErrorMessage = homeFeedState.actionErrorMessage.takeIf { feedBelongsToUser },
+        publishingItems = homePublishingState.items.takeIf {
+            homePublishingState.userId == user?.id
+        }.orEmpty(),
+        onCreatePost = {
+            feedOwner.clearPostError()
+            backStack.add(NovaRoute.CreatePost)
+        },
+        onRetryPublish = publishingOwner::retry,
+        onCancelPublish = publishingOwner::cancel,
+        onRefresh = feedOwner::refreshFeed,
+        onLoadMore = feedOwner::loadMore,
+        onRetry = feedOwner::loadFeed,
+        onDeletePost = feedOwner::deletePost,
+        onLikeToggle = feedOwner::toggleLike,
+        onRepostToggle = feedOwner::toggleRepost,
+        onPostClick = { post -> backStack.add(NovaRoute.PostDetail(post.id)) },
+        onCommentsClick = { post ->
+            backStack.add(NovaRoute.PostComments(post.id))
+        },
+        onResolvePost = postRepository::post,
+        onPersonClick = { username ->
+            backStack.add(NovaRoute.Person(username))
+        },
+        onPeopleClick = { backStack.add(NovaRoute.People) },
+        onOrbitClick = { openRoot(NovaRootTab.Orbit) },
+        onCreateClick = { openRoot(NovaRootTab.Create) },
+        onPulseClick = { backStack.add(NovaRoute.Pulse) },
+        onTonightClick = { backStack.add(NovaRoute.Tonight) },
+        onProfileClick = { backStack.add(NovaRoute.Profile) },
+    )
+    }
+
+    BackHandler(enabled = backStack.lastOrNull() in plantupiaPrimaryRoutes) {
+        if (backStack.lastOrNull() == NovaRoute.Home) {
+            (context as? android.app.Activity)?.moveTaskToBack(true)
+        } else openHome()
+    }
+    androidx.compose.runtime.key(appState.currentUser?.id) {
+    CompositionLocalProvider(
+        com.nova.app.feature.plants.LocalPlantupiaNoticeCount provides noticeCount,
+        com.nova.app.feature.plants.LocalPlantupiaNoticeCountChanged provides { count -> noticeCount = count },
+    ) {
     NavDisplay(
-        backStack = backStack,
+        backStack = if (navigationAccount == appState.currentUser?.id) backStack else listOf(if (appState.currentUser == null) NovaRoute.Welcome else NovaRoute.Home),
+        entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
         onBack = {
             if (!authLoading && !feedState.isUploadingPost && backStack.size > 1) {
                 backStack.removeLastOrNull()
@@ -251,8 +395,18 @@ fun NovaApp(
         },
         entryProvider = { route ->
             when (route) {
+                NovaRoute.Activity -> NavEntry(route) {
+                    com.nova.app.feature.notifications.NotificationsScreen(
+                        accountId = appState.currentUser?.id ?: 0L,
+                        onBack = { backStack.removeLastOrNull() },
+                        onPersonClick = { backStack.add(NovaRoute.Person(it)) },
+                        onPostClick = { backStack.add(NovaRoute.PostDetail(it.id)) },
+                        onUnreadCountChanged = {}, onSessionExpired = ::expireSession,
+                    )
+                }
                 NovaRoute.Welcome -> NavEntry(route) {
                     WelcomeScreen(
+                        onConnectPlants = { showHandover = true },
                         onCreateAccount = {
                             authError = null
                             backStack.add(NovaRoute.CreateAccount)
@@ -278,6 +432,14 @@ fun NovaApp(
                     CreateAccountScreen(
                         isLoading = authLoading,
                         errorMessage = authError,
+                        initialEmail = authEmail,
+                        onEmailChanged = { authEmail = it; authError = null },
+                        onLogin = { email ->
+                            authEmail = email
+                            authError = null
+                            backStack.removeLastOrNull()
+                            backStack.add(NovaRoute.Login)
+                        },
                         onBack = { backStack.removeLastOrNull() },
                         onCreate = { email, password, handle, name ->
                             if (!authLoading) {
@@ -313,6 +475,14 @@ fun NovaApp(
                     LoginScreen(
                         isLoading = authLoading,
                         errorMessage = authError,
+                        initialEmail = authEmail,
+                        onEmailChanged = { authEmail = it; authError = null },
+                        onCreateAccount = { email ->
+                            authEmail = email
+                            authError = null
+                            backStack.removeLastOrNull()
+                            backStack.add(NovaRoute.CreateAccount)
+                        },
                         onBack = {
                             if (!authLoading) {
                                 authError = null
@@ -344,112 +514,59 @@ fun NovaApp(
                     )
                 }
 
-                NovaRoute.ProfileSetup -> NavEntry(route) {
-                    ProfileSetupScreen(
-                        email = pendingEmail,
-                        isLoading = authLoading,
-                        errorMessage = authError,
-                        onBack = {
-                            if (!authLoading) {
-                                authError = null
-                                backStack.removeLastOrNull()
-                            }
-                        },
-                        onFinish = { name, handle ->
-                            if (!authLoading) {
-                                scope.launch {
-                                    authLoading = true
-                                    authError = null
-
-                                    when (
-                                        val result = authRepository.register(
-                                            email = pendingEmail,
-                                            password = pendingPassword,
-                                            username = handle,
-                                            name = name,
-                                        )
-                                    ) {
-                                        is ApiResult.Success -> {
-                                            appViewModel.onAuthenticated(result.value)
-                                            pendingPassword = ""
-                                            resetSocialState()
-                                            authLoading = false
-                                            openHome()
-                                        }
-
-                                        is ApiResult.Failure -> {
-                                            authError = result.message
-                                            authLoading = false
-                                        }
+                NovaRoute.Plants -> NavEntry(route) {
+                    val plantScope = rememberCoroutineScope()
+                    PlantupiaPlantsRoute(
+                        user = appState.currentUser,
+                        accountId = appState.currentUser?.id ?: 0L,
+                        onCreatePost = { backStack.add(NovaRoute.CreatePost) },
+                        onOpenLinkedPost = { postId, stillCurrent ->
+                            plantScope.launch {
+                                when (val result = postRepository.post(postId)) {
+                                    is ApiResult.Success -> if (stillCurrent()) {
+                                        backStack.add(NovaRoute.PostDetail(result.value.id))
                                     }
+                                    is ApiResult.Failure -> Unit
                                 }
                             }
                         },
+                        onToday = ::openHome,
+                        onCircle = { openRoot(NovaRootTab.Orbit) },
+                        onCreate = { openRoot(NovaRootTab.Create) },
+                        onProfile = { openRoot(NovaRootTab.Profile) },
                     )
                 }
 
-                NovaRoute.Home -> NavEntry(route) {
-                    val user = appState.currentUser
-                    val homeFeedState = feedOwner.state
-                    val homePublishingState = publishingOwner.state
-                    LaunchedEffect(user?.id) {
-                        if (user == null) feedOwner.reset() else feedOwner.enter(user.id)
-                    }
-
-                    val feedBelongsToUser = user != null && homeFeedState.userId == user.id
-
-                    HomeScreen(
-                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
-                        username = user?.username ?: "nova",
-                        avatarUrl = user?.avatarUrl.orEmpty(),
-                        posts = homeFeedState.posts.takeIf { feedBelongsToUser }.orEmpty(),
-                        isLoading = !feedBelongsToUser || homeFeedState.isLoading,
-                        isRefreshing = feedBelongsToUser && homeFeedState.isRefreshing,
-                        isLoadingMore = feedBelongsToUser && homeFeedState.isLoadingMore,
-                        hasMore = feedBelongsToUser && homeFeedState.hasMore,
-                        errorMessage = homeFeedState.errorMessage.takeIf { feedBelongsToUser },
-                        deletingPostId = homeFeedState.deletingPostId.takeIf { feedBelongsToUser },
-                        likingPostIds = homeFeedState.likingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
-                        repostingPostIds = homeFeedState.repostingPostIds.takeIf { feedBelongsToUser }.orEmpty(),
-                        actionErrorPostId = homeFeedState.actionErrorPostId.takeIf { feedBelongsToUser },
-                        actionErrorMessage = homeFeedState.actionErrorMessage.takeIf { feedBelongsToUser },
-                        publishingItems = homePublishingState.items.takeIf {
-                            homePublishingState.userId == user?.id
-                        }.orEmpty(),
-                        onCreatePost = {
-                            feedOwner.clearPostError()
-                            backStack.add(NovaRoute.CreatePost)
-                        },
-                        onRetryPublish = publishingOwner::retry,
-                        onCancelPublish = publishingOwner::cancel,
-                        onRefresh = feedOwner::refreshFeed,
-                        onLoadMore = feedOwner::loadMore,
-                        onRetry = feedOwner::loadFeed,
-                        onDeletePost = feedOwner::deletePost,
-                        onLikeToggle = feedOwner::toggleLike,
-                        onRepostToggle = feedOwner::toggleRepost,
-                        onPostClick = { post -> backStack.add(NovaRoute.PostDetail(post.id)) },
-                        onCommentsClick = { post ->
-                            backStack.add(NovaRoute.PostComments(post.id))
-                        },
-                        onResolvePost = postRepository::post,
-                        onPersonClick = { username ->
-                            backStack.add(NovaRoute.Person(username))
-                        },
-                        onPeopleClick = { backStack.add(NovaRoute.People) },
-                        onOrbitClick = { openRoot(NovaRootTab.Orbit) },
-                        onCreateClick = { openRoot(NovaRootTab.Create) },
-                        onPulseClick = { backStack.add(NovaRoute.Pulse) },
-                        onTonightClick = { backStack.add(NovaRoute.Tonight) },
-                        onProfileClick = { backStack.add(NovaRoute.Profile) },
+                NovaRoute.Shop -> NavEntry(route) {
+                    PlantupiaShopRoute(
+                        user = appState.currentUser,
+                        onToday = ::openHome,
+                        onCircle = { openRoot(NovaRootTab.Orbit) },
+                        onCreate = { openRoot(NovaRootTab.Create) },
+                        onProfile = { openRoot(NovaRootTab.Profile) },
                     )
                 }
+
+                NovaRoute.AI -> NavEntry(route) {
+                    PlantupiaAiRoute(
+                        user = appState.currentUser,
+                        onToday = ::openHome,
+                        onCircle = { openRoot(NovaRootTab.Orbit) },
+                        onCreate = { openRoot(NovaRootTab.Create) },
+                        onProfile = { openRoot(NovaRootTab.Profile) },
+                    )
+                }
+                NovaRoute.Home -> NavEntry(route) { homeContent(false) }
+                NovaRoute.CircleFeed -> NavEntry(route) { homeContent(true) }
 
                 NovaRoute.Orbit -> NavEntry(route) {
                     val user = appState.currentUser
                     OrbitScreen(
-                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
-                        username = user?.username ?: "nova",
+                        onSharedMoments = { if (backStack.lastOrNull() != NovaRoute.CircleFeed) backStack.add(NovaRoute.CircleFeed) },
+                        userId = user?.id ?: 0L,
+                        avatarVariant = user?.plantupiaAvatarVariant ?: -1,
+                        displayName = user?.name?.ifBlank { user.username } ?: "Plantupia member",
+                        username = user?.username ?: "plantupia",
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         onPersonClick = { username -> backStack.add(NovaRoute.Person(username)) },
                         onPostClick = { postId -> backStack.add(NovaRoute.PostDetail(postId)) },
@@ -464,14 +581,15 @@ fun NovaApp(
                 NovaRoute.Create -> NavEntry(route) {
                     val user = appState.currentUser
                     CreateHubScreen(
-                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
-                        username = user?.username ?: "nova",
+                        displayName = user?.name?.ifBlank { user.username } ?: "Plantupia member",
+                        username = user?.username ?: "plantupia",
                         avatarUrl = user?.avatarUrl.orEmpty(),
+                        userId = user?.id ?: 0L,
+                        avatarVariant = user?.plantupiaAvatarVariant ?: -1,
                         onCreatePost = {
                             feedOwner.clearPostError()
                             backStack.add(NovaRoute.CreatePost)
                         },
-                        onOpenReels = { appViewModel.navigate(AppDestination.Reels) },
                         onPersonClick = { username -> backStack.add(NovaRoute.Person(username)) },
                         onHomeClick = { openRoot(NovaRootTab.Home) },
                         onOrbitClick = { openRoot(NovaRootTab.Orbit) },
@@ -595,7 +713,7 @@ fun NovaApp(
                             initialPost = feedState.posts.firstOrNull { it.id == route.postId },
                             currentUser = appState.currentUser?.let {
                                 NovaPostAuthor(it.id, it.username, it.name, it.avatarUrl)
-                            } ?: NovaPostAuthor(0L, "nova", "Nova user", ""),
+                            } ?: NovaPostAuthor(0L, "plantupia", "Plantupia member", ""),
                             repository = postRepository,
                             scope = commentsScope,
                         )
@@ -794,8 +912,10 @@ fun NovaApp(
                     }
 
                     ProfileScreen(
-                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
-                        username = user?.username ?: "nova",
+                        displayName = user?.name?.ifBlank { user.username } ?: "Plantupia member",
+                        userId = user?.id ?: 0L,
+                        avatarVariant = user?.plantupiaAvatarVariant ?: -1,
+                        username = user?.username ?: "plantupia",
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         bio = user?.bio.orEmpty(),
                         location = user?.location.orEmpty(),
@@ -808,6 +928,7 @@ fun NovaApp(
                         followersCount = user?.followersCount ?: 0,
                         followingCount = user?.followingCount ?: 0,
                         profileContentOwner = profileContentOwner,
+                        onPlantsClick = { openRoot(NovaRootTab.Plants) },
                         onPostClick = { post ->
                             backStack.add(NovaRoute.PostDetail(post.id))
                         },
@@ -824,8 +945,10 @@ fun NovaApp(
                 NovaRoute.EditProfile -> NavEntry(route) {
                     val user = appState.currentUser
                     EditProfileScreen(
-                        displayName = user?.name?.ifBlank { user.username } ?: "Nova user",
-                        username = user?.username ?: "nova",
+                        displayName = user?.name?.ifBlank { user.username } ?: "Plantupia member",
+                        userId = user?.id ?: 0L,
+                        avatarVariant = user?.plantupiaAvatarVariant ?: -1,
+                        username = user?.username ?: "plantupia",
                         avatarUrl = user?.avatarUrl.orEmpty(),
                         bio = user?.bio.orEmpty(),
                         location = user?.location.orEmpty(),
@@ -842,7 +965,7 @@ fun NovaApp(
                                 backStack.removeLastOrNull()
                             }
                         },
-                        onSave = { name, handle, avatarUri, bio, location, link, interests, theme, showOrbit ->
+                        onSave = { name, handle, avatarUri, bio, location, link, interests, theme, showOrbit, avatarVariant ->
                             if (!authLoading) {
                                 scope.launch {
                                     authLoading = true
@@ -859,6 +982,7 @@ fun NovaApp(
                                             interests = interests,
                                             profileTheme = theme,
                                             showOrbit = showOrbit,
+                                            plantupiaAvatarVariant = avatarVariant,
                                         )
                                     ) {
                                         is ApiResult.Success -> {
@@ -885,6 +1009,27 @@ fun NovaApp(
             }
         },
     )
+    }
+    }
+    if (showHandover) {
+        androidx.compose.runtime.key(appState.currentUser?.id) {
+            com.nova.app.feature.plants.PlantupiaHandoverScreen(
+                accountId = appState.currentUser?.id,
+                accountName = appState.currentUser?.username.orEmpty(),
+                onClose = { showHandover = false },
+                onOwnPlants = { showHandover = false; openRoot(NovaRootTab.Plants) },
+                onLogin = { showHandover = false; authError = null; backStack.add(NovaRoute.Login) },
+                onRegister = { showHandover = false; authError = null; backStack.add(NovaRoute.CreateAccount) },
+                onConnected = { spaceId ->
+                    appState.currentUser?.id?.let { accountId ->
+                        com.nova.app.feature.plants.PlantupiaHandoverNavigation.connected(accountId, spaceId)
+                    }
+                    showHandover = false
+                    openRoot(NovaRootTab.Plants)
+                },
+            )
+        }
+    }
 }
 
 @Composable
@@ -892,23 +1037,34 @@ private fun NovaStartupScreen() {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(NovaBackground),
+            .background(com.nova.app.feature.plants.PlantupiaColors.cream),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "N",
-                color = NovaAccent,
-                fontSize = 48.sp,
-                fontWeight = FontWeight.Black,
-            )
-            Spacer(modifier = Modifier.height(18.dp))
-            CircularProgressIndicator(color = NovaAccent)
+            com.nova.app.feature.plants.PlantupiaBrandGlyph(modifier = Modifier.size(56.dp))
             Spacer(modifier = Modifier.height(14.dp))
             Text(
-                text = "Opening your space…",
-                color = NovaMuted,
-                fontSize = 13.sp,
+                text = "PLANTUPIA",
+                color = com.nova.app.feature.plants.PlantupiaColors.forestText,
+                fontSize = 28.sp,
+                fontFamily = androidx.compose.ui.text.font.FontFamily.Serif,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(7.dp))
+            Text(
+                text = "NATURE \u00D7 ARCHITECTURE",
+                style = com.nova.app.feature.plants.PlantupiaText.sectionLabel,
+            )
+            Spacer(modifier = Modifier.height(30.dp))
+            CircularProgressIndicator(
+                color = com.nova.app.feature.plants.PlantupiaColors.forest,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(28.dp),
+            )
+            Spacer(modifier = Modifier.height(13.dp))
+            Text(
+                text = "Opening your living space\u2026",
+                style = com.nova.app.feature.plants.PlantupiaText.supporting,
             )
         }
     }

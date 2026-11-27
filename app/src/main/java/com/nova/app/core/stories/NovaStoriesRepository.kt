@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.media.NovaVideoPreparer
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
@@ -81,7 +82,8 @@ class NovaStoriesRepository(
         onProgress: (Int?) -> Unit,
         expectedUserId: Long?,
     ): ApiResult<NovaStory> {
-        if (!storyPublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!storyPublishAccountMatches(expectedUserId, origin.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
         val cleanAudience = audience.takeIf { it == "followers" || it == "close_friends" }
@@ -117,6 +119,7 @@ class NovaStoriesRepository(
                     audience = cleanAudience,
                     clientPublishId = clientPublishId,
                     expectedUserId = expectedUserId,
+                    origin = origin,
                     onUploadProgress = onProgress,
                 )
             } finally {
@@ -141,6 +144,7 @@ class NovaStoriesRepository(
                     audience = cleanAudience,
                     clientPublishId = clientPublishId,
                     expectedUserId = expectedUserId,
+                    origin = origin,
                     onUploadProgress = onProgress,
                 )
             } finally {
@@ -358,7 +362,7 @@ class NovaStoriesRepository(
             }
             if (tempFile.length() <= 0L) {
                 tempFile.delete()
-                ApiResult.Failure("Nova couldn't read that Story file. Pick it again and retry.")
+                ApiResult.Failure("Plantupia couldn't read that Story file. Pick it again and retry.")
             } else {
                 ApiResult.Success(
                     PreparedStoryMedia(
@@ -370,7 +374,7 @@ class NovaStoriesRepository(
             }
         } catch (_: Exception) {
             tempFile.delete()
-            ApiResult.Failure("Nova couldn't read that Story file. Pick it again and retry.")
+            ApiResult.Failure("Plantupia couldn't read that Story file. Pick it again and retry.")
         }
     }
 
@@ -381,8 +385,9 @@ class NovaStoriesRepository(
         audience: String,
         clientPublishId: String,
         expectedUserId: Long?,
+        origin: NovaSessionStore.StoredSession,
         onUploadProgress: ((Int?) -> Unit)? = null,
-    ): ApiResult<NovaStory> = authenticatedCall(expectedUserId) { token ->
+    ): ApiResult<NovaStory> = authenticatedCall(expectedUserId, origin = origin) { token ->
         when (
             val response = authApi.requestMultipart(
                 path = "stories/",
@@ -431,7 +436,7 @@ class NovaStoriesRepository(
             }
             readJsonResponse(connection)
         } catch (_: Exception) {
-            ApiResult.Failure("Can't reach Nova right now. Check your connection and try again.")
+            ApiResult.Failure("Can't reach Plantupia right now. Check your connection and try again.")
         } finally {
             connection?.disconnect()
         }
@@ -448,12 +453,12 @@ class NovaStoriesRepository(
         } else {
             ApiResult.Failure(
                 message = when (statusCode) {
-                    400 -> json.optString("detail").ifBlank { "Nova couldn't publish that Story." }
+                    400 -> json.optString("detail").ifBlank { "Plantupia couldn't publish that Story." }
                     401 -> "Your session expired. Please log in again."
                     403 -> json.optString("detail").ifBlank { "You can't interact with this Story." }
                     404 -> "That Story is no longer available."
                     413 -> "That Story file is too large."
-                    in 500..599 -> "Nova's server had a problem. Try again in a moment."
+                    in 500..599 -> "Plantupia's server had a problem. Try again in a moment."
                     else -> json.optString("detail").ifBlank { "Something went wrong. Please try again." }
                 },
                 statusCode = statusCode,
@@ -463,43 +468,19 @@ class NovaStoriesRepository(
 
     private suspend fun <T> authenticatedCall(
         expectedUserId: Long? = null,
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         if (!storyPublishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
-        when (val first = call(stored.accessToken)) {
-            is ApiResult.Success -> return first
-            is ApiResult.Failure -> if (first.statusCode != 401) return first
-        }
-        return when (val refreshed = authApi.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                if (!storyPublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
-                    return ApiResult.Failure(
-                        "This publish belongs to a different signed-in account.",
-                        409,
-                    )
-                }
-                sessionStore.updateAccessToken(refreshed.value)
-                when (val retried = call(refreshed.value)) {
-                    is ApiResult.Success -> retried
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    refreshed
-                }
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { authApi.refresh(stored.refreshToken) },
+            request = call,
+        )
     }
 
     private fun parseGroup(json: JSONObject): NovaStoryGroup {
@@ -561,6 +542,7 @@ class NovaStoriesRepository(
             username = json.optString("username"),
             name = json.optString("name"),
             avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
+            plantupiaAvatarVariant = json.optInt("plantupia_avatar_variant", -1),
         )
     }
 
@@ -574,7 +556,7 @@ class NovaStoriesRepository(
     }
 
     private companion object {
-        const val PRODUCTION_API_URL = "https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/"
+        val PRODUCTION_API_URL = com.nova.app.core.network.NovaServerConfig.API_URL
     }
 }
 

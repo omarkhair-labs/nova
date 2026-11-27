@@ -1,0 +1,60 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<p><a href="{% url 'admin:plants_installationbatch_changelist' %}">Installations</a> ·
+<a href="{% url 'admin:plants_careguideversion_changelist' %}">Review and publish care guides</a></p>
+<ol>
+  <li>Select an existing staff-owned DRAFT installation and download its versioned template.</li>
+  <li>Replace the fictional QA rows with authorized source records. Upload for a read-only preview.</li>
+  <li>Review every change and destination. Explicitly approve the import. Guides stay unpublished.</li>
+  <li>Review botanical content separately, then use the care-guide review/publish action. Review inventory before READY and handover.</li>
+</ol>
+<p>Maximum 2 MiB; 500 rows per sheet. XLSX: Metadata, Species, CareGuides, PlantUnits.
+CSV: PlantUnits only, with version and exact destination on the first line. No formulas, images,
+reviewer identities, publication flags, dates or automatic care schedules are accepted.
+Photos use the existing separate Plant Admin upload. Blank optional plant fields clear previous values.
+Omitted rows and existing photos/history are retained. Existing guide versions cannot be overwritten.</p>
+{% if batch %}
+<div class="module" style="padding:1rem">
+  <h2>Exact destination</h2>
+  <p>Installation: <strong>{{ batch.reference_code }}</strong> ({{ batch.pk }}) · {{ batch.get_status_display }}</p>
+  <p>Space: <strong>{{ batch.space.name }}</strong> ({{ batch.space_id }})</p>
+  {% if batch.status == 'draft' %}<p>
+    <a href="{% url 'admin:plants_inventory_template' batch.pk %}">Download version 1 XLSX</a> ·
+    <a href="{% url 'admin:plants_inventory_template' batch.pk %}?format=csv">Download inventory-only CSV</a>
+  </p>{% endif %}
+</div>
+{% else %}
+<details open><summary>Choose a destination to download its template</summary>
+<ul>{% for destination in destinations %}<li><a href="?batch={{ destination.pk }}">{{ destination.reference_code }} · {{ destination.space.name }}</a></li>
+{% empty %}<li>No permitted DRAFT installations. Create a staff-owned Space and DRAFT installation first.</li>{% endfor %}</ul></details>
+{% endif %}
+{% if applied %}
+<div class="success" role="status"><p>{% if applied.created %}Import committed atomically.{% else %}This content was already applied. No records changed.{% endif %}</p>
+<p>Original application summary: {{ applied.summary }}. Guides require separate review and publication; no invitation or membership was created.</p></div>
+{% endif %}
+{% if plan %}
+<h2>Read-only preview</h2>
+<p>{{ plan.summary }}. No database rows have been written by this preview.</p>
+{% if plan.replay %}<p>This normalized content was already applied. Confirmation returns its receipt without changing records.</p>{% endif %}
+{% if plan.errors %}<ul class="errorlist">{% for error in plan.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+<details><summary>Warnings and review status ({{ plan.warnings|length }})</summary><ul>{% for warning in plan.warnings %}<li>{{ warning }}</li>{% endfor %}</ul></details>
+<div style="overflow-x:auto"><table>
+<thead><tr><th scope="col">Sheet / row</th><th scope="col">Action</th><th scope="col">Before</th><th scope="col">Incoming values</th><th scope="col">Review status / reason</th></tr></thead>
+<tbody>{% for entry in plan.entries %}<tr>
+<td>{{ entry.sheet }} / {{ entry.row }}</td><td>{{ entry.action }}</td>
+<td>{% for key,value in entry.before.items %}<div><strong>{{ key }}</strong>: {{ value }}</div>{% endfor %}</td>
+<td>{% for key,value in entry.after.items %}<div><strong>{{ key }}</strong>: {{ value }}</div>{% endfor %}</td>
+<td>{{ entry.reason }}</td></tr>{% endfor %}</tbody></table></div>
+{% endif %}
+{% if approval %}
+<h2>Explicit staff approval</h2>
+<form method="post">{% csrf_token %}{{ approval.as_p }}
+  <input type="submit" value="Approve and apply preview" class="default">
+</form>
+<p>Preview expires in 30 minutes. Concurrent inventory or guide changes require a fresh preview.</p>
+{% endif %}
+<h2>Upload for a new preview</h2>
+<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}
+  <input type="submit" value="Validate and preview — no inventory writes">
+</form>
+{% endblock %}

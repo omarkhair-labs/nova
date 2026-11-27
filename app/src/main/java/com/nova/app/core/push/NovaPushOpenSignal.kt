@@ -13,6 +13,10 @@ data class NovaPushTarget(
     val actorAvatarUrl: String,
     val postId: Long?,
     val conversationId: Long?,
+    val supportTicketId: String? = null,
+    val supportPlantId: String? = null,
+    val recipientId: Long? = null,
+    val qaOrderId: String? = null,
 )
 
 
@@ -48,6 +52,10 @@ object NovaPushOpenSignal {
             actorAvatarUrl = actorAvatarUrl,
             postId = postId,
             conversationId = conversationId,
+            supportTicketId = intent?.getStringExtra("ticket_id")?.takeIf { it.isNotBlank() },
+            supportPlantId = intent?.getStringExtra("plant_id")?.takeIf { it.isNotBlank() },
+            recipientId = intent?.getStringExtra("recipient_id")?.toLongOrNull(),
+            qaOrderId = intent?.getStringExtra("order_id")?.takeIf { it.isNotBlank() },
         )
     }
 

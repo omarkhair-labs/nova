@@ -133,7 +133,7 @@ fun MemoryFilmScreen(
                         running = false,
                         progress = 0,
                         error = info.outputData.getString(MemoryFilmWorker.KEY_ERROR)
-                            ?: "Nova couldn't render this film.",
+                            ?: "Plantupia couldn't render this film.",
                     )
                 }
                 WorkInfo.State.CANCELLED -> {
@@ -156,7 +156,7 @@ fun MemoryFilmScreen(
             }
 
             state.plan == null -> FilmLoadError(
-                message = state.error ?: "Nova couldn't plan this film.",
+                message = state.error ?: "Plantupia couldn't plan this film.",
                 onBack = onBack,
                 onRetry = {
                     owner.loadPlan(
@@ -322,7 +322,7 @@ private fun FilmContent(
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = "Photos or videos from Pulse, Posts or Rooms will become film scenes.",
+                            text = "Photos or videos from short updates, shared moments or gatherings will become film scenes.",
                             color = NovaMuted,
                             fontSize = 9.sp,
                         )
@@ -465,7 +465,7 @@ private fun FilmHero(
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 Text(
-                    text = if (outputPath != null) "Your film is ready." else if (plan.filmReady) "Nova found your film." else "Not enough scenes yet.",
+                    text = if (outputPath != null) "Your film is ready." else if (plan.filmReady) "Your film is ready to review." else "Not enough scenes yet.",
                     color = Color.White,
                     fontSize = 21.sp,
                     fontWeight = FontWeight.Bold,
@@ -604,10 +604,10 @@ private fun shareFilm(context: Context, path: String) {
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "video/mp4"
         putExtra(Intent.EXTRA_STREAM, uri)
-        clipData = ClipData.newRawUri("Nova Memory Film", uri)
+        clipData = ClipData.newRawUri("Plantupia Memory Film", uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(Intent.createChooser(intent, "Share your Nova Memory Film"))
+    context.startActivity(Intent.createChooser(intent, "Share your Plantupia Memory Film"))
 }
 
 

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
@@ -16,6 +17,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.nova.app.ui.theme.NovaAccent
 import com.nova.app.ui.theme.NovaAccentSoft
@@ -36,7 +44,8 @@ fun NovaLoadingState(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = NovaSpacing.xxxl),
+            .padding(vertical = NovaSpacing.xxxl)
+            .semantics { liveRegion = LiveRegionMode.Polite },
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
@@ -60,7 +69,8 @@ fun NovaInlineLoading(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = NovaSpacing.sm),
+            .padding(vertical = NovaSpacing.sm)
+            .semantics { liveRegion = LiveRegionMode.Polite },
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
     ) {
@@ -116,12 +126,15 @@ fun NovaEmptyState(
                 text = title,
                 color = NovaInk,
                 style = NovaType.sectionTitle,
+                modifier = Modifier.semantics { heading() },
+                textAlign = TextAlign.Center,
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Text(
                 text = message,
                 color = NovaMuted,
                 style = NovaType.bodyCompact,
+                textAlign = TextAlign.Center,
             )
             if (actionLabel != null && onAction != null) {
                 Spacer(modifier = Modifier.height(NovaSpacing.lg))
@@ -155,12 +168,14 @@ fun NovaErrorState(
                 text = title,
                 color = NovaInk,
                 style = NovaType.title,
+                modifier = Modifier.semantics { heading() },
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Text(
                 text = message,
                 color = NovaMuted,
                 style = NovaType.bodyCompact,
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
             NovaSecondaryButton(
@@ -182,21 +197,22 @@ fun NovaInlineRetry(
 ) {
     Surface(
         onClick = onRetry,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().heightIn(min = 48.dp).semantics(mergeDescendants = true) {
+            role = Role.Button
+            liveRegion = LiveRegionMode.Polite
+        },
         shape = MaterialTheme.shapes.medium,
         color = NovaSurface,
         border = BorderStroke(1.dp, NovaBorder),
     ) {
-        Row(
+        Column(
             modifier = Modifier.padding(NovaSpacing.md),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+            verticalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
         ) {
             Text(
                 text = message,
                 color = NovaMuted,
                 style = NovaType.meta,
-                modifier = Modifier.weight(1f),
             )
             Text(
                 text = retryLabel,

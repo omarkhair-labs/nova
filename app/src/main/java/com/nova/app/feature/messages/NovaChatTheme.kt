@@ -44,7 +44,7 @@ data class NovaChatPalette(
 object NovaChatThemes {
     val Nova = NovaChatPalette(
         key = "nova",
-        label = "Nova",
+        label = "Plantupia",
         background = NovaBaseBackground,
         surface = NovaBaseSurface,
         raisedSurface = Color(0xFFFFFFFF),

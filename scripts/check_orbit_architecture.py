@@ -108,10 +108,12 @@ for required in (
     "OrbitStateOwner(repository, scope)",
     "NovaBottomBar(",
     "NovaTab.Orbit",
-    "OrbitConstellation(",
-    "OrbitActivityRow(",
+    "PlantupiaCircleEditorialIntro()",
+    "PlantupiaCirclePanel(onOpenPost = onPostClick, onOpenAuthor = onPersonClick)",
+    "CircleActivityRow(",
     "onPostClick: (Long) -> Unit",
-    "showLivePoint = events.any { it.pulse != null }",
+    "onActorClick = { onPersonClick(event.actor.username) }",
+    "onAction = onDiscoveryClick",
 ):
     if required not in screen:
         errors.append(f"full Orbit destination is missing stable visual/navigation seam: {required}")

@@ -58,9 +58,10 @@ for required in (
     'title = "Security"',
     'title = "Blocked accounts"',
     'title = "Privacy policy"',
-    'title = "Account deletion help"',
-    'text = "Log out"',
-    "AboutNovaDialog(",
+    'title = "Account deletion"',
+    '"Log out"',
+    "onClick = onLogout",
+    "AboutPlantupiaDialog(",
     'title = "Android app settings"',
 ):
     if required not in settings:
@@ -81,7 +82,7 @@ for required in (
     "fun logout() {",
     "NovaPendingRegistrationPhoto.clear()",
     "NovaPushRegistration.logout(",
-    "sessionStore.clear()",
+    "sessionStore.logoutSession()",
 ):
     if required not in auth_repository:
         errors.append(f"Settings logout behavior changed or disappeared: {required}")

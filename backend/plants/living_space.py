@@ -1,0 +1,130 @@
+"""Research-only metric room model. Coordinates supplied by an operator, not reconstructed."""
+from math import hypot, isfinite
+
+
+def _number(value):
+    if type(value) not in (int, float) or not isfinite(value):
+        raise ValueError("Coordinates must be finite numbers.")
+    return float(value)
+
+
+def _identity(value):
+    if not isinstance(value, str) or not value.strip() or len(value) > 128:
+        raise ValueError("Invalid identity.")
+    return value
+
+
+def build_room(room_id, width_m, length_m, plants, windows, *, height_m=None):
+    """A rectangular local coordinate system in meters, with explicitly reported positions."""
+    room_id = _identity(room_id)
+    width, length = _number(width_m), _number(length_m)
+    if not 0 < width <= 1000 or not 0 < length <= 1000:
+        raise ValueError("Invalid room dimensions.")
+    height = _number(height_m) if height_m is not None else None
+    if height is not None and not 0 < height <= 1000:
+        raise ValueError("Invalid reported room height.")
+    if len(plants) > 1000 or len(windows) > 100:
+        raise ValueError("Room entity limit exceeded.")
+
+    def position(item):
+        x, y = _number(item["x_m"]), _number(item["y_m"])
+        if not 0 <= x <= width or not 0 <= y <= length:
+            raise ValueError("Position outside room.")
+        return x, y
+
+    seen = set()
+    openings = []
+    for item in windows:
+        key = _identity(item["id"])
+        if key in seen:
+            raise ValueError("Duplicate entity identity.")
+        seen.add(key)
+        x, y = position(item)
+        if x not in (0, width) and y not in (0, length):
+            raise ValueError("Window must lie on boundary.")
+        openings.append({"id": key, "x_m": x, "y_m": y})
+    units = []
+    for item in plants:
+        key = _identity(item["plant_id"])
+        if key in seen:
+            raise ValueError("Duplicate entity identity.")
+        seen.add(key)
+        x, y = position(item)
+        distances = [hypot(x-w["x_m"], y-w["y_m"]) for w in openings]
+        units.append({
+            "plant_id": key, "x_m": x, "y_m": y,
+            "nearest_window_distance_m": min(distances) if distances else None,
+            "illuminance": "not_measured",
+            "position_source": "operator_reported",
+        })
+    return {
+        "version": "room-rectangle-01", "room_id": room_id,
+        "width_m": width, "length_m": length, "area_m2": width * length,
+        **({"height_m": height} if height is not None else {}),
+        "geometry_source": "operator_reported",
+        "plants": units, "windows": openings,
+        "geometry_validation": "not_independently_verified",
+    }
+
+
+def living_snapshot(room, observations):
+    """Join existing plant IDs to reported visual evidence; no invented health state."""
+    known = {x["plant_id"] for x in room["plants"]}
+    by_plant = {}
+    for observation in observations:
+        key = _identity(observation["plant_id"])
+        if key not in known or key in by_plant:
+            raise ValueError("Unknown or duplicate plant observation.")
+        evidence_id = _identity(observation["evidence_id"])
+        observed_at = observation["observed_at"]
+        from datetime import datetime
+        if not isinstance(observed_at, str):
+            raise ValueError("Expected timestamp.")
+        try:
+            stamp = datetime.fromisoformat(observed_at.replace("Z", "+00:00"))
+        except ValueError as exc:
+            raise ValueError("Invalid timestamp.") from exc
+        if stamp.tzinfo is None:
+            raise ValueError("Timestamp must include offset.")
+        by_plant[key] = {"evidence_id": evidence_id, "observed_at": stamp.isoformat(), "status": "reported_unreviewed"}
+    return {
+        "room_id": room["room_id"], "scope": "operator_reported_spatial_snapshot",
+        "plants": [
+            {**plant, "latest_supplied_observation": by_plant.get(plant["plant_id"]), "health": "not_assessed"}
+            for plant in room["plants"]
+        ],
+        "live_sync": False,
+    }
+
+
+def placement_at_visit(plant, observed_at):
+    """One shared projection of the reported layout known at a saved visit.
+
+    The caller must first authorize the plant. Only its current accessible
+    space is queried; no older room is searched, and absence from the latest
+    applicable revision is not filled in using an obsolete placement.
+    """
+    layout = plant.space.room_revisions.filter(created_at__lte=observed_at).order_by("-revision").first()
+    if layout is None:
+        return None
+    geometry = layout.geometry
+    if geometry.get("room_id") != str(plant.space_id):
+        return None
+    points = [p for p in geometry.get("plants", []) if p.get("plant_id") == str(plant.pk)]
+    if len(points) != 1:
+        return None
+    point = points[0]
+    try:
+        x, y = _number(point["x_m"]), _number(point["y_m"])
+        if not 0 <= x <= _number(geometry["width_m"]) or not 0 <= y <= _number(geometry["length_m"]):
+            return None
+        distance = point.get("nearest_window_distance_m")
+        if distance is not None:
+            distance = _number(distance)
+            if distance < 0:
+                distance = None
+    except (KeyError, TypeError, ValueError):
+        return None
+    return {"source": "reported_layout", "revision": layout.revision,
+            "recorded_at": layout.created_at, "x_m": x, "y_m": y,
+            "nearest_window_distance_m": distance, "illuminance": "not_measured"}

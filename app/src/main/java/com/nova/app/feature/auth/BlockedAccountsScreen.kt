@@ -80,7 +80,7 @@ fun BlockedAccountsScreen(
     ) {
         NovaHeader(
             title = "Blocked accounts",
-            subtitle = "People you've blocked can't find or contact you on Nova.",
+            subtitle = "People you've blocked can't find or contact you on Plantupia.",
             onBack = onBack,
         )
         Spacer(modifier = Modifier.height(22.dp))

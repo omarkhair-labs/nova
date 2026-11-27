@@ -1,0 +1,8 @@
+/* Keep the existing editorial doorway; constrain its figure on narrow screens. */
+.sh-bridge-inner, .sh-bridge-inner>div, .sh-bridge-figure{min-width:0}
+.sh-bridge-figure{box-sizing:border-box;width:100%;max-width:100%}
+.sh-bridge-figure.sh-bridge-catalogue{margin:0;padding:0;aspect-ratio:1.45;display:flex;flex-direction:column;min-height:0;background:#f3eee7;border-color:#a8bea4}
+.sh-bridge-catalogue:before{display:none}
+.sh-bridge-catalogue img{display:block;width:100%;min-height:0;flex:1;object-fit:contain}
+.sh-bridge-catalogue figcaption{flex-shrink:0;padding:10px 12px;border-top:1px solid #c3cbbd;background:#e4e9da;color:#365341;font:10px/1.5 Consolas,monospace;letter-spacing:.065em;overflow-wrap:anywhere}
+@media(max-width:700px){.sh-bridge-inner{grid-template-columns:minmax(0,1fr)}.sh-bridge-figure{aspect-ratio:auto}.sh-bridge-figure.sh-bridge-catalogue{aspect-ratio:1.05;min-height:0}.sh-bridge h2{font-size:clamp(43px,15vw,59px)}}

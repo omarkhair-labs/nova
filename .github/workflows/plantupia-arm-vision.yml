@@ -1,0 +1,29 @@
+name: Plantupia ARM64 vision preflight
+on:
+  pull_request:
+    paths:
+      - 'backend/hosted_living.py'
+      - 'backend/Dockerfile'
+      - 'backend/arm_vision_smoke.py'
+      - 'backend/plants/living_neural_outline.py'
+      - 'backend/plants/room_colmap_cli.py'
+      - 'backend/plants/room_sfm.py'
+      - '.github/workflows/plantupia-arm-vision.yml'
+permissions:
+  contents: read
+jobs:
+  native-arm:
+    if: github.head_ref == 'feature/plantupia-unified-experience-20261028'
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Build the isolated candidate on actual Linux ARM64
+        run: |
+          test "$(uname -m)" = aarch64
+          docker build --build-arg PLANTUPIA_HOSTED_LIVING_QA=1 --build-arg PLANTUPIA_HOSTED_ARM_VISION_QA=1 -t plantupia-arm-vision-test backend
+      - name: Run real model and COLMAP through the application modules
+        run: |
+          docker run --rm --cpus=2 --entrypoint python plantupia-arm-vision-test arm_vision_smoke.py

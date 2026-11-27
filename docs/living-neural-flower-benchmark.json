@@ -1,0 +1,400 @@
+{
+  "rows": [
+    {
+      "image": "image_0002",
+      "neural_mask_iou": 0.99955,
+      "neural_polygon_iou": 0.99921,
+      "grabcut_polygon_iou": 0.85894,
+      "neural_ms": 283.07,
+      "grabcut_ms": 818.53
+    },
+    {
+      "image": "image_0040",
+      "neural_mask_iou": 0.64493,
+      "neural_polygon_iou": 0.64698,
+      "grabcut_polygon_iou": null,
+      "neural_ms": 230.98,
+      "grabcut_ms": 394.68
+    },
+    {
+      "image": "image_0079",
+      "neural_mask_iou": 0.65785,
+      "neural_polygon_iou": 0.65872,
+      "grabcut_polygon_iou": 0.69942,
+      "neural_ms": 190.05,
+      "grabcut_ms": 517
+    },
+    {
+      "image": "image_0083",
+      "neural_mask_iou": 0.78863,
+      "neural_polygon_iou": 0.75949,
+      "grabcut_polygon_iou": 0.54563,
+      "neural_ms": 178.5,
+      "grabcut_ms": 373.62
+    },
+    {
+      "image": "image_0113",
+      "neural_mask_iou": 0.93702,
+      "neural_polygon_iou": 0.98339,
+      "grabcut_polygon_iou": 1,
+      "neural_ms": 152.42,
+      "grabcut_ms": 462.58
+    },
+    {
+      "image": "image_0158",
+      "neural_mask_iou": 0.30532,
+      "neural_polygon_iou": 0.30529,
+      "grabcut_polygon_iou": null,
+      "neural_ms": 201.28,
+      "grabcut_ms": 445.19
+    },
+    {
+      "image": "image_0161",
+      "neural_mask_iou": 0.34122,
+      "neural_polygon_iou": 0.34148,
+      "grabcut_polygon_iou": 0.80217,
+      "neural_ms": 140.03,
+      "grabcut_ms": 282.86
+    },
+    {
+      "image": "image_0171",
+      "neural_mask_iou": 0.3446,
+      "neural_polygon_iou": 0.3446,
+      "grabcut_polygon_iou": 0.76667,
+      "neural_ms": 168.16,
+      "grabcut_ms": 321.74
+    },
+    {
+      "image": "image_0183",
+      "neural_mask_iou": 0.30811,
+      "neural_polygon_iou": 0.30545,
+      "grabcut_polygon_iou": 0.80485,
+      "neural_ms": 173.8,
+      "grabcut_ms": 375.34
+    },
+    {
+      "image": "image_0242",
+      "neural_mask_iou": 0.2623,
+      "neural_polygon_iou": 0.2623,
+      "grabcut_polygon_iou": null,
+      "neural_ms": 198.45,
+      "grabcut_ms": 477.11
+    },
+    {
+      "image": "image_0264",
+      "neural_mask_iou": 0.13921,
+      "neural_polygon_iou": 0.14129,
+      "grabcut_polygon_iou": null,
+      "neural_ms": 198.44,
+      "grabcut_ms": 666.45
+    },
+    {
+      "image": "image_0315",
+      "neural_mask_iou": 0.17019,
+      "neural_polygon_iou": 0.17414,
+      "grabcut_polygon_iou": null,
+      "neural_ms": 230.34,
+      "grabcut_ms": 405.34
+    },
+    {
+      "image": "image_0322",
+      "neural_mask_iou": 0.95722,
+      "neural_polygon_iou": 0.95643,
+      "grabcut_polygon_iou": 0.98239,
+      "neural_ms": 185.11,
+      "grabcut_ms": 445.55
+    },
+    {
+      "image": "image_0349",
+      "neural_mask_iou": 1,
+      "neural_polygon_iou": 1,
+      "grabcut_polygon_iou": 0.53689,
+      "neural_ms": 164.45,
+      "grabcut_ms": 846.11
+    },
+    {
+      "image": "image_0390",
+      "neural_mask_iou": 0.53586,
+      "neural_polygon_iou": 0.36543,
+      "grabcut_polygon_iou": 0.24522,
+      "neural_ms": 237.58,
+      "grabcut_ms": 598.43
+    },
+    {
+      "image": "image_0404",
+      "neural_mask_iou": 0.98798,
+      "neural_polygon_iou": 0.98637,
+      "grabcut_polygon_iou": 0.99911,
+      "neural_ms": 162.33,
+      "grabcut_ms": 516.15
+    },
+    {
+      "image": "image_0441",
+      "neural_mask_iou": 0.98322,
+      "neural_polygon_iou": 0.99188,
+      "grabcut_polygon_iou": 0.78727,
+      "neural_ms": 165.42,
+      "grabcut_ms": 441.52
+    },
+    {
+      "image": "image_0480",
+      "neural_mask_iou": 0.69769,
+      "neural_polygon_iou": 0.69777,
+      "grabcut_polygon_iou": 0.99543,
+      "neural_ms": 117.88,
+      "grabcut_ms": 361.6
+    },
+    {
+      "image": "image_0481",
+      "neural_mask_iou": 0.98018,
+      "neural_polygon_iou": 0.98701,
+      "grabcut_polygon_iou": 0.47877,
+      "neural_ms": 147.51,
+      "grabcut_ms": 475.71
+    },
+    {
+      "image": "image_0507",
+      "neural_mask_iou": 0.87214,
+      "neural_polygon_iou": 0.8456,
+      "grabcut_polygon_iou": 0.41951,
+      "neural_ms": 129.15,
+      "grabcut_ms": 431.86
+    },
+    {
+      "image": "image_0555",
+      "neural_mask_iou": 0.62181,
+      "neural_polygon_iou": 0.62529,
+      "grabcut_polygon_iou": null,
+      "neural_ms": 156.86,
+      "grabcut_ms": 526.43
+    },
+    {
+      "image": "image_0561",
+      "neural_mask_iou": 0.99968,
+      "neural_polygon_iou": 0.99968,
+      "grabcut_polygon_iou": 0.98214,
+      "neural_ms": 233.09,
+      "grabcut_ms": 520.87
+    },
+    {
+      "image": "image_0582",
+      "neural_mask_iou": 0.96601,
+      "neural_polygon_iou": 0.96613,
+      "grabcut_polygon_iou": 0.95972,
+      "neural_ms": 223.57,
+      "grabcut_ms": 478.33
+    },
+    {
+      "image": "image_0634",
+      "neural_mask_iou": 1,
+      "neural_polygon_iou": 1,
+      "grabcut_polygon_iou": 0.99876,
+      "neural_ms": 138.9,
+      "grabcut_ms": 313.08
+    },
+    {
+      "image": "image_0641",
+      "neural_mask_iou": 1,
+      "neural_polygon_iou": 1,
+      "grabcut_polygon_iou": 0.8291,
+      "neural_ms": 155.66,
+      "grabcut_ms": 362.07
+    },
+    {
+      "image": "image_0674",
+      "neural_mask_iou": 0.9891,
+      "neural_polygon_iou": 0.98942,
+      "grabcut_polygon_iou": 0.72088,
+      "neural_ms": 219.28,
+      "grabcut_ms": 800.13
+    },
+    {
+      "image": "image_0718",
+      "neural_mask_iou": 0.41792,
+      "neural_polygon_iou": 0.41789,
+      "grabcut_polygon_iou": 0.16934,
+      "neural_ms": 167.03,
+      "grabcut_ms": 986.22
+    },
+    {
+      "image": "image_0721",
+      "neural_mask_iou": 0.99462,
+      "neural_polygon_iou": 0.99056,
+      "grabcut_polygon_iou": 0.9039,
+      "neural_ms": 157.08,
+      "grabcut_ms": 470.92
+    },
+    {
+      "image": "image_0757",
+      "neural_mask_iou": 0.98843,
+      "neural_polygon_iou": 0.98493,
+      "grabcut_polygon_iou": 0.58391,
+      "neural_ms": 133.18,
+      "grabcut_ms": 912.38
+    },
+    {
+      "image": "image_0799",
+      "neural_mask_iou": 0.99492,
+      "neural_polygon_iou": 0.99447,
+      "grabcut_polygon_iou": 0.95024,
+      "neural_ms": 145.46,
+      "grabcut_ms": 492.08
+    },
+    {
+      "image": "image_0801",
+      "neural_mask_iou": 0.99897,
+      "neural_polygon_iou": 0.99877,
+      "grabcut_polygon_iou": null,
+      "neural_ms": 185.43,
+      "grabcut_ms": 461.03
+    },
+    {
+      "image": "image_0830",
+      "neural_mask_iou": 0.9994,
+      "neural_polygon_iou": 0.99888,
+      "grabcut_polygon_iou": 0.99825,
+      "neural_ms": 160.77,
+      "grabcut_ms": 654.1
+    },
+    {
+      "image": "image_0873",
+      "neural_mask_iou": 0.70011,
+      "neural_polygon_iou": 0.70011,
+      "grabcut_polygon_iou": 0.99991,
+      "neural_ms": 257.21,
+      "grabcut_ms": 452.04
+    },
+    {
+      "image": "image_0881",
+      "neural_mask_iou": 0.97629,
+      "neural_polygon_iou": 0.98553,
+      "grabcut_polygon_iou": 0.82537,
+      "neural_ms": 191.35,
+      "grabcut_ms": 815.29
+    },
+    {
+      "image": "image_0909",
+      "neural_mask_iou": 0.9954,
+      "neural_polygon_iou": 0.99521,
+      "grabcut_polygon_iou": null,
+      "neural_ms": 158.7,
+      "grabcut_ms": 648.6
+    },
+    {
+      "image": "image_0950",
+      "neural_mask_iou": 0.99979,
+      "neural_polygon_iou": 0.99979,
+      "grabcut_polygon_iou": 0.98622,
+      "neural_ms": 127.71,
+      "grabcut_ms": 391.17
+    },
+    {
+      "image": "image_0961",
+      "neural_mask_iou": 0.99881,
+      "neural_polygon_iou": 0.99859,
+      "grabcut_polygon_iou": 0.99949,
+      "neural_ms": 315.29,
+      "grabcut_ms": 445.76
+    },
+    {
+      "image": "image_0988",
+      "neural_mask_iou": 0.99909,
+      "neural_polygon_iou": 0.9996,
+      "grabcut_polygon_iou": null,
+      "neural_ms": 141.67,
+      "grabcut_ms": 275.2
+    },
+    {
+      "image": "image_1035",
+      "neural_mask_iou": 0.9998,
+      "neural_polygon_iou": 0.99956,
+      "grabcut_polygon_iou": 0.90784,
+      "neural_ms": 171.16,
+      "grabcut_ms": 268.77
+    },
+    {
+      "image": "image_1121",
+      "neural_mask_iou": 0.99995,
+      "neural_polygon_iou": 0.99992,
+      "grabcut_polygon_iou": 1,
+      "neural_ms": 195.53,
+      "grabcut_ms": 400.84
+    },
+    {
+      "image": "image_1148",
+      "neural_mask_iou": 0.9999,
+      "neural_polygon_iou": 0.99985,
+      "grabcut_polygon_iou": 0.99828,
+      "neural_ms": 128.06,
+      "grabcut_ms": 314.97
+    },
+    {
+      "image": "image_1190",
+      "neural_mask_iou": 1,
+      "neural_polygon_iou": 1,
+      "grabcut_polygon_iou": 1,
+      "neural_ms": 147.14,
+      "grabcut_ms": 155.81
+    },
+    {
+      "image": "image_1201",
+      "neural_mask_iou": 1,
+      "neural_polygon_iou": 1,
+      "grabcut_polygon_iou": 1,
+      "neural_ms": 119.88,
+      "grabcut_ms": 372.94
+    },
+    {
+      "image": "image_1232",
+      "neural_mask_iou": 0.96093,
+      "neural_polygon_iou": 0.95715,
+      "grabcut_polygon_iou": 0.88003,
+      "neural_ms": 156.33,
+      "grabcut_ms": 279.75
+    },
+    {
+      "image": "image_1278",
+      "neural_mask_iou": 1,
+      "neural_polygon_iou": 1,
+      "grabcut_polygon_iou": 1,
+      "neural_ms": 105.04,
+      "grabcut_ms": 237.92
+    },
+    {
+      "image": "image_1281",
+      "neural_mask_iou": 1,
+      "neural_polygon_iou": 1,
+      "grabcut_polygon_iou": 1,
+      "neural_ms": 151.43,
+      "grabcut_ms": 361.31
+    },
+    {
+      "image": "image_1309",
+      "neural_mask_iou": 0.99792,
+      "neural_polygon_iou": 0.99787,
+      "grabcut_polygon_iou": 0.88872,
+      "neural_ms": 150.06,
+      "grabcut_ms": 346.96
+    },
+    {
+      "image": "image_1357",
+      "neural_mask_iou": 0.47665,
+      "neural_polygon_iou": 0.46516,
+      "grabcut_polygon_iou": 0.43949,
+      "neural_ms": 141.2,
+      "grabcut_ms": 307.23
+    }
+  ],
+  "missing": [],
+  "archive_complete": true,
+  "planned_n": 48,
+  "model_sha256": "e24338a717c1b7ad8d159666677ef400babb7f33b8ad60c4d96db4ecf694cd25",
+  "mediapipe": "0.10.32",
+  "opencv": "4.11.0",
+  "notes": [
+    "Research comparison on Oxford 17 Flowers using reference-derived prompts; not a field leaf or Android benchmark.",
+    "Source photo and trimap archives and model weights are not included. Timings are specific to the test Windows CPU and runtime.",
+    "The deployed reviewed outline uses an additional original-image coordinate mapping and PIL BOX resize. See the integration report."
+  ],
+  "images_sha256": "fe38a60f8b4a95e657551247d3e7d799a3fafcdbc595be504b12839967823d70"
+}

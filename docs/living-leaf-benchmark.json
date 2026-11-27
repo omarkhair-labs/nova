@@ -1,0 +1,1041 @@
+{
+  "source": "UCI Leaf, Silva and Mar\u00e7al (2013), DOI 10.24432/C53C78",
+  "sha256": "9d372307705b6be3cb6d7d99045a65517d7d89124e620197656d97c08a41537e",
+  "numpy": "2.4.6",
+  "train_n": 179,
+  "calibration_n": 48,
+  "held_out_species": [
+    6,
+    13,
+    24,
+    25,
+    32,
+    34
+  ],
+  "known_test_n": 48,
+  "unknown_test_n": 65,
+  "distance_cutoff": 1.9894897234686502,
+  "known_top1": 0.6875,
+  "known_coverage": 0.75,
+  "accepted_known_accuracy": 0.8611111111111112,
+  "unknown_false_accepts": 34,
+  "rows": [
+    {
+      "species": 6,
+      "specimen": 1,
+      "candidate": 11,
+      "unknown": true,
+      "distance": 1.492414134806107,
+      "ratio": 0.4299847973307285,
+      "accepted": true
+    },
+    {
+      "species": 6,
+      "specimen": 3,
+      "candidate": 11,
+      "unknown": true,
+      "distance": 1.7399427291035603,
+      "ratio": 0.7305971467982428,
+      "accepted": true
+    },
+    {
+      "species": 6,
+      "specimen": 5,
+      "candidate": 11,
+      "unknown": true,
+      "distance": 1.357333611883585,
+      "ratio": 0.5856054983494546,
+      "accepted": true
+    },
+    {
+      "species": 6,
+      "specimen": 8,
+      "candidate": 23,
+      "unknown": true,
+      "distance": 1.7496331842376698,
+      "ratio": 0.6301891637462457,
+      "accepted": true
+    },
+    {
+      "species": 6,
+      "specimen": 6,
+      "candidate": 11,
+      "unknown": true,
+      "distance": 2.1244311216793474,
+      "ratio": 0.8712815070424167,
+      "accepted": false
+    },
+    {
+      "species": 6,
+      "specimen": 7,
+      "candidate": 11,
+      "unknown": true,
+      "distance": 2.061222994630876,
+      "ratio": 0.8362078082936439,
+      "accepted": false
+    },
+    {
+      "species": 6,
+      "specimen": 4,
+      "candidate": 23,
+      "unknown": true,
+      "distance": 1.8691432475666738,
+      "ratio": 0.9258037660038521,
+      "accepted": false
+    },
+    {
+      "species": 6,
+      "specimen": 2,
+      "candidate": 11,
+      "unknown": true,
+      "distance": 1.785774249674335,
+      "ratio": 0.5708316893453544,
+      "accepted": true
+    },
+    {
+      "species": 5,
+      "specimen": 10,
+      "candidate": 5,
+      "unknown": false,
+      "distance": 0.5186571415277508,
+      "ratio": 0.35876387921181635,
+      "accepted": true
+    },
+    {
+      "species": 5,
+      "specimen": 4,
+      "candidate": 5,
+      "unknown": false,
+      "distance": 1.3426006708820568,
+      "ratio": 0.6733515660431293,
+      "accepted": true
+    },
+    {
+      "species": 15,
+      "specimen": 7,
+      "candidate": 15,
+      "unknown": false,
+      "distance": 1.6124601459615004,
+      "ratio": 0.6225034499075375,
+      "accepted": true
+    },
+    {
+      "species": 15,
+      "specimen": 10,
+      "candidate": 15,
+      "unknown": false,
+      "distance": 1.7172567483548815,
+      "ratio": 0.5888872485706658,
+      "accepted": true
+    },
+    {
+      "species": 30,
+      "specimen": 7,
+      "candidate": 30,
+      "unknown": false,
+      "distance": 1.1619347180306416,
+      "ratio": 0.6101162974148926,
+      "accepted": true
+    },
+    {
+      "species": 30,
+      "specimen": 8,
+      "candidate": 9,
+      "unknown": false,
+      "distance": 0.8071808155181194,
+      "ratio": 0.9374419412743458,
+      "accepted": false
+    },
+    {
+      "species": 8,
+      "specimen": 5,
+      "candidate": 8,
+      "unknown": false,
+      "distance": 0.5109271480088204,
+      "ratio": 0.24011244132434204,
+      "accepted": true
+    },
+    {
+      "species": 8,
+      "specimen": 4,
+      "candidate": 8,
+      "unknown": false,
+      "distance": 0.6491790313150295,
+      "ratio": 0.32411696856385114,
+      "accepted": true
+    },
+    {
+      "species": 24,
+      "specimen": 8,
+      "candidate": 1,
+      "unknown": true,
+      "distance": 0.6273452185186654,
+      "ratio": 0.5216379462241318,
+      "accepted": true
+    },
+    {
+      "species": 24,
+      "specimen": 4,
+      "candidate": 27,
+      "unknown": true,
+      "distance": 0.6788953330161598,
+      "ratio": 0.7184140171678467,
+      "accepted": true
+    },
+    {
+      "species": 24,
+      "specimen": 12,
+      "candidate": 30,
+      "unknown": true,
+      "distance": 0.9077383505156189,
+      "ratio": 0.9337192583027119,
+      "accepted": false
+    },
+    {
+      "species": 24,
+      "specimen": 3,
+      "candidate": 26,
+      "unknown": true,
+      "distance": 0.8970576728678116,
+      "ratio": 0.9109803946059387,
+      "accepted": false
+    },
+    {
+      "species": 24,
+      "specimen": 2,
+      "candidate": 27,
+      "unknown": true,
+      "distance": 0.7035890850781934,
+      "ratio": 0.6937446251032974,
+      "accepted": true
+    },
+    {
+      "species": 24,
+      "specimen": 7,
+      "candidate": 4,
+      "unknown": true,
+      "distance": 0.7488326499582454,
+      "ratio": 0.8110303052470675,
+      "accepted": false
+    },
+    {
+      "species": 24,
+      "specimen": 11,
+      "candidate": 4,
+      "unknown": true,
+      "distance": 1.9368425645239242,
+      "ratio": 0.9416913177074774,
+      "accepted": false
+    },
+    {
+      "species": 24,
+      "specimen": 6,
+      "candidate": 10,
+      "unknown": true,
+      "distance": 1.6521916815958682,
+      "ratio": 0.8522833023014189,
+      "accepted": false
+    },
+    {
+      "species": 24,
+      "specimen": 13,
+      "candidate": 1,
+      "unknown": true,
+      "distance": 0.7438396425103851,
+      "ratio": 0.6980396123537761,
+      "accepted": true
+    },
+    {
+      "species": 24,
+      "specimen": 1,
+      "candidate": 33,
+      "unknown": true,
+      "distance": 1.5008959508305084,
+      "ratio": 0.8172091056001519,
+      "accepted": false
+    },
+    {
+      "species": 24,
+      "specimen": 5,
+      "candidate": 4,
+      "unknown": true,
+      "distance": 0.8974903784787402,
+      "ratio": 0.9256147431666149,
+      "accepted": false
+    },
+    {
+      "species": 24,
+      "specimen": 9,
+      "candidate": 26,
+      "unknown": true,
+      "distance": 1.4838190780317562,
+      "ratio": 0.8253127639802135,
+      "accepted": false
+    },
+    {
+      "species": 24,
+      "specimen": 10,
+      "candidate": 4,
+      "unknown": true,
+      "distance": 1.8474469216917997,
+      "ratio": 0.9453729614823269,
+      "accepted": false
+    },
+    {
+      "species": 2,
+      "specimen": 1,
+      "candidate": 2,
+      "unknown": false,
+      "distance": 0.5138115272365101,
+      "ratio": 0.4531439835344335,
+      "accepted": true
+    },
+    {
+      "species": 2,
+      "specimen": 5,
+      "candidate": 2,
+      "unknown": false,
+      "distance": 0.32102351237101284,
+      "ratio": 0.3395089218460059,
+      "accepted": true
+    },
+    {
+      "species": 28,
+      "specimen": 2,
+      "candidate": 12,
+      "unknown": false,
+      "distance": 0.4461749007949614,
+      "ratio": 0.6021260059072929,
+      "accepted": true
+    },
+    {
+      "species": 28,
+      "specimen": 6,
+      "candidate": 14,
+      "unknown": false,
+      "distance": 0.8605514399260795,
+      "ratio": 0.714874833721504,
+      "accepted": true
+    },
+    {
+      "species": 14,
+      "specimen": 8,
+      "candidate": 12,
+      "unknown": false,
+      "distance": 1.0090657095741928,
+      "ratio": 0.8442252731123143,
+      "accepted": false
+    },
+    {
+      "species": 14,
+      "specimen": 1,
+      "candidate": 28,
+      "unknown": false,
+      "distance": 0.3717669095072807,
+      "ratio": 0.8370227703234641,
+      "accepted": false
+    },
+    {
+      "species": 29,
+      "specimen": 9,
+      "candidate": 29,
+      "unknown": false,
+      "distance": 0.4035142218688801,
+      "ratio": 0.44707840902499546,
+      "accepted": true
+    },
+    {
+      "species": 29,
+      "specimen": 10,
+      "candidate": 29,
+      "unknown": false,
+      "distance": 0.47220531137831717,
+      "ratio": 0.46494258426519397,
+      "accepted": true
+    },
+    {
+      "species": 25,
+      "specimen": 8,
+      "candidate": 10,
+      "unknown": true,
+      "distance": 2.4403604007003405,
+      "ratio": 0.7805735058009893,
+      "accepted": false
+    },
+    {
+      "species": 25,
+      "specimen": 6,
+      "candidate": 10,
+      "unknown": true,
+      "distance": 1.8343045522022767,
+      "ratio": 0.6764582264682791,
+      "accepted": true
+    },
+    {
+      "species": 25,
+      "specimen": 4,
+      "candidate": 10,
+      "unknown": true,
+      "distance": 2.4133836302026843,
+      "ratio": 0.5710525543277586,
+      "accepted": false
+    },
+    {
+      "species": 25,
+      "specimen": 1,
+      "candidate": 9,
+      "unknown": true,
+      "distance": 1.3299347788907938,
+      "ratio": 0.9390655977705146,
+      "accepted": false
+    },
+    {
+      "species": 25,
+      "specimen": 5,
+      "candidate": 10,
+      "unknown": true,
+      "distance": 1.7112084854744525,
+      "ratio": 0.5243375760139585,
+      "accepted": true
+    },
+    {
+      "species": 25,
+      "specimen": 2,
+      "candidate": 10,
+      "unknown": true,
+      "distance": 1.503579608138773,
+      "ratio": 0.7388821296799674,
+      "accepted": true
+    },
+    {
+      "species": 25,
+      "specimen": 3,
+      "candidate": 3,
+      "unknown": true,
+      "distance": 1.4316150246345256,
+      "ratio": 0.8804860724274499,
+      "accepted": false
+    },
+    {
+      "species": 25,
+      "specimen": 7,
+      "candidate": 10,
+      "unknown": true,
+      "distance": 2.048323983327009,
+      "ratio": 0.583076977302755,
+      "accepted": false
+    },
+    {
+      "species": 25,
+      "specimen": 9,
+      "candidate": 28,
+      "unknown": true,
+      "distance": 1.1184204859399123,
+      "ratio": 0.5730021972417916,
+      "accepted": true
+    },
+    {
+      "species": 36,
+      "specimen": 10,
+      "candidate": 36,
+      "unknown": false,
+      "distance": 2.4808825468294047,
+      "ratio": 0.5729632037241176,
+      "accepted": false
+    },
+    {
+      "species": 36,
+      "specimen": 3,
+      "candidate": 36,
+      "unknown": false,
+      "distance": 1.334990302826402,
+      "ratio": 0.5278955366432365,
+      "accepted": true
+    },
+    {
+      "species": 26,
+      "specimen": 7,
+      "candidate": 26,
+      "unknown": false,
+      "distance": 1.8409208669450245,
+      "ratio": 0.7198501846677688,
+      "accepted": true
+    },
+    {
+      "species": 26,
+      "specimen": 9,
+      "candidate": 22,
+      "unknown": false,
+      "distance": 0.9443454492823472,
+      "ratio": 0.9596569202024168,
+      "accepted": false
+    },
+    {
+      "species": 31,
+      "specimen": 4,
+      "candidate": 31,
+      "unknown": false,
+      "distance": 1.0576781491949887,
+      "ratio": 0.5198895614164067,
+      "accepted": true
+    },
+    {
+      "species": 31,
+      "specimen": 3,
+      "candidate": 31,
+      "unknown": false,
+      "distance": 1.9178489126788365,
+      "ratio": 0.3172320348791556,
+      "accepted": true
+    },
+    {
+      "species": 33,
+      "specimen": 7,
+      "candidate": 33,
+      "unknown": false,
+      "distance": 0.607679999937456,
+      "ratio": 0.32550237782313224,
+      "accepted": true
+    },
+    {
+      "species": 33,
+      "specimen": 10,
+      "candidate": 33,
+      "unknown": false,
+      "distance": 1.3890433753747111,
+      "ratio": 0.6511588339825919,
+      "accepted": true
+    },
+    {
+      "species": 32,
+      "specimen": 7,
+      "candidate": 2,
+      "unknown": true,
+      "distance": 0.33004454568389446,
+      "ratio": 0.5011487955281329,
+      "accepted": true
+    },
+    {
+      "species": 32,
+      "specimen": 9,
+      "candidate": 27,
+      "unknown": true,
+      "distance": 0.643663861678512,
+      "ratio": 0.8614505125474919,
+      "accepted": false
+    },
+    {
+      "species": 32,
+      "specimen": 8,
+      "candidate": 2,
+      "unknown": true,
+      "distance": 0.5136705116779634,
+      "ratio": 0.7754507877346464,
+      "accepted": true
+    },
+    {
+      "species": 32,
+      "specimen": 6,
+      "candidate": 14,
+      "unknown": true,
+      "distance": 1.158780768923397,
+      "ratio": 0.9219990738799061,
+      "accepted": false
+    },
+    {
+      "species": 32,
+      "specimen": 5,
+      "candidate": 14,
+      "unknown": true,
+      "distance": 1.1099064266302934,
+      "ratio": 0.9554537125624244,
+      "accepted": false
+    },
+    {
+      "species": 32,
+      "specimen": 1,
+      "candidate": 27,
+      "unknown": true,
+      "distance": 0.985640370091291,
+      "ratio": 0.9746909109497107,
+      "accepted": false
+    },
+    {
+      "species": 32,
+      "specimen": 4,
+      "candidate": 2,
+      "unknown": true,
+      "distance": 0.5027624679104767,
+      "ratio": 0.49622472427167125,
+      "accepted": true
+    },
+    {
+      "species": 32,
+      "specimen": 3,
+      "candidate": 33,
+      "unknown": true,
+      "distance": 1.0580108335044032,
+      "ratio": 0.8552370222210346,
+      "accepted": false
+    },
+    {
+      "species": 32,
+      "specimen": 11,
+      "candidate": 33,
+      "unknown": true,
+      "distance": 0.4897777798336017,
+      "ratio": 0.8688543382953898,
+      "accepted": false
+    },
+    {
+      "species": 32,
+      "specimen": 10,
+      "candidate": 2,
+      "unknown": true,
+      "distance": 0.5875859535178238,
+      "ratio": 0.8852364521717727,
+      "accepted": false
+    },
+    {
+      "species": 32,
+      "specimen": 2,
+      "candidate": 2,
+      "unknown": true,
+      "distance": 0.46029539178230616,
+      "ratio": 0.6657754253205932,
+      "accepted": true
+    },
+    {
+      "species": 35,
+      "specimen": 10,
+      "candidate": 35,
+      "unknown": false,
+      "distance": 0.4166302188588632,
+      "ratio": 0.22503198399363672,
+      "accepted": true
+    },
+    {
+      "species": 35,
+      "specimen": 3,
+      "candidate": 28,
+      "unknown": false,
+      "distance": 0.936556433523089,
+      "ratio": 0.895510440188227,
+      "accepted": false
+    },
+    {
+      "species": 4,
+      "specimen": 8,
+      "candidate": 26,
+      "unknown": false,
+      "distance": 1.0585011771812498,
+      "ratio": 0.6847860659805134,
+      "accepted": true
+    },
+    {
+      "species": 4,
+      "specimen": 6,
+      "candidate": 2,
+      "unknown": false,
+      "distance": 0.9633171649539638,
+      "ratio": 0.9691317941020104,
+      "accepted": false
+    },
+    {
+      "species": 7,
+      "specimen": 8,
+      "candidate": 2,
+      "unknown": false,
+      "distance": 0.3424976511206451,
+      "ratio": 0.5373970317956922,
+      "accepted": true
+    },
+    {
+      "species": 7,
+      "specimen": 4,
+      "candidate": 7,
+      "unknown": false,
+      "distance": 0.6482925281820986,
+      "ratio": 0.6554373861982219,
+      "accepted": true
+    },
+    {
+      "species": 9,
+      "specimen": 4,
+      "candidate": 10,
+      "unknown": false,
+      "distance": 0.8871434797228784,
+      "ratio": 0.5387273323547968,
+      "accepted": true
+    },
+    {
+      "species": 9,
+      "specimen": 5,
+      "candidate": 3,
+      "unknown": false,
+      "distance": 0.9532644412154196,
+      "ratio": 0.8991556668867414,
+      "accepted": false
+    },
+    {
+      "species": 13,
+      "specimen": 7,
+      "candidate": 27,
+      "unknown": true,
+      "distance": 0.40427731867542255,
+      "ratio": 0.48259758523331425,
+      "accepted": true
+    },
+    {
+      "species": 13,
+      "specimen": 3,
+      "candidate": 1,
+      "unknown": true,
+      "distance": 0.6832504280336472,
+      "ratio": 0.8952577695456434,
+      "accepted": false
+    },
+    {
+      "species": 13,
+      "specimen": 9,
+      "candidate": 1,
+      "unknown": true,
+      "distance": 0.8428920889357264,
+      "ratio": 0.7961157526148812,
+      "accepted": true
+    },
+    {
+      "species": 13,
+      "specimen": 4,
+      "candidate": 26,
+      "unknown": true,
+      "distance": 0.69043630691081,
+      "ratio": 0.8218073834857463,
+      "accepted": false
+    },
+    {
+      "species": 13,
+      "specimen": 6,
+      "candidate": 33,
+      "unknown": true,
+      "distance": 1.1517490693265915,
+      "ratio": 0.7483739344293581,
+      "accepted": true
+    },
+    {
+      "species": 13,
+      "specimen": 12,
+      "candidate": 33,
+      "unknown": true,
+      "distance": 1.1334586712405326,
+      "ratio": 0.4592038716720969,
+      "accepted": true
+    },
+    {
+      "species": 13,
+      "specimen": 11,
+      "candidate": 33,
+      "unknown": true,
+      "distance": 1.2080367725671923,
+      "ratio": 0.9331321364952542,
+      "accepted": false
+    },
+    {
+      "species": 13,
+      "specimen": 5,
+      "candidate": 33,
+      "unknown": true,
+      "distance": 0.7502861061495297,
+      "ratio": 0.42266834208417364,
+      "accepted": true
+    },
+    {
+      "species": 13,
+      "specimen": 13,
+      "candidate": 1,
+      "unknown": true,
+      "distance": 0.9972505512096783,
+      "ratio": 0.8559208130302215,
+      "accepted": false
+    },
+    {
+      "species": 13,
+      "specimen": 10,
+      "candidate": 27,
+      "unknown": true,
+      "distance": 0.6077983045870576,
+      "ratio": 0.9880462766201845,
+      "accepted": false
+    },
+    {
+      "species": 13,
+      "specimen": 2,
+      "candidate": 1,
+      "unknown": true,
+      "distance": 0.45562021013215553,
+      "ratio": 0.7090494208865682,
+      "accepted": true
+    },
+    {
+      "species": 13,
+      "specimen": 8,
+      "candidate": 33,
+      "unknown": true,
+      "distance": 0.8046515052797115,
+      "ratio": 0.46743205925422054,
+      "accepted": true
+    },
+    {
+      "species": 13,
+      "specimen": 1,
+      "candidate": 1,
+      "unknown": true,
+      "distance": 0.37057054890024543,
+      "ratio": 0.4215826732405904,
+      "accepted": true
+    },
+    {
+      "species": 11,
+      "specimen": 13,
+      "candidate": 11,
+      "unknown": false,
+      "distance": 0.5168615156838212,
+      "ratio": 0.18144909130807768,
+      "accepted": true
+    },
+    {
+      "species": 11,
+      "specimen": 2,
+      "candidate": 11,
+      "unknown": false,
+      "distance": 0.6647029347751601,
+      "ratio": 0.2494203600743209,
+      "accepted": true
+    },
+    {
+      "species": 12,
+      "specimen": 5,
+      "candidate": 12,
+      "unknown": false,
+      "distance": 0.42409391180055184,
+      "ratio": 0.3789001333683716,
+      "accepted": true
+    },
+    {
+      "species": 12,
+      "specimen": 7,
+      "candidate": 22,
+      "unknown": false,
+      "distance": 0.8908890620961748,
+      "ratio": 0.9847321591476567,
+      "accepted": false
+    },
+    {
+      "species": 27,
+      "specimen": 6,
+      "candidate": 27,
+      "unknown": false,
+      "distance": 0.2476925209134301,
+      "ratio": 0.3546323476359818,
+      "accepted": true
+    },
+    {
+      "species": 27,
+      "specimen": 8,
+      "candidate": 27,
+      "unknown": false,
+      "distance": 0.5011008222248955,
+      "ratio": 0.6679469416994457,
+      "accepted": true
+    },
+    {
+      "species": 22,
+      "specimen": 6,
+      "candidate": 35,
+      "unknown": false,
+      "distance": 1.8780046317837897,
+      "ratio": 0.9326686209318942,
+      "accepted": false
+    },
+    {
+      "species": 22,
+      "specimen": 2,
+      "candidate": 22,
+      "unknown": false,
+      "distance": 0.7907153082503605,
+      "ratio": 0.9077921316636125,
+      "accepted": false
+    },
+    {
+      "species": 34,
+      "specimen": 8,
+      "candidate": 31,
+      "unknown": true,
+      "distance": 1.5479395059973349,
+      "ratio": 0.6830735294321555,
+      "accepted": true
+    },
+    {
+      "species": 34,
+      "specimen": 2,
+      "candidate": 31,
+      "unknown": true,
+      "distance": 1.099767477509703,
+      "ratio": 0.536087349487709,
+      "accepted": true
+    },
+    {
+      "species": 34,
+      "specimen": 5,
+      "candidate": 31,
+      "unknown": true,
+      "distance": 1.45068125964921,
+      "ratio": 0.3039776626028259,
+      "accepted": true
+    },
+    {
+      "species": 34,
+      "specimen": 1,
+      "candidate": 31,
+      "unknown": true,
+      "distance": 1.2392987797444146,
+      "ratio": 0.5732595465576594,
+      "accepted": true
+    },
+    {
+      "species": 34,
+      "specimen": 10,
+      "candidate": 31,
+      "unknown": true,
+      "distance": 0.7822220893268438,
+      "ratio": 0.3517677058189447,
+      "accepted": true
+    },
+    {
+      "species": 34,
+      "specimen": 7,
+      "candidate": 31,
+      "unknown": true,
+      "distance": 1.1188131893596052,
+      "ratio": 0.4452558481418626,
+      "accepted": true
+    },
+    {
+      "species": 34,
+      "specimen": 3,
+      "candidate": 31,
+      "unknown": true,
+      "distance": 1.2476498995357905,
+      "ratio": 0.45802478594948154,
+      "accepted": true
+    },
+    {
+      "species": 34,
+      "specimen": 6,
+      "candidate": 31,
+      "unknown": true,
+      "distance": 1.3602346017351326,
+      "ratio": 0.5861473090679511,
+      "accepted": true
+    },
+    {
+      "species": 34,
+      "specimen": 9,
+      "candidate": 31,
+      "unknown": true,
+      "distance": 0.9075608606133156,
+      "ratio": 0.34627560200368473,
+      "accepted": true
+    },
+    {
+      "species": 34,
+      "specimen": 4,
+      "candidate": 31,
+      "unknown": true,
+      "distance": 2.439679465720947,
+      "ratio": 0.4303338419123296,
+      "accepted": false
+    },
+    {
+      "species": 34,
+      "specimen": 11,
+      "candidate": 31,
+      "unknown": true,
+      "distance": 3.7782660668803993,
+      "ratio": 0.5405649686515195,
+      "accepted": false
+    },
+    {
+      "species": 23,
+      "specimen": 2,
+      "candidate": 23,
+      "unknown": false,
+      "distance": 0.8035001078844661,
+      "ratio": 0.6454977399404365,
+      "accepted": true
+    },
+    {
+      "species": 23,
+      "specimen": 11,
+      "candidate": 23,
+      "unknown": false,
+      "distance": 0.9554730336169819,
+      "ratio": 0.5388140000321324,
+      "accepted": true
+    },
+    {
+      "species": 10,
+      "specimen": 11,
+      "candidate": 10,
+      "unknown": false,
+      "distance": 0.9661111583849641,
+      "ratio": 0.40910857463905187,
+      "accepted": true
+    },
+    {
+      "species": 10,
+      "specimen": 10,
+      "candidate": 10,
+      "unknown": false,
+      "distance": 0.8821852809230346,
+      "ratio": 0.2410057227778104,
+      "accepted": true
+    },
+    {
+      "species": 3,
+      "specimen": 3,
+      "candidate": 3,
+      "unknown": false,
+      "distance": 0.5673881781493774,
+      "ratio": 0.344333971537659,
+      "accepted": true
+    },
+    {
+      "species": 3,
+      "specimen": 7,
+      "candidate": 3,
+      "unknown": false,
+      "distance": 0.5878165875621213,
+      "ratio": 0.3602944011665695,
+      "accepted": true
+    },
+    {
+      "species": 1,
+      "specimen": 3,
+      "candidate": 1,
+      "unknown": false,
+      "distance": 0.42399374166416215,
+      "ratio": 0.42796264442047177,
+      "accepted": true
+    },
+    {
+      "species": 1,
+      "specimen": 7,
+      "candidate": 33,
+      "unknown": false,
+      "distance": 0.5709911953308195,
+      "ratio": 0.9335026273208852,
+      "accepted": false
+    }
+  ]
+}

@@ -1,13 +1,15 @@
 package com.nova.app.core.auth
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import android.util.Base64
 import com.nova.app.core.presence.NovaAppPresence
 import com.nova.app.feature.auth.domain.model.AuthSession
 import com.nova.app.feature.auth.domain.model.NovaUser
 import java.security.KeyStore
+import java.util.Base64
+import java.util.UUID
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -17,23 +19,100 @@ import javax.crypto.spec.GCMParameterSpec
 class NovaSessionStore(context: Context) {
     private val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    fun save(session: AuthSession) {
-        if (!storeTokens(session.accessToken, session.refreshToken)) {
-            clear()
-            return
-        }
+    /** Persisted, non-secret login identity; access-token rotation never changes it. */
+    @ConsistentCopyVisibility
+    data class LoginIdentity internal constructor(val generation: String)
 
-        updateUser(session.user)
+    fun identity(): LoginIdentity = synchronized(NovaSessionCoordinator.lock) { identityLocked() }
+
+    fun isCurrent(owner: LoginIdentity): Boolean = synchronized(NovaSessionCoordinator.lock) {
+        identityLocked() == owner
+    }
+
+    fun current(owner: LoginIdentity): StoredSession? = synchronized(NovaSessionCoordinator.lock) {
+        if (identityLocked() == owner) loadLocked() else null
+    }
+
+    /** Explicit user intent starts a new login, including another login by the same user. */
+    fun beginLogin(): LoginIdentity = logout()
+
+    /** Only explicit user logout/login intent may invalidate without an originating owner. */
+    fun logout(): LoginIdentity {
+        return logoutSession().second
+    }
+
+    fun logoutSession(): Pair<StoredSession?, LoginIdentity> {
+        val result = synchronized(NovaSessionCoordinator.lock) { loadLocked() to invalidateLocked() }
         NovaAppPresence.sessionChanged()
+        return result
     }
 
-    fun updateAccessToken(accessToken: String) {
-        val current = readTokens() ?: return
-        storeTokens(accessToken, current.second)
+    fun clear(owner: LoginIdentity): Boolean {
+        val cleared = synchronized(NovaSessionCoordinator.lock) {
+            if (identityLocked() != owner) false else { invalidateLocked(); true }
+        }
+        if (cleared) NovaAppPresence.sessionChanged()
+        return cleared
     }
 
-    fun updateUser(user: NovaUser) {
-        prefs.edit()
+    /** Local expiry cleanup must not race a newly installed credential pair. */
+    internal fun ifSignedOut(action: (LoginIdentity) -> Unit): Boolean = synchronized(NovaSessionCoordinator.lock) {
+        if (loadLocked() != null) return false
+        action(identityLocked())
+        true
+    }
+
+    /** Login response and security credential replacement use one atomic preference edit. */
+    fun save(owner: LoginIdentity, session: AuthSession): Boolean = synchronized(NovaSessionCoordinator.lock) {
+        if (identityLocked() != owner) return false
+        if (session.accessToken.isBlank() || session.refreshToken.isBlank() || session.user.id <= 0L) return false
+        val existingId = cachedUser()?.id
+        if (existingId != null && existingId != session.user.id) return false
+        val encrypted = encryptTokens(session.accessToken, session.refreshToken) ?: return false
+        putUser(prefs.edit(), session.user)
+            .putString(KEY_TOKEN_IV, encrypted.first)
+            .putString(KEY_TOKEN_CIPHERTEXT, encrypted.second)
+            .putString(KEY_GENERATION, owner.generation)
+            .apply()
+        NovaAppPresence.sessionChanged()
+        true
+    }
+
+    /** Security endpoints replace both credentials and invalidate pre-replacement requests. */
+    fun replaceSession(owner: LoginIdentity, session: AuthSession): Boolean = synchronized(NovaSessionCoordinator.lock) {
+        val current = current(owner) ?: return false
+        if (current.cachedUser?.id != session.user.id) return false
+        val encrypted = encryptTokens(session.accessToken, session.refreshToken) ?: return false
+        if (session.accessToken.isBlank() || session.refreshToken.isBlank()) return false
+        val next = LoginIdentity(UUID.randomUUID().toString())
+        putUser(prefs.edit(), session.user)
+            .putString(KEY_TOKEN_IV, encrypted.first)
+            .putString(KEY_TOKEN_CIPHERTEXT, encrypted.second)
+            .putString(KEY_GENERATION, next.generation)
+            .apply()
+        NovaSessionCoordinator.invalidate(owner)
+        NovaAppPresence.sessionChanged()
+        true
+    }
+
+    fun updateAccessToken(owner: LoginIdentity, accessToken: String): Boolean = synchronized(NovaSessionCoordinator.lock) {
+        if (identityLocked() != owner || accessToken.isBlank()) return false
+        val current = readTokens() ?: return false
+        val encrypted = encryptTokens(accessToken, current.second) ?: return false
+        prefs.edit().putString(KEY_TOKEN_IV, encrypted.first)
+            .putString(KEY_TOKEN_CIPHERTEXT, encrypted.second).apply()
+        true
+    }
+
+    fun updateUser(owner: LoginIdentity, user: NovaUser): Boolean = synchronized(NovaSessionCoordinator.lock) {
+        val current = current(owner) ?: return false
+        if (user.id <= 0L || (current.cachedUser != null && current.cachedUser.id != user.id)) return false
+        putUser(prefs.edit(), user).apply()
+        true
+    }
+
+    private fun putUser(editor: SharedPreferences.Editor, user: NovaUser): SharedPreferences.Editor =
+        editor
             .putLong(KEY_USER_ID, user.id)
             .putString(KEY_EMAIL, user.email)
             .putString(KEY_USERNAME, user.username)
@@ -44,52 +123,51 @@ class NovaSessionStore(context: Context) {
             .putString(KEY_LINK, user.link)
             .putStringSet(KEY_INTERESTS, user.interests.toSet())
             .putString(KEY_PROFILE_THEME, user.profileTheme)
+            .putInt(KEY_PLANTUPIA_AVATAR_VARIANT, user.plantupiaAvatarVariant)
             .putBoolean(KEY_SHOW_ORBIT, user.showOrbit)
             .putBoolean(KEY_IS_VERIFIED, user.isVerified)
             .putInt(KEY_FOLLOWERS_COUNT, user.followersCount)
             .putInt(KEY_FOLLOWING_COUNT, user.followingCount)
             .putInt(KEY_POSTS_COUNT, user.postsCount)
-            .apply()
+
+    fun load(): StoredSession? = synchronized(NovaSessionCoordinator.lock) { loadLocked() }
+
+    private fun loadLocked(): StoredSession? {
+        val tokens = readTokens() ?: return null
+        return StoredSession(tokens.first, tokens.second, cachedUser(), identityLocked())
     }
 
-    fun load(): StoredSession? {
-        val (access, refresh) = readTokens() ?: return null
-
-        return StoredSession(
-            accessToken = access,
-            refreshToken = refresh,
-            cachedUser = cachedUser(),
-        )
+    private fun identityLocked(): LoginIdentity {
+        val existing = prefs.getString(KEY_GENERATION, null)
+        if (!existing.isNullOrBlank()) return LoginIdentity(existing)
+        // Upgrade legacy encrypted sessions in place; never create an identity from user ID.
+        val owner = LoginIdentity(UUID.randomUUID().toString())
+        prefs.edit().putString(KEY_GENERATION, owner.generation).apply()
+        return owner
     }
 
-    fun clear() {
-        prefs.edit().clear().apply()
-        NovaAppPresence.sessionChanged()
+    private fun invalidateLocked(): LoginIdentity {
+        val previous = identityLocked()
+        val next = LoginIdentity(UUID.randomUUID().toString())
+        prefs.edit().clear().putString(KEY_GENERATION, next.generation).apply()
+        NovaSessionCoordinator.invalidate(previous)
+        return next
     }
 
-    private fun storeTokens(accessToken: String, refreshToken: String): Boolean {
-        return runCatching {
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
-
-            val plainText = "$accessToken$TOKEN_SEPARATOR$refreshToken".toByteArray(Charsets.UTF_8)
-            val encrypted = cipher.doFinal(plainText)
-
-            prefs.edit()
-                .putString(KEY_TOKEN_IV, Base64.encodeToString(cipher.iv, Base64.NO_WRAP))
-                .putString(KEY_TOKEN_CIPHERTEXT, Base64.encodeToString(encrypted, Base64.NO_WRAP))
-                .apply()
-            true
-        }.getOrElse { false }
-    }
+    private fun encryptTokens(accessToken: String, refreshToken: String): Pair<String, String>? = runCatching {
+        val cipher = Cipher.getInstance(TRANSFORMATION)
+        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateSecretKey())
+        val encrypted = cipher.doFinal("$accessToken$TOKEN_SEPARATOR$refreshToken".toByteArray(Charsets.UTF_8))
+        Base64.getEncoder().encodeToString(cipher.iv) to Base64.getEncoder().encodeToString(encrypted)
+    }.getOrNull()
 
     private fun readTokens(): Pair<String, String>? {
         val ivText = prefs.getString(KEY_TOKEN_IV, null) ?: return null
         val cipherText = prefs.getString(KEY_TOKEN_CIPHERTEXT, null) ?: return null
 
         return runCatching {
-            val iv = Base64.decode(ivText, Base64.NO_WRAP)
-            val encrypted = Base64.decode(cipherText, Base64.NO_WRAP)
+            val iv = Base64.getDecoder().decode(ivText)
+            val encrypted = Base64.getDecoder().decode(cipherText)
 
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(
@@ -106,10 +184,7 @@ class NovaSessionStore(context: Context) {
                 parts[0] to parts[1]
             }
         }.getOrElse {
-            prefs.edit()
-                .remove(KEY_TOKEN_IV)
-                .remove(KEY_TOKEN_CIPHERTEXT)
-                .apply()
+            invalidateLocked()
             null
         }
     }
@@ -147,6 +222,7 @@ class NovaSessionStore(context: Context) {
             link = prefs.getString(KEY_LINK, "").orEmpty(),
             interests = prefs.getStringSet(KEY_INTERESTS, emptySet()).orEmpty().sorted(),
             profileTheme = prefs.getString(KEY_PROFILE_THEME, "violet").orEmpty(),
+            plantupiaAvatarVariant = prefs.getInt(KEY_PLANTUPIA_AVATAR_VARIANT, -1),
             showOrbit = prefs.getBoolean(KEY_SHOW_ORBIT, true),
             isVerified = prefs.getBoolean(KEY_IS_VERIFIED, false),
             followersCount = prefs.getInt(KEY_FOLLOWERS_COUNT, 0),
@@ -159,9 +235,11 @@ class NovaSessionStore(context: Context) {
         val accessToken: String,
         val refreshToken: String,
         val cachedUser: NovaUser?,
+        val identity: LoginIdentity,
     )
 
     private companion object {
+        const val KEY_GENERATION = "login_generation"
         const val PREFS_NAME = "nova_session"
         const val KEY_ALIAS = "nova_session_key"
         const val ANDROID_KEYSTORE = "AndroidKeyStore"
@@ -181,6 +259,7 @@ class NovaSessionStore(context: Context) {
         const val KEY_LINK = "link"
         const val KEY_INTERESTS = "interests"
         const val KEY_PROFILE_THEME = "profile_theme"
+        const val KEY_PLANTUPIA_AVATAR_VARIANT = "plantupia_avatar_variant"
         const val KEY_SHOW_ORBIT = "show_orbit"
         const val KEY_IS_VERIFIED = "is_verified"
         const val KEY_FOLLOWERS_COUNT = "followers_count"

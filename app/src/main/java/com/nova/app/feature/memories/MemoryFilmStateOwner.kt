@@ -113,7 +113,7 @@ class MemoryFilmStateOwner(
                     exporting = false,
                     progress = 0,
                     outputPath = null,
-                    error = error.message ?: "Nova couldn't render this film.",
+                    error = error.message ?: "Plantupia couldn't render this film.",
                 )
             },
         )

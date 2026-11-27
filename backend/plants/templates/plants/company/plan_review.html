@@ -1,0 +1,11 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<a class="back-link" href="{% url 'company:plans' %}">← Inspection plans</a>
+<div class="page-heading"><div><p class="eyebrow">EXACT SOURCE AND PLACEMENT</p><h1>{{ plan.plant.label }}</h1><p class="lead">{{ plan.get_action_display }} · every {{ plan.every_days }} day(s)</p></div></div>
+<div class="two-column"><article class="panel padded"><h2>Inspect, then decide.</h2><p>{{ plan.instructions }}</p><p>{{ plan.placement_context|default:'No additional placement context supplied.' }}</p><p>Starts {{ plan.start_on }} · {{ plan.timezone }}</p><p>The customer can opt in, decline, skip, move the date or record a real observation. Reminders are not silently activated.</p></article>
+<aside class="panel padded"><p class="eyebrow">PROVENANCE</p><h2>Guide version {{ plan.guide.version }}</h2><p>{{ plan.guide.source_reference }}</p><a href="{{ plan.guide.source_url }}" target="_blank" rel="noopener noreferrer">Inspect original source ↗</a>
+{% if plan.approved_at %}<p class="notice success">Approved by {{ plan.approved_by.username }} · {{ plan.approved_at }}. This version is immutable. {% if not plan.active %}Retired.{% endif %}</p>
+{% if plan.active and perms.plants.change_careinspectionplan %}<form method="post" class="fields">{% csrf_token %}{{ form.as_div }}<input type="hidden" name="action" value="retire"><button type="submit" class="button">Retire this proposal</button></form>{% endif %}
+{% elif perms.plants.approve_careinspectionplan %}<form method="post" class="fields">{% csrf_token %}{{ form.as_div }}<button type="submit" class="button primary">Approve inspection proposal →</button></form>
+{% else %}<p class="notice">A permitted care reviewer must confirm this exact source, context and cadence.</p>{% endif %}</aside></div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "plants/company/base.html" %}
+{% block content %}
+<header class="page-heading compact-workspace-heading"><div><p class="eyebrow">PRIVATE FIELD RECORD · {{ event.observed_at|date:"d M Y" }}</p><h1>{{ event.plant.label }}</h1><p class="lead">{{ event.plant.space.name }} · {{ event.get_kind_display }} · {{ event.get_evidence_type_display }}</p></div><a class="button" href="{% url 'company:field-evidence' %}">← Field evidence</a></header>
+<div class="field-inspection">
+  <section class="field-inspection-source">
+    {% if event.photo %}<figure class="field-photo"><img src="{% url 'company:field-evidence-photo' event.pk %}" alt="Private recorded plant photograph" loading="lazy"><figcaption>Private resized preview. Any saved measurements refer to the original image, not this preview.</figcaption></figure>{% else %}<div class="panel padded"><h2>No photograph</h2><p>This record has no saved image.</p></div>{% endif %}
+    <section class="panel padded"><p class="eyebrow">WHAT WAS RECORDED</p><h2>Observation</h2><p class="field-note">{{ event.note|default:"No written note." }}</p><p>{{ event.observed_at|date:"d M Y, H:i" }} · {{ event.get_evidence_type_display }}</p></section>
+    <section class="panel padded"><p class="eyebrow">HUMAN-TRACED REGIONS</p><h2>{{ region_count }} saved outline{{ region_count|pluralize }}</h2>
+      {% if region_count > 20 %}<p>Showing the latest 20 outlines.</p>{% endif %}
+      {% for region in regions %}
+        <div class="field-measure"><div><strong>{{ region.annotation.part|default:"Region" }}</strong><small>{{ region.created_at|date:"d M Y" }}</small></div><strong>{{ region.measurements.geometry.projected_area_px2|default_if_none:"Unavailable" }} px²</strong></div>
+      {% empty %}<p>No traced regions in this record.</p>{% endfor %}
+      <p>Image area is not physical size. Color and view may depend on capture conditions.</p>
+    </section>
+  </section>
+  <section class="field-review">
+    <div class="panel padded"><p class="eyebrow">SPECIALIST REVIEW</p><h2>Record a finding.</h2><p>Review only what the evidence supports. A review is appended to the same record seen in the authorized app.</p>
+      {% if errors %}<div role="alert" class="notice error">{% for error in errors %}<p>{{ error }}</p>{% endfor %}</div>{% endif %}
+      <form class="fields field-review-form" method="post">{% csrf_token %}
+        <input type="hidden" name="submission_id" value="{{ submission_id }}">
+        <label for="field-finding">Finding</label><select id="field-finding" name="finding" required>
+          <option value="" {% if not finding %}selected{% endif %}>Choose a finding</option>
+          <option value="supported_observation" {% if finding == "supported_observation" %}selected{% endif %}>Observation supported</option>
+          <option value="corrected_observation" {% if finding == "corrected_observation" %}selected{% endif %}>Observation corrected</option>
+          <option value="insufficient_evidence" {% if finding == "insufficient_evidence" %}selected{% endif %}>Insufficient evidence</option>
+        </select>
+        <label for="field-rationale">Reason for your finding</label><textarea id="field-rationale" name="rationale" rows="5" maxlength="1000" required>{{ rationale }}</textarea>
+        <p>Keep observations and interpretations distinct. Do not infer plant identity or a diagnosis from a photograph alone.</p>
+        <button class="button primary" type="submit">Save private review</button>
+      </form>
+    </div>
+    <section class="panel padded"><p class="eyebrow">RETAINED FINDINGS</p><h2>{{ review_count }} recorded review{{ review_count|pluralize }}</h2>
+      {% if review_count > 20 %}<p>Showing the latest 20 reviews.</p>{% endif %}
+      {% for review in reviews %}<article class="field-review-record"><strong>{% if review.finding == "supported_observation" %}Observation supported{% elif review.finding == "corrected_observation" %}Observation corrected{% else %}Insufficient evidence{% endif %}</strong><p class="field-note">{{ review.rationale }}</p><small>{{ review.created_at|date:"d M Y, H:i" }}</small></article>
+      {% empty %}<p>No specialist review has been recorded.</p>{% endfor %}
+    </section>
+  </section>
+</div>
+{% endblock %}

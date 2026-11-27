@@ -161,13 +161,13 @@ private fun NovaThemePreviewCard(
                     )
                     Text(
                         when (palette.key) {
-                            "nova" -> "Clean and familiar"
+                            "nova" -> "Forest, cream and quiet contrast"
                             "midnight" -> "Deep, calm and cinematic"
                             "aurora" -> "Cool violet and blue"
                             "ocean" -> "Fresh teal and sea tones"
                             "rose" -> "Soft rose with warm contrast"
                             "ember" -> "Warm coral and amber"
-                            else -> "Nova conversation theme"
+                            else -> "Plantupia conversation theme"
                         },
                         color = palette.muted,
                         fontSize = 11.sp,

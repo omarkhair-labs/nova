@@ -5,6 +5,7 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import com.nova.app.core.auth.NovaSessionStore
+import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.media.NovaVideoPreparer
 import com.nova.app.core.network.ApiResult
 import com.nova.app.core.network.NovaApiClient
@@ -203,8 +204,8 @@ class PulseRemoteRepository(
         category: String,
     ): ApiResult<NovaPulse> {
         val cleanNote = note.trim()
-        if (cleanNote.isBlank()) return ApiResult.Failure("Write something for your Pulse.")
-        if (cleanNote.length > 180) return ApiResult.Failure("Pulse note must be 180 characters or fewer.")
+        if (cleanNote.isBlank()) return ApiResult.Failure("Write something for your short update.")
+        if (cleanNote.length > 180) return ApiResult.Failure("Short-update text must be 180 characters or fewer.")
         val cleanAudience = validateAudience(audience) ?: return invalidAudience()
         val cleanCategory = validateCategory(category) ?: return invalidCategory()
 
@@ -239,11 +240,12 @@ class PulseRemoteRepository(
         onProgress: (Int?) -> Unit = {},
         expectedUserId: Long? = null,
     ): ApiResult<NovaPulse> {
-        if (!pulsePublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
+        val origin = sessionStore.load() ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
+        if (!pulsePublishAccountMatches(expectedUserId, origin.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
         val cleanNote = note.trim()
-        if (cleanNote.length > 180) return ApiResult.Failure("Pulse note must be 180 characters or fewer.")
+        if (cleanNote.length > 180) return ApiResult.Failure("Short-update text must be 180 characters or fewer.")
         val cleanAudience = validateAudience(audience) ?: return invalidAudience()
         val cleanCategory = validateCategory(category) ?: return invalidCategory()
         val media = when (val prepared = prepareUpload(mediaUri, onProgress)) {
@@ -252,7 +254,7 @@ class PulseRemoteRepository(
         }
 
         return try {
-            authenticatedCall(expectedUserId) { token ->
+            authenticatedCall(expectedUserId, origin = origin) { token ->
                 when (
                     val response = api.requestMultipart(
                         path = path,
@@ -301,7 +303,7 @@ class PulseRemoteRepository(
                     val prepared = videoPreparer.prepare(
                         source = uri,
                         maxSourceBytes = MAX_PULSE_VIDEO_BYTES,
-                        sizeMessage = "Pulse video must be 60 MB or smaller.",
+                        sizeMessage = "Short-update video must be 60 MB or smaller.",
                         onProgress = onProgress,
                     )
                 ) {
@@ -326,7 +328,7 @@ class PulseRemoteRepository(
                     is ApiResult.Failure -> prepared
                 }
             } else {
-                ApiResult.Failure("Pulses support photos and videos only.")
+                ApiResult.Failure("Short updates support photos and videos only.")
             }
         }
     }
@@ -347,7 +349,7 @@ class PulseRemoteRepository(
         val mimeType = resolveMimeType(uri)
 
         val maxBytes = 15L * 1024 * 1024
-        val sizeMessage = "Pulse photo must be 15 MB or smaller."
+        val sizeMessage = "Short-update photo must be 15 MB or smaller."
 
         val reportedSize = mediaSize(uri)
         if (reportedSize != null && reportedSize > maxBytes) {
@@ -356,7 +358,7 @@ class PulseRemoteRepository(
 
         val bytes = runCatching {
             resolver.openInputStream(uri)?.use { input -> input.readBytes() }
-        }.getOrNull() ?: return ApiResult.Failure("Nova couldn't read that file.")
+        }.getOrNull() ?: return ApiResult.Failure("Plantupia couldn't read that file.")
         if (bytes.size.toLong() > maxBytes) return ApiResult.Failure(sizeMessage)
 
         val fileName = displayName(uri).ifBlank {
@@ -418,56 +420,29 @@ class PulseRemoteRepository(
         value.trim().lowercase().takeIf { it == "followers" || it == "close_friends" }
 
     private fun invalidAudience(): ApiResult.Failure =
-        ApiResult.Failure("Choose a valid Pulse audience.")
+        ApiResult.Failure("Choose a valid short-update audience.")
 
     private fun validateCategory(value: String): String? =
         value.trim().lowercase().takeIf { it in setOf("live", "music", "talks", "vibes") }
 
     private fun invalidCategory(): ApiResult.Failure =
-        ApiResult.Failure("Choose a valid Pulse category.")
+        ApiResult.Failure("Choose a valid short-update category.")
 
     private suspend fun <T> authenticatedCall(
         expectedUserId: Long? = null,
+        origin: NovaSessionStore.StoredSession? = sessionStore.load(),
         call: suspend (String) -> ApiResult<T>,
     ): ApiResult<T> {
-        val stored = sessionStore.load()
+        val stored = origin
             ?: return ApiResult.Failure("Your session expired. Please log in again.", 401)
         if (!pulsePublishAccountMatches(expectedUserId, stored.cachedUser?.id)) {
             return ApiResult.Failure("This publish belongs to a different signed-in account.", 409)
         }
-
-        when (val first = call(stored.accessToken)) {
-            is ApiResult.Success -> return first
-            is ApiResult.Failure -> if (first.statusCode != 401) return first
-        }
-
-        return when (val refreshed = api.refresh(stored.refreshToken)) {
-            is ApiResult.Success -> {
-                if (!pulsePublishAccountMatches(expectedUserId, sessionStore.load()?.cachedUser?.id)) {
-                    return ApiResult.Failure(
-                        "This publish belongs to a different signed-in account.",
-                        409,
-                    )
-                }
-                sessionStore.updateAccessToken(refreshed.value)
-                when (val retried = call(refreshed.value)) {
-                    is ApiResult.Success -> retried
-                    is ApiResult.Failure -> {
-                        if (retried.statusCode == 401) sessionStore.clear()
-                        retried
-                    }
-                }
-            }
-
-            is ApiResult.Failure -> {
-                if (refreshed.statusCode == 400 || refreshed.statusCode == 401) {
-                    sessionStore.clear()
-                    ApiResult.Failure("Your session expired. Please log in again.", 401)
-                } else {
-                    refreshed
-                }
-            }
-        }
+        return sessionStore.authenticatedRequest(
+            stored = stored,
+            refresh = { api.refresh(stored.refreshToken) },
+            request = call,
+        )
     }
 }
 

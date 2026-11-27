@@ -1,0 +1,8 @@
+{% extends 'plants/company/base.html' %}
+{% block content %}
+<p class="eyebrow">SHARED BY THE CUSTOMER</p><h1>Service requests</h1><p class="lead">A real queue. No fabricated replies or promised response time.</p>
+<section class="panel"><div class="panel-heading"><h2>Latest requests</h2><span class="fine">Only explicitly shared content is available</span></div>
+{% for ticket in records %}<a class="record-row" href="{% url 'company:support-detail' ticket.pk %}"><span class="grow"><strong>{{ ticket.subject }}</strong><small>{{ ticket.shared_plant_label }} · {{ ticket.customer.username }} · {{ ticket.created_at }}</small></span><span class="badge">{{ ticket.get_status_display }}</span><span class="fine">{{ ticket.assigned_to.username|default:'Unassigned' }} →</span></a>
+{% empty %}<div class="empty"><h2>No shared requests yet.</h2><p>A customer with QA Expert Care access can send one from their selected plant. Nothing is generated or sent automatically.</p></div>{% endfor %}</section>
+{% include 'plants/company/pagination.html' %}
+{% endblock %}

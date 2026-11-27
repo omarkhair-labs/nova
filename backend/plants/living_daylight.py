@@ -1,0 +1,124 @@
+"""Approximate unrefracted solar position and one-window placement scenarios."""
+from calendar import isleap
+from datetime import timezone
+from math import asin, atan2, cos, degrees, isfinite, pi, radians, sin
+
+from .living_measurements import _sun_slopes, aperture_footprint, direct_sun
+
+
+def solar_position(stamp, latitude, longitude):
+    """NOAA fractional-year approximation, east-positive longitude, true-north azimuth."""
+    if stamp.utcoffset() is None or not -90 <= latitude <= 90 or not -180 <= longitude <= 180:
+        raise ValueError("Supply a time with UTC offset and geographic coordinates.")
+    utc = stamp.astimezone(timezone.utc)
+    hour = utc.hour + utc.minute/60 + utc.second/3600
+    year = 366 if isleap(utc.year) else 365
+    angle = 2*pi/year * (utc.timetuple().tm_yday-1+(hour-12)/24)
+    eq = 229.18*(.000075+.001868*cos(angle)-.032077*sin(angle)-.014615*cos(2*angle)-.040849*sin(2*angle))
+    dec = (.006918-.399912*cos(angle)+.070257*sin(angle)-.006758*cos(2*angle)
+           +.000907*sin(2*angle)-.002697*cos(3*angle)+.00148*sin(3*angle))
+    h = radians(((hour*60+eq+4*longitude) % 1440)/4-180)
+    lat = radians(latitude)
+    up = sin(lat)*sin(dec)+cos(lat)*cos(dec)*cos(h)
+    east = -cos(dec)*sin(h)
+    north = cos(lat)*sin(dec)-sin(lat)*cos(dec)*cos(h)
+    return degrees(asin(max(-1, min(1, up)))), degrees(atan2(east, north)) % 360
+
+
+def cross(a, b, p):
+    return (b[0]-a[0])*(p[1]-a[1]) - (b[1]-a[1])*(p[0]-a[0])
+
+
+def intersect_convex(subject, clip):
+    # Aperture polygons are ordered counterclockwise in (along, inward).
+    result = list(subject)
+    for a, b in zip(clip, clip[1:] + clip[:1]):
+        polygon, result = result, []
+        for start, end in zip(polygon, polygon[1:] + polygon[:1]):
+            ds, de = cross(a, b, start), cross(a, b, end)
+            if (ds >= 0) != (de >= 0):
+                t = ds / (ds-de)
+                result.append([start[i] + t*(end[i]-start[i]) for i in range(2)])
+            if de >= 0:
+                result.append(end)
+    # Clipping can repeat a vertex at a grazing edge. Use the full polygon
+    # area rather than its first edge to decide whether a shadow exists.
+    area = abs(sum(a[0]*b[1]-a[1]*b[0] for a,b in zip(result,result[1:]+result[:1])))
+    return result if len(result) >= 3 and area > 1e-9 else []
+
+
+def window_scenario(room, window_id, point, *, top_normal_deg, width_m, sill_m, head_m,
+                    latitude, longitude, timestamps, screen=None):
+    w, l = room["width_m"], room["length_m"]
+    opening = next((row for row in room["windows"] if row["id"] == window_id), None)
+    if not opening:
+        raise ValueError("Choose a window from this room revision.")
+    wx, wy = opening["x_m"], opening["y_m"]
+    x, y, z = point
+    ceiling = room.get("height_m")
+    if not all(isfinite(v) for v in (x,y,z,width_m,sill_m,head_m,top_normal_deg)):
+        raise ValueError("Supply finite scenario dimensions.")
+    if not 0 <= sill_m < head_m or (ceiling is not None and (head_m > ceiling or z > ceiling)):
+        raise ValueError("Keep the opening and sample plane within the recorded room height.")
+    if (wx in (0,w) and wy in (0,l)) or not (0 < x < w and 0 < y < l and z >= 0):
+        raise ValueError("Choose an unambiguous wall opening and an interior sample point.")
+    if wy == 0:
+        along, inward, side, middle, length = x, y, 0, wx, w
+    elif wx == w:
+        along, inward, side, middle, length = y, w-x, 90, wy, l
+    elif wy == l:
+        along, inward, side, middle, length = w-x, l-y, 180, w-wx, w
+    else:
+        along, inward, side, middle, length = l-y, x, 270, l-wy, l
+    left, right = middle-width_m/2, middle+width_m/2
+    if width_m <= 0 or not 0 <= left < right <= length:
+        raise ValueError("The opening must fit on the selected wall.")
+    if not isfinite(top_normal_deg):
+        raise ValueError("Supply a finite orientation.")
+    depth = l if side in (0, 180) else w
+
+    if screen:
+        offset, span, screen_height = screen
+        if not (0 < offset < depth and 0 < span <= 2 * min(middle, length-middle) and 0 < screen_height <= 1000
+                and (ceiling is None or screen_height <= ceiling)):
+            raise ValueError("The opaque screen must fit inside the room, centred opposite the window.")
+
+    def to_room(along_wall, inward):
+        if side == 0:
+            return [along_wall, inward]
+        if side == 90:
+            return [w-inward, along_wall]
+        if side == 180:
+            return [w-along_wall, l-inward]
+        return [inward, l-along_wall]
+
+    rows = []
+    for stamp in timestamps:
+        elevation, azimuth = solar_position(stamp, latitude, longitude)
+        aperture = dict(height_m=z, window_left_m=left, window_right_m=right,
+                        sill_m=sill_m, head_m=head_m, sun_elevation_deg=elevation, sun_azimuth_deg=azimuth,
+                        outward_normal_deg=top_normal_deg+side)
+        ray = direct_sun(inward_m=inward, along_m=along, **aperture)
+        footprint = aperture_footprint(wall_span=length, room_depth=depth, **aperture)
+        shadow = []
+        if screen and footprint and screen_height > z:
+            screen_aperture = {**aperture, "sill_m": 0, "head_m": screen_height,
+                               "window_left_m": middle-span/2, "window_right_m": middle+span/2}
+            projected = aperture_footprint(wall_span=length, room_depth=depth-offset, **screen_aperture)
+            shadow = intersect_convex([(a, i+offset) for a, i in projected], footprint)
+        # The point answer uses the actual ray at the screen plane. Do not
+        # infer occlusion from a degenerate drawing polygon at grazing edges.
+        slopes = _sun_slopes(elevation, azimuth, top_normal_deg+side)
+        shaded = False
+        if screen and slopes is not None and ray["unobstructed_direct_ray"] and inward >= offset:
+            lateral, rise = slopes
+            screen_x = along + (inward-offset)*lateral
+            screen_z = z + (inward-offset)*rise
+            shaded = middle-span/2 <= screen_x <= middle+span/2 and 0 <= screen_z <= screen_height
+        rows.append({"at": stamp.isoformat(), "sun_elevation_deg": elevation, "sun_azimuth_deg": azimuth,
+                     "direct_ray": ray["unobstructed_direct_ray"] and not shaded,
+                     "shadow_xy_m": [to_room(a, i) for a, i in shadow],
+                     "footprint_xy_m": [to_room(a, i) for a, i in footprint]})
+    return {"source": "simulation", "geometry_source": room["geometry_source"], "samples": rows, "plane_height_m": z,
+            "assumptions": ["one vertical opening", "no glazing attenuation", "unobstructed exterior", "one reported opaque interior screen" if screen else "unobstructed interior"],
+            "illuminance_lux": None, "artificial_lighting": "unmodelled", "placement_suitability": "unassessed"}

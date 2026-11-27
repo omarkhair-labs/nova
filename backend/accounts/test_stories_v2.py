@@ -63,6 +63,8 @@ class StoriesV2Tests(APITestCase):
         self.fail(f"Story {story_id} not found in feed")
 
     def test_text_story_create_and_feed_payload(self):
+        self.owner.plantupia_avatar_variant = 6
+        self.owner.save(update_fields=["plantupia_avatar_variant"])
         self.auth(self.owner)
         response = self.client.post(
             reverse("stories"),
@@ -79,6 +81,7 @@ class StoriesV2Tests(APITestCase):
         self.assertEqual(response.data["media_type"], "text")
         self.assertEqual(response.data["media_url"], "")
         self.assertEqual(response.data["background_style"], "ocean")
+        self.assertEqual(response.data["author"]["plantupia_avatar_variant"], 6)
         self.assertIsNone(response.data["shared_post"])
         self.assertIsNone(response.data["shared_reel"])
 
@@ -89,6 +92,12 @@ class StoriesV2Tests(APITestCase):
         payload = self.story_payload(feed, story_id)
         self.assertEqual(payload["caption"], "Nova after midnight")
         self.assertEqual(payload["background_style"], "ocean")
+        self.assertEqual(payload["author"]["plantupia_avatar_variant"], 6)
+        self.assertEqual(
+            next(group["author"]["plantupia_avatar_variant"]
+                 for group in feed.data["results"] if group["author"]["id"] == self.owner.pk),
+            6,
+        )
 
     def test_text_story_requires_non_blank_text(self):
         self.auth(self.owner)

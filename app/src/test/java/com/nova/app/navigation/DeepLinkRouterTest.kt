@@ -33,7 +33,7 @@ class DeepLinkRouterTest {
             NovaDeepLinkDecision.Conversation(
                 conversationId = 73L,
                 username = "group",
-                displayName = "Nova group",
+                displayName = "Group conversation",
                 avatarUrl = "",
                 kind = "group",
                 membersCount = 0,

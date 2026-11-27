@@ -3,15 +3,7 @@ package com.nova.app.feature.post
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -27,6 +19,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
+import com.nova.app.ui.components.NovaBackButton
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -40,7 +34,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.media3.ui.AspectRatioFrameLayout
 import com.nova.app.feature.home.NovaPostCard
 import com.nova.app.feature.posts.domain.model.NovaPost
-import com.nova.app.ui.components.NovaHeader
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaText
 import com.nova.app.ui.components.NovaMediaImage
 import com.nova.app.ui.components.NovaSecondaryButton
 import com.nova.app.ui.components.NovaVideoPlayer
@@ -76,19 +71,27 @@ fun PostDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(NovaBackground)
+            .background(PlantupiaColors.cream)
             .statusBarsPadding()
             .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 18.dp),
     ) {
-        NovaHeader(
-            title = "Post",
-            subtitle = "A moment on Nova.",
-            onBack = onBack,
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            NovaBackButton(onClick = onBack)
+            Spacer(Modifier.width(16.dp))
+            Text(
+                "SHARED MOMENT",
+                style = PlantupiaText.sectionLabel,
+                modifier = Modifier.weight(1f),
+                textAlign = TextAlign.End,
+            )
+        }
 
-        Spacer(modifier = Modifier.height(22.dp))
+        Spacer(modifier = Modifier.height(18.dp))
 
         when {
             post == null && isLoading -> {
@@ -100,7 +103,7 @@ fun PostDetailScreen(
                 ) {
                     CircularProgressIndicator(color = NovaAccent)
                     Text(
-                        text = "Opening post…",
+                        text = "Opening moment…",
                         color = NovaMuted,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(top = 12.dp),
@@ -117,13 +120,13 @@ fun PostDetailScreen(
                 ) {
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
-                            text = "Couldn't open this post",
+                            text = "Couldn't open this moment",
                             color = NovaInk,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                         )
                         Text(
-                            text = errorMessage ?: "It may have been deleted.",
+                            text = errorMessage ?: "It may have been removed.",
                             color = NovaMuted,
                             fontSize = 12.sp,
                             lineHeight = 18.sp,
@@ -180,7 +183,7 @@ private fun NovaFullscreenPostMedia(
                     repeat = false,
                     useController = true,
                     resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT,
-                    description = "Video post by ${post.author.username}",
+                    description = "Video moment by ${post.author.username}",
                 )
             } else {
                 var scale by remember(post.id) { mutableFloatStateOf(1f) }
@@ -204,7 +207,7 @@ private fun NovaFullscreenPostMedia(
                             translationX = offsetX,
                             translationY = offsetY,
                         ),
-                    contentDescription = "Post by ${post.author.username}",
+                    contentDescription = "Shared moment by ${post.author.username}",
                     contentScale = ContentScale.Fit,
                 )
             }

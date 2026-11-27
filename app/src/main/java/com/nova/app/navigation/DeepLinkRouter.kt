@@ -66,7 +66,7 @@ internal object DeepLinkRouter {
                     return NovaDeepLinkDecision.Conversation(
                         conversationId = conversationId,
                         username = "group",
-                        displayName = data.groupTitle.ifBlank { "Nova group" },
+                        displayName = data.groupTitle.ifBlank { "Group conversation" },
                         avatarUrl = "",
                         kind = "group",
                         membersCount = 0,

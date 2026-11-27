@@ -44,7 +44,7 @@ class MessagingModelsTest {
     fun blankGroupTitleKeepsTheEstablishedFallback() {
         val conversation = conversation(kind = "group", membersCount = 1)
 
-        assertEquals("Nova group", conversation.displayName)
+        assertEquals("Group conversation", conversation.displayName)
         assertEquals("1 member", conversation.displaySubtitle)
     }
 

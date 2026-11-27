@@ -1,0 +1,69 @@
+name: Plantupia Scene Image Quality Upgrade
+
+on:
+  push:
+    branches:
+      - feature/plantupia-public-living-website-20261113
+    paths:
+      - 'apps/web/scripts/improve_scene_assets.py'
+      - '.github/workflows/plantupia-scene-quality.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: plantupia-scene-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-hires-scenes:
+    name: Generate HD image exports
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout independent draft web branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install image pipeline
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --no-cache-dir 'opencv-contrib-python-headless==4.10.0.84' 'numpy<2' 'Pillow>=10,<12'
+
+      - name: Produce 2560x1440 original-scene enhancements
+        run: python apps/web/scripts/improve_scene_assets.py
+
+      - name: Confirm scene files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          folder = Path('apps/web/public/scene/hd')
+          for name in ('space','life','time'):
+              p=folder / (name+'.webp')
+              with Image.open(p) as im:
+                  assert im.size == (2560,1440), (p, im.size)
+              assert p.stat().st_size > 100_000, (p,p.stat().st_size)
+              print(p,p.stat().st_size)
+          PY
+
+      - name: Commit upgraded assets to this review branch only
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add apps/web/public/scene/hd/space.webp apps/web/public/scene/hd/life.webp apps/web/public/scene/hd/time.webp
+          if git diff --cached --quiet; then
+            echo 'No image changes'
+          else
+            git commit -m 'assets(web): replace tiny scene compression with 2560px enhanced images'
+            git push origin HEAD:feature/plantupia-public-living-website-20261113
+          fi

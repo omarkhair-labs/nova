@@ -32,6 +32,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.nova.app.feature.people.domain.model.NovaPerson
+import com.nova.app.feature.plants.PlantupiaColors
+import com.nova.app.feature.plants.PlantupiaText
+import com.nova.app.feature.plants.PlantupiaEmptyPeopleArt
 import com.nova.app.feature.privacy.domain.model.NovaPersonPrivacyState
 import com.nova.app.ui.components.NovaAvatar
 import com.nova.app.ui.components.NovaBottomBar
@@ -80,7 +83,7 @@ fun PeopleScreen(
         onPersonClick(username)
     }
     androidx.compose.material3.Scaffold(
-        containerColor = NovaBackground,
+        containerColor = PlantupiaColors.cream,
         bottomBar = {
             NovaBottomBar(
                 selected = null,
@@ -94,22 +97,25 @@ fun PeopleScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(NovaBackground)
+                .background(PlantupiaColors.cream)
                 .padding(innerPadding)
                 .statusBarsPadding()
                 .padding(horizontal = NovaSpacing.xl),
         ) {
             Text(
-                text = "People",
-                color = NovaInk,
-                style = NovaType.pageTitle,
+                text = "THE CIRCLE / DISCOVERY",
+                style = PlantupiaText.sectionLabel,
                 modifier = Modifier.padding(top = NovaSpacing.lg),
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Find people",
+                style = PlantupiaText.pageHeading,
             )
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Text(
-                text = "Find someone worth following, then let the connection grow from there.",
-                color = NovaMuted,
-                style = NovaType.bodyCompact,
+                text = "Search public identities by name or username, or browse through the details people chose to share.",
+                style = PlantupiaText.body,
             )
 
             Spacer(modifier = Modifier.height(NovaSpacing.xl))
@@ -129,14 +135,14 @@ fun PeopleScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Recent searches", color = NovaInk, style = NovaType.label)
+                    Text("Recent searches", color = PlantupiaColors.forestText, style = NovaType.label)
                     TextButton(
                         onClick = {
                             recentUsernames = emptyList()
                             recentPreferences.edit().remove("usernames").apply()
                         },
                     ) {
-                        Text("Clear", color = NovaMuted, style = NovaType.micro)
+                        Text("Clear", color = PlantupiaColors.secondaryText, style = NovaType.micro)
                     }
                 }
                 Spacer(modifier = Modifier.height(NovaSpacing.sm))
@@ -149,17 +155,19 @@ fun PeopleScreen(
                             Surface(
                                 onClick = { recordAndOpen(username) },
                                 shape = RoundedCornerShape(999.dp),
-                                color = NovaBackground,
+                                color = PlantupiaColors.cream,
                             ) {
                                 NovaAvatar(
                                     source = person?.avatarUrl.orEmpty(),
                                     fallbackText = person?.name?.ifBlank { username } ?: username,
                                     size = 46.dp,
+                                    plantupiaUserId = person?.id?.takeIf { it > 0L },
+                                    plantupiaAvatarVariant = person?.plantupiaAvatarVariant ?: -1,
                                 )
                             }
                             Text(
                                 person?.name?.ifBlank { username } ?: "@$username",
-                                color = NovaInk,
+                                color = PlantupiaColors.forestText,
                                 style = NovaType.micro,
                                 maxLines = 1,
                             )
@@ -173,7 +181,7 @@ fun PeopleScreen(
                 horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
             ) {
                 listOf(
-                    "people" to "People",
+                    "people" to "All",
                     "nearby" to "Nearby",
                     "interests" to "Interests",
                     "verified" to "Verified",
@@ -182,12 +190,12 @@ fun PeopleScreen(
                     Surface(
                         onClick = { onFilterChange(value) },
                         shape = RoundedCornerShape(999.dp),
-                        color = if (state.filter == value) NovaAccent else NovaBackground,
-                        border = BorderStroke(1.dp, if (state.filter == value) NovaAccent else NovaBorder),
+                        color = if (state.filter == value) PlantupiaColors.forest else PlantupiaColors.paper,
+                        border = BorderStroke(1.dp, if (state.filter == value) PlantupiaColors.forest else PlantupiaColors.border),
                     ) {
                         Text(
                             text = label,
-                            color = if (state.filter == value) androidx.compose.ui.graphics.Color.White else NovaInk,
+                            color = if (state.filter == value) PlantupiaColors.paper else PlantupiaColors.forestText,
                             style = NovaType.micro.copy(fontWeight = FontWeight.SemiBold),
                             modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
                         )
@@ -197,7 +205,7 @@ fun PeopleScreen(
             Spacer(modifier = Modifier.height(NovaSpacing.sm))
             Text(
                 text = discoveryFilterDescription(state.filter),
-                color = NovaMuted,
+                color = PlantupiaColors.secondaryText,
                 style = NovaType.micro,
             )
             Spacer(modifier = Modifier.height(NovaSpacing.lg))
@@ -209,8 +217,8 @@ fun PeopleScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = if (state.query.isBlank()) "Discover" else "Results",
-                        color = NovaInk,
+                        text = if (state.query.isBlank()) "PUBLIC PEOPLE" else "SEARCH RESULTS",
+                        color = PlantupiaColors.forestText,
                         style = NovaType.label,
                     )
                     Row(
@@ -221,12 +229,12 @@ fun PeopleScreen(
                             NovaPresenceIndicator(
                                 modifier = Modifier.size(14.dp),
                                 monochrome = true,
-                                monochromeColor = NovaAccent,
+                                monochromeColor = PlantupiaColors.forest,
                             )
                         }
                         Text(
-                            text = "${state.people.size} loaded",
-                            color = NovaMuted,
+                            text = if (state.query.isBlank()) "${state.people.size} people" else "${state.people.size} found",
+                            color = PlantupiaColors.secondaryText,
                             style = NovaType.micro,
                         )
                     }
@@ -253,8 +261,15 @@ fun PeopleScreen(
                 }
 
                 state.people.isEmpty() -> {
+                    // Real zero-community state only, not an API error or
+                    // an empty search-result imitation of another person's data.
+                    if (state.query.isBlank()) {
+                        PlantupiaEmptyPeopleArt(
+                            modifier = Modifier.fillMaxWidth().height(112.dp),
+                        )
+                    }
                     NovaEmptyState(
-                        title = if (state.query.isBlank()) "No one to show yet" else "No matches",
+                        title = if (state.query.isBlank()) "No public profiles to show yet" else "No matches",
                         message = peopleEmptyMessage(state.filter, state.query),
                         modifier = Modifier.weight(1f),
                     )
@@ -275,6 +290,7 @@ fun PeopleScreen(
                                     state.cancelingUsername == person.username,
                                 onClick = { recordAndOpen(person.username) },
                                 onFollowToggle = { onFollowToggle(person) },
+                                plantupiaStyle = true,
                             )
                         }
 
@@ -282,7 +298,7 @@ fun PeopleScreen(
                             item {
                                 Text(
                                     text = state.followError,
-                                    color = NovaMuted,
+                                    color = PlantupiaColors.secondaryText,
                                     style = NovaType.meta,
                                     modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = NovaSpacing.xs),
                                 )
@@ -315,9 +331,9 @@ fun PeopleScreen(
 internal fun discoveryFilterDescription(filter: String): String = when (filter) {
     "nearby" -> "People who share the location saved on your profile."
     "interests" -> "People with interests that overlap your saved profile interests."
-    "verified" -> "Verified Nova accounts."
-    "new" -> "Accounts that joined Nova most recently."
-    else -> "People you can discover across Nova."
+    "verified" -> "Verified community accounts."
+    "new" -> "Newly joined community accounts."
+    else -> "Public identities available through the Circle."
 }
 
 
@@ -326,6 +342,6 @@ internal fun peopleEmptyMessage(filter: String, query: String): String = when {
     filter == "nearby" -> "Nearby uses the location saved on your profile. Add one or try another filter."
     filter == "interests" -> "Add interests to your profile or try another filter."
     filter == "verified" -> "No verified accounts are available here yet."
-    filter == "new" -> "New accounts will appear here as people join Nova."
-    else -> "Your discovery space will grow as more people join Nova."
+    filter == "new" -> "New accounts will appear here as people join."
+    else -> "Public identities will appear here as the Circle grows."
 }

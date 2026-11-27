@@ -70,7 +70,7 @@ require_all(client, "NovaApiClient final shared boundary", (
     'suspend fun refresh(refreshToken: String): ApiResult<String>',
     'JSONObject().put("refresh", refreshToken)',
     'requestJson("auth/refresh/", "POST", body)',
-    'ApiResult.Failure("Nova returned an invalid session response.")',
+    'ApiResult.Failure("Plantupia returned an invalid session response.")',
 ))
 forbid_all(client, "feature-owned core network seam", (
     'data class NovaUser(',
@@ -125,7 +125,7 @@ require_all(auth_parser, "feature Auth parser", (
     'internal fun parseAuthSession(',
     'internal fun parseNovaUser(',
     'if (access.isBlank() || refresh.isBlank() || userJson == null)',
-    'ApiResult.Failure("Nova returned an invalid authentication response.")',
+    'ApiResult.Failure("Plantupia returned an invalid authentication response.")',
     'avatarUrl = resolveMediaUrl(json.optString("avatar_url"))',
 ))
 require_all(auth_remote, "feature Auth remote", (
@@ -137,7 +137,7 @@ require_all(auth_remote, "feature Auth remote", (
     'method = "PUT"',
     'fileField = "avatar"',
     'api.requestJson("auth/refresh/", "POST", body)',
-    'ApiResult.Failure("Nova returned an invalid session response.")',
+    'ApiResult.Failure("Plantupia returned an invalid session response.")',
 ))
 require_all(auth_repository, "NovaAuthRepository feature remote ownership", (
     'private val remote: AuthRemoteDataSource',
@@ -211,9 +211,9 @@ require_all(people_paging, "feature People paging transport", (
     'setRequestProperty("Authorization", "Bearer $bearerToken")',
     '401 -> "Your session expired. Please log in again."',
     '403 -> "Follow this private account to see this content."',
-    '404 -> "Nova couldn\'t find that profile."',
-    'in 500..599 -> "Nova\'s server had a problem. Try again in a moment."',
-    'ApiResult.Failure("Can\'t reach Nova right now. Check your connection and try again.")',
+    '404 -> "Plantupia couldn\'t find that profile."',
+    'in 500..599 -> "Plantupia\'s server had a problem. Try again in a moment."',
+    'ApiResult.Failure("Can\'t reach Plantupia right now. Check your connection and try again.")',
     'val person = parseNovaPerson(item, ::resolveMediaUrl)',
     'add(parseNovaPost(it, ::resolveMediaUrl))',
     'nextCursor = optionalString(response.value, "next_cursor")',
@@ -269,7 +269,7 @@ require_all(posts_remote, "feature Posts transport", (
     'payload.put("parent_id", it)',
     'deleteCommentResource(accessToken, "comments/$commentId/")',
     'deleteCommentResource(accessToken, "comment-replies/$replyId/")',
-    'ApiResult.Failure("Nova returned an invalid comment response.")',
+    'ApiResult.Failure("Plantupia returned an invalid comment response.")',
     'parseNovaPostPage(response.value, api::resolveMediaUrl)',
     'parseNovaPost(response.value, api::resolveMediaUrl)',
     'add(parseNovaComment(it, api::resolveMediaUrl))',
@@ -321,7 +321,7 @@ require_all(client, "JSON transport", (
     'bearerToken?.let { setRequestProperty("Authorization", "Bearer $it") }',
     'setRequestProperty("Content-Type", "application/json; charset=utf-8")',
     'writer.write(body.toString())',
-    'message = "Can\'t reach Nova right now. Check your connection and try again."',
+    'message = "Can\'t reach Plantupia right now. Check your connection and try again."',
     'connection?.disconnect()',
 ))
 require_all(client, "multipart transport", (
@@ -340,7 +340,7 @@ require_all(client, "multipart transport", (
     'addFormDataPart(fieldName, file.fileName, file.asRequestBody())',
     '.method(method.uppercase(), multipart)',
     'contentLength = multipart.contentLength()',
-    'message = "Nova couldn\'t upload that right now. Check your connection and try again."',
+    'message = "Plantupia couldn\'t upload that right now. Check your connection and try again."',
 ))
 forbid_all(client, "superseded chunked multipart transport", (
     'setChunkedStreamingMode(',
@@ -356,9 +356,9 @@ require_all(client, "network response/error behavior", (
     'return if (statusCode == 401) "Email or password is incorrect." else detail',
     '400 -> "Check your details and try again."',
     '401 -> "Your session expired. Please log in again."',
-    '404 -> "Nova couldn\'t find that resource."',
-    '429 -> "Too many requests. Give Nova a moment and try again."',
-    'in 500..599 -> "Nova\'s server had a problem. Try again in a moment."',
+    '404 -> "Plantupia couldn\'t find that resource."',
+    '429 -> "Too many requests. Give Plantupia a moment and try again."',
+    'in 500..599 -> "Plantupia\'s server had a problem. Try again in a moment."',
     'else -> "Something went wrong. Please try again."',
 ))
 
@@ -370,13 +370,88 @@ for kotlin_file in (ROOT / "app/src").rglob("*.kt"):
             f"Phase 5 exit restored core NovaPostAuthor import: {kotlin_file.relative_to(ROOT)}"
         )
 
-production_ctor = 'NovaApiClient("https://zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/")'
+# All three entrypoints must respect the build-variant server selector.
+# Unified Plantupia QA builds use PR #253. Keep the Nova production host EXACTLY unchanged;
+# this static gate intentionally rejects accidental regression to #241 or production.
+server_config = read(ROOT / "app/src/main/java/com/nova/app/core/network/NovaServerConfig.kt")
+require_all(server_config, "QA endpoint isolation", (
+    'BuildConfig.BUILD_TYPE == "qa"',
+    'productionHost = "zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"',
+    'qaHost = "253.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"',
+))
+production_ctor = 'NovaApiClient(com.nova.app.core.network.NovaServerConfig.API_URL)'
 for text, name in (
     (auth_repository, "NovaAuthRepository.kt"),
     (feed_repository, "NovaFeedRepository.kt"),
     (social_repository, "NovaSocialRepository.kt"),
 ):
-    require_all(text, f"{name} production API base URL", (production_ctor,))
+    require_all(text, f"{name} variant-aware API base URL", (production_ctor,))
+
+# Integrity Sprint 02: repositories delegate ownership/refresh/retry to one session coordinator.
+session_store = read(ROOT / "app/src/main/java/com/nova/app/core/auth/NovaSessionStore.kt")
+coordinator = read(ROOT / "app/src/main/java/com/nova/app/core/auth/NovaSessionCoordinator.kt")
+require_all(session_store, "atomic encrypted session ownership", (
+    'data class LoginIdentity',
+    'synchronized(NovaSessionCoordinator.lock)',
+    'fun beginLogin(): LoginIdentity',
+    'fun logoutSession(): Pair<StoredSession?, LoginIdentity>',
+    'fun updateAccessToken(owner: LoginIdentity, accessToken: String)',
+    'fun updateUser(owner: LoginIdentity, user: NovaUser)',
+    'fun clear(owner: LoginIdentity)',
+    'fun save(owner: LoginIdentity, session: AuthSession)',
+    'fun replaceSession(owner: LoginIdentity, session: AuthSession)',
+    'const val KEY_GENERATION = "login_generation"',
+    'const val TRANSFORMATION = "AES/GCM/NoPadding"',
+))
+forbid_all(session_store, "unconditional asynchronous session writes", (
+    'fun updateAccessToken(accessToken:', 'fun updateUser(user:',
+    'fun clear()', 'fun save(session:',
+))
+require_all(coordinator, "shared refresh and response ownership", (
+    'internal object NovaSessionCoordinator', 'val lock = Any()',
+    'private val flights = mutableMapOf<NovaSessionStore.LoginIdentity, Flight>()',
+    'currentCoroutineContext().ensureActive()', 'store.updateAccessToken(owner, response.value)',
+    'if (!isCurrent(stored.identity)) return changedSession()',
+    'if (store.isCurrent(delivery.identity)) delivery.result else changedSession()',
+))
+for repository in (ROOT / "app/src/main/java").rglob("*.kt"):
+    text = repository.read_text(encoding="utf-8")
+    if 'sessionStore = NovaSessionStore(' in text and '.refresh(' in text:
+        require_all(text, f"{repository.name} shared login coordination", ('sessionStore.authenticatedRequest(',))
+
+app_owner = read(ROOT / "app/src/main/java/com/nova/app/app/AppViewModel.kt")
+require_all(app_owner, "stale UI expiry protection", (
+    'if (hasStoredSession()) return false',
+    'if (expectedGeneration != sessionGeneration) return state.currentUser != null',
+))
+forbid_all(app_owner, "unconditional UI session clearing", ('logout()', 'authRepository.logout('))
+for relative in (
+    'core/feed/NovaFeedRepository.kt', 'core/messaging/NovaMessagingRepository.kt',
+    'core/stories/NovaStoriesRepository.kt', 'core/reels/NovaReelsRepository.kt',
+    'feature/pulse/data/remote/PulseRemoteRepository.kt',
+    'feature/memories/data/remote/MemoryRemoteRepository.kt',
+    'feature/rooms/data/remote/RoomRemoteRepository.kt',
+):
+    media_owner = read(ROOT / "app/src/main/java/com/nova/app" / relative)
+    require_all(media_owner, f"{relative} media preparation login capture", (
+        'val origin = sessionStore.load()', 'origin = origin', 'val stored = origin',
+    ))
+
+# Integrity Sprint 03: new saves must fail closed on an older server and retain
+# an account-scoped snapshot instead of assigning an identity on every request.
+plant_repository = read(ROOT / "app/src/main/java/com/nova/app/feature/plants/data/PlantupiaRepository.kt")
+plant_journal = read(ROOT / "app/src/main/java/com/nova/app/feature/plants/data/PlantupiaSubmissionJournal.kt")
+require_all(plant_repository, "Plantupia reliable submission boundary", (
+    'noBackupFilesDir', 'submissions.prepare(', 'submissions.acknowledge(',
+    '"client_submission_id" to submission.id', '${submission.operation}-submissions/',
+    'publicConsentConfirmed', 'result.errorCode == "submission_rejected"',
+    'result.requestId == submission.id', 'submission.account != submissionAccount',
+))
+require_all(plant_journal, "durable Plantupia submission identity", (
+    'UUID.randomUUID()', 'synchronized(lock)', 'it.fd.sync()',
+    'StandardCopyOption.ATOMIC_MOVE', 'private fun directory(account: Long)',
+    'current.acknowledgedResult != result',
+))
 
 if errors:
     print("Network architecture exit check failed:")

@@ -166,7 +166,7 @@ fun NovaShareDialog(
                                 tint = NovaAccent,
                             )
                             Column {
-                                Text("Share outside Nova", color = NovaInk, style = NovaType.meta)
+                                Text("Share outside Plantupia", color = NovaInk, style = NovaType.meta)
                                 Text("Use Android's share menu", color = NovaMuted, style = NovaType.micro)
                             }
                         }

@@ -19,6 +19,48 @@ import org.junit.Test
 
 class SecurityStateOwnersTest {
     @Test
+    fun `editing recovery email keeps identifier and clears code and password drafts`() = runBlocking {
+        val repository = FakeSecurityRepository()
+        val owner = PasswordRecoveryStateOwner(repository, CoroutineScope(Dispatchers.Unconfined))
+        owner.setEmail("first@example.com")
+        owner.requestResetCodeNow()
+        owner.setCode("123456")
+        owner.setNewPassword("temporary-password")
+        owner.setConfirmPassword("temporary-password")
+
+        owner.editEmail()
+
+        assertEquals(PasswordRecoveryStage.Email, owner.state.stage)
+        assertEquals("first@example.com", owner.state.email)
+        assertEquals("", owner.state.code)
+        assertEquals("", owner.state.newPassword)
+        assertEquals("", owner.state.confirmPassword)
+        assertNull(owner.state.info)
+        assertTrue(repository.resetCalls.isEmpty())
+        owner.setEmail("correct@example.com")
+        owner.requestResetCodeNow()
+        assertEquals(listOf("first@example.com", "correct@example.com"), repository.requestCalls)
+    }
+
+    @Test
+    fun `recovery cannot switch identity during a pending code request`() = runBlocking {
+        val release = CompletableDeferred<Unit>()
+        val job = Job()
+        val repository = FakeSecurityRepository(requestBlocker = release)
+        val owner = PasswordRecoveryStateOwner(repository, CoroutineScope(job + Dispatchers.Unconfined))
+        owner.setEmail("first@example.com")
+        owner.requestResetCode()
+        assertTrue(owner.state.loading)
+        owner.editEmail()
+        assertTrue(owner.state.loading)
+        assertEquals("first@example.com", owner.state.email)
+        release.complete(Unit)
+        assertEquals(PasswordRecoveryStage.Code, owner.state.stage)
+        assertEquals(listOf("first@example.com"), repository.requestCalls)
+        job.cancel()
+    }
+
+    @Test
     fun `recovery normalizes inputs and initial reset request advances to code`() = runBlocking {
         val repository = FakeSecurityRepository(
             requestResults = mutableListOf(ApiResult.Success("sent")),
@@ -266,6 +308,7 @@ private class FakeSecurityRepository(
     private val revokeResults: MutableList<ApiResult<NovaUser>> = mutableListOf(),
     private val deleteResults: MutableList<ApiResult<String>> = mutableListOf(),
     private val changeBlocker: CompletableDeferred<Unit>? = null,
+    private val requestBlocker: CompletableDeferred<Unit>? = null,
 ) : SecurityRepository {
     val requestCalls = mutableListOf<String>()
     val resetCalls = mutableListOf<ResetCall>()
@@ -275,6 +318,7 @@ private class FakeSecurityRepository(
 
     override suspend fun requestPasswordReset(email: String): ApiResult<String> {
         requestCalls += email
+        requestBlocker?.await()
         return requestResults.removeFirstOrNull() ?: ApiResult.Success("sent")
     }
 

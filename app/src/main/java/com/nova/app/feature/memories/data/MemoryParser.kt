@@ -175,6 +175,6 @@ private fun parseRoom(
     resolveMediaUrl: (String) -> String,
 ): MemoryRoom = MemoryRoom(
     id = json.optLong("id"),
-    title = json.optString("title").ifBlank { "Nova Room" },
+    title = json.optString("title").ifBlank { "Gathering" },
     avatarUrl = resolveMediaUrl(json.optString("avatar_url")),
 )

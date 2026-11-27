@@ -4,9 +4,10 @@
     <style name="Theme.Nova" parent="android:Theme.Material.Light.NoActionBar">
         <!--
             Bundled Material Symbols reference the conventional colorControlNormal
-            attribute. Map Nova's app-owned compatibility attribute to the platform
+            attribute. Map the app-owned compatibility attribute to the platform
             theme value; Compose still owns the visible icon tint at render time.
         -->
         <item name="colorControlNormal">?android:attr/colorControlNormal</item>
+        <item name="android:windowBackground">@color/plantupia_forest</item>
     </style>
 </resources>
