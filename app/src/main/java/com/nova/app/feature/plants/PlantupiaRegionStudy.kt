@@ -69,6 +69,7 @@ internal data class FieldRegion(
     val calibrationError: Double? = null,
     val calibrationReason: String? = null,
     val patches: List<FieldPatch> = emptyList(),
+    val tagged: Boolean = false,
 )
 
 private val regionColorKeys = listOf("green_like", "yellow_like", "brown_like", "other")
@@ -96,7 +97,8 @@ internal fun fieldRegions(rows: JSONArray?, width: Int, height: Int): List<Field
         val colors = regionColorKeys.map { fractions?.optDouble(it) ?: Double.NaN }
             .takeIf { it.all { fraction -> fraction in 0.0..1.0 } }.orEmpty()
         val calibration = geometry.optJSONObject("calibration")
-        val calibrated = calibration?.optString("method") == "face-on-two-segment-v1"
+        val tagged = calibration?.optString("method") == "aruco-pair-4x4-50-v1"
+        val calibrated = tagged || calibration?.optString("method") == "face-on-two-segment-v1"
         val accepted = calibrated && calibration?.optString("status") == "accepted"
         val cm2 = geometry.optDouble("projected_area_cm2").takeIf { accepted && it.isFinite() && it > 0 }
         val scaleError = calibration?.optDouble("scale_check_relative_error")?.takeIf { it.isFinite() && it >= 0 }
@@ -114,7 +116,7 @@ internal fun fieldRegions(rows: JSONArray?, width: Int, height: Int): List<Field
                 last.x !in first.x until width || last.y !in first.y until height) return@mapNotNull null
             FieldPatch(appearance, first, last, fraction)
         }
-        FieldRegion(id, part, area, outline, length, colors, patches = parsed,
+        FieldRegion(id, part, area, outline, length, colors, patches = parsed, tagged = tagged,
             reviewedProposal = measurements.optString("method") in setOf("reviewed-grabcut-points-v1", "reviewed-grabcut-frame-v1") &&
                 measurements.optJSONObject("assistance")?.optBoolean("operator_accepted") == true,
             planarAreaCm2 = cm2, calibrationError = scaleError,
@@ -164,8 +166,11 @@ internal fun PlantupiaRegionStudy(
     val chosen = regions.firstOrNull { it.id == selected }
     var highlighted by remember(selected) { mutableStateOf<Int?>(null) }
     val scalePayload = if (calibrating) scaleDraft.payload() else null
-    val scaleReady = !calibrating || scalePayload != null
-    val submission = remember(points, part, proposal?.token, calibrating, scaleDraft) { UUID.randomUUID().toString() }
+    var useMarkers by remember(revision, tracing, assisting, url) { mutableStateOf(false) }
+    var markerWidth by remember { mutableStateOf("2.0") }
+    val markerCm = markerWidth.toDoubleOrNull()?.takeIf { it in .1..25.0 }
+    val scaleReady = (!calibrating || scalePayload != null) && (!useMarkers || markerCm != null)
+    val submission = remember(points, part, proposal?.token, calibrating, scaleDraft, useMarkers, markerCm) { UUID.randomUUID().toString() }
     val tracingEnabled = tracing && loaded && !busy && canTrace
     val assistingEnabled = assisting && loaded && !busy && canTrace && canSuggest
     val marking = tracing || assisting
@@ -284,6 +289,9 @@ internal fun PlantupiaRegionStudy(
             }
         }
     }
+    if (marking && !calibrating && (points.size >= 3 || proposal != null)) {
+        TagScaleControls(useMarkers, markerWidth, !busy, { useMarkers = it }, { markerWidth = it })
+    }
     if (viewPhoto) PlantupiaPhotoViewer(url, "this record") { viewPhoto = false }
 
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -308,7 +316,7 @@ internal fun PlantupiaRegionStudy(
         TextButton(enabled = !busy && points.isNotEmpty(), onClick = { points = points.dropLast(1) }) {
             Text("Undo last point")
         }
-        if (points.size >= 3) PlanarScaleControls(calibrating, scaleDraft, !busy,
+        if (points.size >= 3 && !useMarkers) PlanarScaleControls(calibrating, scaleDraft, !busy,
             onToggle = {
                 calibrating = it
                 if (it) scope.launch { photoAnchor.bringIntoView() }
@@ -316,6 +324,7 @@ internal fun PlantupiaRegionStudy(
         Button(enabled = tracingEnabled && points.size >= 3 && scaleReady, onClick = {
             val body = JSONObject().put("submission_id", submission).put("vertices", pointArray(points)).put("part", part)
             scalePayload?.let { body.put("point_reference", it) }
+            if (useMarkers) body.put("marker_edge_cm", markerCm)
             save(body)
         }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             Text("Save outline · ${points.size} points")
@@ -373,7 +382,7 @@ internal fun PlantupiaRegionStudy(
                 assistingEnabled) { part = it }
             Text("A computer-assisted outline, not an identified plant part. Save only if the boundary matches what you see.",
                 style = PlantupiaText.supporting)
-            PlanarScaleControls(calibrating, scaleDraft, !busy,
+            if (!useMarkers) PlanarScaleControls(calibrating, scaleDraft, !busy,
                 onToggle = {
                     calibrating = it
                     if (it) scope.launch { photoAnchor.bringIntoView() }
@@ -383,6 +392,7 @@ internal fun PlantupiaRegionStudy(
                     .put("vertices", pointArray(candidate.vertices)).put("part", part)
                     .put("suggestion_token", candidate.token).put("outline_method", candidate.method)
                 scalePayload?.let { body.put("point_reference", it) }
+                if (useMarkers) body.put("marker_edge_cm", markerCm)
                 save(body)
             }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Text("Accept and save outline")
@@ -447,7 +457,7 @@ private fun RegionMeasurements(region: FieldRegion) {
             style = PlantupiaText.itemTitle)
         if (region.planarAreaCm2 != null) {
             Text(String.format(Locale.ROOT, "%.2f cm²", region.planarAreaCm2), style = PlantupiaText.display)
-            Text("Estimated projected area · reported flat, face-on plane", style = PlantupiaText.supporting)
+            Text(if (region.tagged) "Projected area · two detected reference markers" else "Estimated projected area · reported flat, face-on plane", style = PlantupiaText.supporting)
             Text("${region.pixels} px² in the original image", style = PlantupiaText.body)
         } else {
             Text("${region.pixels} px²", style = PlantupiaText.display)

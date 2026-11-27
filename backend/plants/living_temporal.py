@@ -19,14 +19,21 @@ def compare_projected_areas(earlier, later, *, same_part, comparable_capture):
     part = earlier.annotation.get("part")
     if not part or part != later.annotation.get("part"):
         return refused("different_part_labels")
+    from .marker_measurement import METHOD as marker_method
+    scales = [t.measurements.get("geometry", {}).get("calibration") or {} for t in (earlier, later)]
+    tagged = all(s.get("method") == marker_method for s in scales)
+    if tagged and (scales[0].get("ids") != scales[1].get("ids") or scales[0].get("edge_cm") != scales[1].get("edge_cm")):
+        return refused("different_tagged_subject")
+    method = marker_method if tagged else METHOD
+    basis = "reported_flat_tagged_part" if tagged else "operator_reported_face_on_coplanar"
     values, discrepancies = [], []
     for trace in (earlier, later):
         geometry = trace.measurements.get("geometry", {})
         scale = geometry.get("calibration", {})
         area = geometry.get("projected_area_cm2")
         discrepancy = scale.get("scale_check_relative_error")
-        if (scale.get("method") != METHOD or scale.get("status") != "accepted"
-                or scale.get("plane_basis") != "operator_reported_face_on_coplanar"
+        if (scale.get("method") != method or scale.get("status") != "accepted"
+                or scale.get("plane_basis") != basis
                 or type(area) not in (int, float) or not isfinite(area) or area <= 0
                 or type(discrepancy) not in (int, float) or not isfinite(discrepancy)
                 or not 0 <= discrepancy <= .03):
@@ -36,7 +43,7 @@ def compare_projected_areas(earlier, later, *, same_part, comparable_capture):
     delta = values[1] - values[0]
     return {
         "status": "comparable_by_operator_report",
-        "method": METHOD, "part": part,
+        "method": method, "part": part,
         "earlier": {"trace_id": earlier.pk, "event_id": str(earlier.event_id),
                     "observed_at": earlier.event.observed_at.isoformat(),
                     "projected_area_cm2": values[0], "scale_discrepancy": discrepancies[0]},

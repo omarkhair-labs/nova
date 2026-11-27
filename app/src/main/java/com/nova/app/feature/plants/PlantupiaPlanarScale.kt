@@ -92,6 +92,10 @@ internal fun PlanarScaleControls(
 }
 
 internal fun scaleRejectionText(reason: String) = when (reason) {
+    "two_distinct_markers_required" -> "two different square markers were not visible"
+    "marker_detector_unavailable" -> "marker detection unavailable"
+    "marker_too_small_or_oblique" -> "bring the camera closer and face the markers"
+    "marker_overlaps_region", "place_markers_on_opposite_sides" -> "place a marker on each side of the outline"
     "plane_not_confirmed" -> "flat viewing plane not confirmed"
     "reference_too_short" -> "reference lengths are too short in the image"
     "references_not_near_perpendicular" -> "reference directions are not sufficiently distinct"

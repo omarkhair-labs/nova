@@ -23,6 +23,7 @@ from rest_framework.views import APIView
 from django.db.models.functions import TruncDate
 from .calendar_time import calendar_zone
 from .living_calibration import METHOD as PLANAR_CALIBRATION
+from .marker_measurement import METHOD as MARKER_CALIBRATION
 from .models import CareGuideVersion, EvidenceReview, PlantEvent, TracedRegion
 from .views import accessible_plants
 from .demo_services import require_access, DemoProblem
@@ -160,7 +161,7 @@ def recorded_evidence(plant, events, zone):
                                     for p in patches[:3] if p.get("appearance") in {"yellow_like", "brown_like"}]})
         calibration = geometry.get("calibration") or {}
         area = geometry.get("projected_area_cm2")
-        if (calibration.get("method") == PLANAR_CALIBRATION and calibration.get("status") == "accepted"
+        if (calibration.get("method") in {PLANAR_CALIBRATION, MARKER_CALIBRATION} and calibration.get("status") == "accepted"
                 and type(area) in (int, float) and isfinite(area) and area > 0):
             areas.append({"observed_on": timezone.localdate(trace.event.observed_at, zone).isoformat(),
                           "operator_label": trace.annotation.get("part"), "projected_area_cm2": area})

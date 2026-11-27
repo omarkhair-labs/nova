@@ -74,7 +74,7 @@ def visible_patches(crop, mask, box):
     return sorted(patches, key=lambda p: -p["region_fraction"])[:8]
 
 
-def measure_trace(data, points, reference=None, point_reference=None):
+def measure_trace(data, points, reference=None, point_reference=None, marker_edge_cm=None):
     image = _open(data, {"JPEG", "PNG", "WEBP"})
     shape = polygon(points, image.width, image.height)
     # Rasterize the original grid for pixel metrics, then sample only bounded RGB for colour.
@@ -86,6 +86,10 @@ def measure_trace(data, points, reference=None, point_reference=None):
     if point_reference is not None:
         reference, calibration = planar_reference(point_reference, image.width, image.height, shape)
     geometry = projected_region(buf.getvalue(), reference=reference)
+    if marker_edge_cm is not None:
+        from .marker_measurement import measure_markers
+        calibration = measure_markers(image, points, marker_edge_cm)
+        geometry["projected_area_cm2"] = calibration.get("projected_area_cm2")
     if calibration is not None:
         geometry["calibration"] = calibration
     geometry["traced_outline_length_px"] = round(sum(

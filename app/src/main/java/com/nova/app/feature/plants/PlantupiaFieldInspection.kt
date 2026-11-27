@@ -53,6 +53,16 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                     else TextButton(enabled = !busy, onClick = { generation++ }) { Text("Refresh inspection") }
                 }
                 record?.let { data ->
+                    data.optJSONObject("tagged_area_change")?.let { change ->
+                        val earlier = change.optJSONObject("earlier")
+                        val later = change.optJSONObject("later")
+                        Text("Across tagged visits", style = PlantupiaText.itemTitle)
+                        Text(java.lang.String.format(java.util.Locale.ROOT, "%+.2f cm²", change.getDouble("difference_cm2")),
+                            style = PlantupiaText.editorialHeading)
+                        Text("Projected " + change.optString("part") + " area · " +
+                            earlier?.optString("observed_at").orEmpty().take(10) + " to " +
+                            later?.optString("observed_at").orEmpty().take(10), style = PlantupiaText.supporting)
+                    }
                     data.optJSONObject("current_identity")?.let { identity ->
                         val label = when (identity.optString("basis")) {
                             "staff_verified" -> "Verified plant type"

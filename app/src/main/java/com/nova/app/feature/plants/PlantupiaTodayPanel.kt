@@ -1,8 +1,6 @@
 package com.nova.app.feature.plants
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -83,7 +81,7 @@ internal fun PlantupiaTodayPanel(
             PersonalCheckInHero(
                 plant = first,
                 eyebrow = personalCheckInDateLabel(first.nextFollowUpOn, today).uppercase(Locale.ENGLISH),
-                supporting = "Return to this plant’s care and observations",
+                supporting = plant.placement.ifBlank { "Care and observations" },
                 onOpen = { onOpenPlant(first) },
             )
 
@@ -127,7 +125,7 @@ internal fun PlantupiaTodayPanel(
             PersonalCheckInHero(
                 plant = upcoming,
                 eyebrow = "NEXT CHECK-IN \u00B7 ${personalCheckInDateLabel(upcoming.nextFollowUpOn, today).uppercase(Locale.ENGLISH)}",
-                supporting = "Return to this plant’s care and observations",
+                supporting = plant.placement.ifBlank { "Care and observations" },
                 onOpen = { onOpenPlant(upcoming) },
             )
         }
@@ -156,11 +154,9 @@ private fun PersonalCheckInHero(
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Canvas(Modifier.size(14.dp, 20.dp)) {
-                    val inset = 3.dp.toPx()
-                    drawLine(PlantupiaColors.sage, Offset(size.width / 2, 0f),
-                        Offset(size.width / 2, size.height), 1.dp.toPx())
-                    drawCircle(PlantupiaColors.sage, inset, Offset(size.width / 2, size.height / 2))
+                if (plant.coverPhoto.isNotBlank()) {
+                    PlantupiaEvidencePhoto(plant.coverPhoto, "Portrait of " + plant.name,
+                        modifier = Modifier.size(84.dp, 108.dp), compact = true)
                 }
                 Column(
                     modifier = Modifier.weight(1f),

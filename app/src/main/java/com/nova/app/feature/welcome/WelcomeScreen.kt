@@ -40,15 +40,13 @@ fun WelcomeScreen(
     onPrivacy: () -> Unit,
     onConnectPlants: () -> Unit = {},
 ) {
-    Box(
-        Modifier.fillMaxSize().background(PlantupiaColors.cream)
-            .statusBarsPadding().navigationBarsPadding(),
+    BoxWithConstraints(
+        Modifier.fillMaxSize().background(PlantupiaColors.cream).statusBarsPadding().navigationBarsPadding(),
         contentAlignment = Alignment.TopCenter,
     ) {
-        Column(
-            Modifier.widthIn(max = 480.dp).fillMaxSize()
-                .verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 22.dp),
-        ) {
+        val large = maxWidth / LocalDensity.current.fontScale >= 680.dp
+        val actionsFirst = maxHeight / LocalDensity.current.fontScale < 600.dp
+        val introduction: @Composable () -> Unit = {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 PlantupiaBrandGlyph(Modifier.size(30.dp))
                 Text(
@@ -63,9 +61,12 @@ fun WelcomeScreen(
                 style = PlantupiaText.display,
                 modifier = Modifier.semantics { heading() },
             )
-            Spacer(Modifier.height(16.dp))
-            WelcomeLivingFrame()
-            Spacer(Modifier.height(17.dp))
+            if (!actionsFirst || large) {
+                Spacer(Modifier.height(16.dp))
+                WelcomeLivingFrame()
+            }
+        }
+        val actions: @Composable () -> Unit = {
             NovaPrimaryButton(text = "Create account", onClick = onCreateAccount)
             Spacer(Modifier.height(10.dp))
             NovaSecondaryButton(text = "Log in", onClick = onLogin)
@@ -94,6 +95,20 @@ fun WelcomeScreen(
                 TextButton(onClick = onPrivacy, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text("Privacy", color = PlantupiaColors.forest)
                 }
+            }
+        }
+        Column(Modifier.widthIn(max = if (large) 900.dp else 480.dp).fillMaxSize()
+            .verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 22.dp)) {
+            if (large) {
+                Row(horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+                    Column(Modifier.weight(1f)) { introduction() }
+                    Column(Modifier.weight(1f)) { actions() }
+                }
+            } else {
+                introduction()
+                Spacer(Modifier.height(17.dp))
+                actions()
+                if (actionsFirst) { Spacer(Modifier.height(18.dp)); WelcomeLivingFrame() }
             }
         }
     }

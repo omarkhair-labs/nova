@@ -71,6 +71,7 @@ private fun PlantupiaAccountStoreShop(
     var products by remember { mutableStateOf(emptyList<JSONObject>()) }
     var cart by remember { mutableStateOf<JSONObject?>(null) }
     var orders by remember { mutableStateOf(emptyList<JSONObject>()) }
+    var productOrigin by rememberSaveable { mutableStateOf("catalog") }
     var selectedProductId by rememberSaveable { mutableStateOf<String?>(null) }
     var category by rememberSaveable { mutableStateOf("all") }
     var visibleCount by rememberSaveable { mutableIntStateOf(8) }
@@ -126,6 +127,7 @@ private fun PlantupiaAccountStoreShop(
                 refresh++
             }
             screen == "checkout" -> screen = "cart"
+            screen == "product" -> screen = productOrigin
             else -> screen = "catalog"
         }
         selectedProductId = null
@@ -580,6 +582,7 @@ private fun PlantupiaAccountStoreShop(
                             families, plantupiaVisibleFamilies(count, visibleCount),
                             repository,
                         ) {
+                            productOrigin = "catalog"
                             selectedProductId = it
                             screen = "product"
                             feedback = null
@@ -652,6 +655,7 @@ private fun PlantupiaAccountStoreShop(
                             refresh++
                         },
                         onOpenProduct = { productId ->
+                            productOrigin = "cart"
                             selectedProductId = productId
                             screen = "product"
                             feedback = null

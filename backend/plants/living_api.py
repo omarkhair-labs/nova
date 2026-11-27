@@ -184,8 +184,27 @@ class FieldEvidenceView(ResearchView):
                     quality = inspect_photo(source.read(MAX_BYTES + 1))
             except (ValueError, OSError):
                 quality = None
+        tagged_change = None
+        from .marker_measurement import METHOD as marker_method
+        tagged = list(event.traced_regions.filter(measurements__geometry__calibration__method=marker_method,
+                                                  measurements__geometry__calibration__status="accepted").order_by("-pk")[:20])
+        for trace in tagged:
+            scale = trace.measurements["geometry"]["calibration"]
+            matches = dict(annotation__part=trace.annotation["part"], measurements__geometry__calibration__ids=scale["ids"],
+                           measurements__geometry__calibration__edge_cm=scale["edge_cm"],
+                           measurements__geometry__calibration__method=marker_method,
+                           measurements__geometry__calibration__status="accepted")
+            if event.traced_regions.filter(**matches).count() != 1:
+                continue
+            earlier = TracedRegion.objects.filter(event__plant=event.plant, event__observed_at__lt=event.observed_at,
+                                                  **matches).select_related("event").order_by("-event__observed_at", "-pk").first()
+            if earlier and earlier.event.traced_regions.filter(**matches).count() == 1:
+                comparison = compare_projected_areas(earlier, trace, same_part=True, comparable_capture=True)
+                if comparison.get("difference_cm2") is not None:
+                    tagged_change = comparison
+                    break
         species = event.plant.verified_species or event.plant.selected_species
-        return Response({"event_id": event.pk, "quality": quality,
+        return Response({"event_id": event.pk, "quality": quality, "tagged_area_change": tagged_change,
                          "photo_identification_enabled": bool(settings.PLANTUPIA_SPECIES_MODEL_DIR),
                          "visit_photos": list(event.visit_photographs.order_by("pk").values("id", "part", "created_at")[:6]),
                          "current_identity": {"scientific_name": species.scientific_name if species else None,
@@ -342,13 +361,14 @@ class RegionInput(serializers.Serializer):
     part = serializers.ChoiceField(choices=["plant", "leaf", "stem", "flower", "pot", "soil", "exposed_root", "visible_damage"])
     vertices = serializers.ListField(min_length=3, max_length=64, child=serializers.ListField(
         min_length=2, max_length=2, child=serializers.IntegerField(min_value=0, max_value=20000000)))
+    marker_edge_cm = serializers.FloatField(required=False, min_value=.1, max_value=25)
     reference = ScaleReference(required=False)
     point_reference = PointScaleReference(required=False)
     outline_method = serializers.ChoiceField(choices=[AUTO_METHOD, OUTLINE_METHOD], required=False)
     suggestion_token = serializers.CharField(required=False, max_length=8192)
 
     def validate(self, attrs):
-        if "reference" in attrs and "point_reference" in attrs:
+        if sum(k in attrs for k in ("reference", "point_reference", "marker_edge_cm")) > 1:
             raise serializers.ValidationError("Use only one scale reference method.")
         return attrs
 
@@ -392,7 +412,7 @@ class RegionView(FieldEvidenceView):
                 if not isinstance(envelope, dict) or any(envelope.get(k) != v for k, v in expected.items()):
                     return Response({"detail": "The proposal does not match this photograph and outline."}, status=409)
             result = measure_trace(raw, annotation["vertices"], annotation.get("reference"),
-                                   annotation.get("point_reference"))
+                                   annotation.get("point_reference"), annotation.get("marker_edge_cm"))
         except (ValueError, OSError) as exc:
             raise serializers.ValidationError("Photo or region could not be measured.") from exc
         result.update(method=method if token else "upright-operator-trace-v1", identity_basis="operator_label")
