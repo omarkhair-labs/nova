@@ -112,9 +112,11 @@ fun PlantupiaClientSection(
     onClosePlant: () -> Unit = {},
     refreshVersion: Int = 0,
     returnToCalendar: Boolean = false,
+    onOpenSpace: () -> Unit = {},
+    onCloseSpace: () -> Unit = {},
 ) {
     key(accountId, section) {
-        PlantupiaAccountClientSection(accountId, onCommunityCreateClick, onOpenLinkedPost, onOpenPlant, section, onClosePlant, refreshVersion, returnToCalendar)
+        PlantupiaAccountClientSection(accountId, onCommunityCreateClick, onOpenLinkedPost, onOpenPlant, section, onClosePlant, refreshVersion, returnToCalendar, onOpenSpace, onCloseSpace)
     }
 }
 
@@ -128,6 +130,8 @@ private fun PlantupiaAccountClientSection(
     onClosePlant: () -> Unit,
     refreshVersion: Int,
     returnToCalendar: Boolean,
+    onOpenSpace: () -> Unit,
+    onCloseSpace: () -> Unit,
 ) {
     val context = LocalContext.current
     val repository = remember(context) { PlantupiaRepository(context.applicationContext) }
@@ -494,7 +498,7 @@ private fun PlantupiaAccountClientSection(
     BackHandler(enabled = section == PlantupiaPrimarySection.PLANTS && selectedPlant == null && showSpaceDetail && spaces.size > 1 && PlantupiaCreateIntent.pending == null) {
         spaceDetailOpen = false
         plantSearch = ""
-        onClosePlant()
+        onCloseSpace()
     }
     BackHandler(enabled = selectedPlant != null) {
         if (!returnToCalendar && openDetailMode != PlantupiaCreateMode.QUESTION &&
@@ -530,7 +534,7 @@ private fun PlantupiaAccountClientSection(
         if (destination.first == accountId && spaces.any { it.id == destination.second } && selectedPlant == null) {
             selectSpace(destination.second)
             plantSearch = ""
-            onOpenPlant()
+            onOpenSpace()
         }
     }
     val supportPush = PlantupiaSupportPushSignal.target
@@ -813,13 +817,13 @@ private fun PlantupiaAccountClientSection(
             if (section == PlantupiaPrimarySection.PLANTS) {
             if (!loading && error == null && spaces.isNotEmpty() && !showSpaceDetail) {
                 PlantupiaPlaceIndex(spaces, plants, featured = false,
-                    openSpace = { space -> selectSpace(space.id); plantSearch = ""; onOpenPlant() },
+                    openSpace = { space -> selectSpace(space.id); plantSearch = ""; onOpenSpace() },
                     openPlant = { plant -> scope.launch { openPlant(plant) } })
             }
             if (!loading && error == null && spaces.isNotEmpty() && showSpaceDetail) {
                 val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
                 val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
-                if (spaces.size > 1) TextButton(onClick = { spaceDetailOpen = false; plantSearch = ""; onClosePlant() }) {
+                if (spaces.size > 1) TextButton(onClick = { spaceDetailOpen = false; plantSearch = ""; onCloseSpace() }) {
                     Text("← All spaces", color = deepGreen)
                 }
                 PlantupiaPlaceHeading(featured, focusedPlants,
@@ -1210,6 +1214,13 @@ private fun PlantupiaAccountClientSection(
                 name = selectedPlant.name, context = meta, identity = selectedPlant.identityState,
                 qa = BuildConfig.BUILD_TYPE == "qa",
             )
+            if (openDetailMode != PlantupiaCreateMode.QUESTION && selectedPlant.active && selectedPlant.canRecord && livingEnabled) {
+                Button(
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                    onClick = { beginObservation() }, enabled = !saving,
+                ) { Text("Observe this plant", color = white) }
+            }
             if (selectedPlant.coverPhoto.isNotBlank()) {
                 PlantupiaEvidencePhoto(
                     photoUrl = selectedPlant.coverPhoto,
@@ -1277,11 +1288,6 @@ private fun PlantupiaAccountClientSection(
             }
             if (openDetailMode != PlantupiaCreateMode.QUESTION) {
                 if (selectedPlant.active && selectedPlant.canRecord) {
-                    if (livingEnabled) Button(
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                        onClick = { beginObservation() }, enabled = !saving,
-                    ) { Text("Observe this plant", color = white) }
                     OutlinedButton(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                         onClick = { openCareComposer() },
@@ -2355,11 +2361,6 @@ private fun PlantupiaAccountClientSection(
                 }
             }
             PlantupiaHistoryDisplayState.RECORDED -> {
-                if (showFullHistory && livingEnabled) {
-                    val reference = recordedPlantPhotos(events).firstOrNull()
-                    PlantupiaChronologyHeader(events, onOpenPhoto = { event -> photoToView = event.photoUrl to selectedPlant.name },
-                        onRepeat = if (selectedPlant.active && selectedPlant.canRecord && reference != null) ({ beginObservation(reference) }) else null)
-                }
                 if (showFullHistory) key(selectedPlant.id, repository) {
                     PlantupiaPhotoIndex(
                         events = events,
@@ -2367,6 +2368,8 @@ private fun PlantupiaAccountClientSection(
                         alignmentEnabled = spaces.any { it.id == selectedPlant.spaceId && it.livingSystemsEnabled },
                         measurementRepository = repository,
                         measurementPlantId = selectedPlant.id,
+                        editorialTimeline = livingEnabled,
+                        onRepeat = if (livingEnabled && selectedPlant.active && selectedPlant.canRecord) ({ event -> beginObservation(event) }) else null,
                         onOpenPhoto = { photo ->
                             photoToView = photo.photoUrl to selectedPlant.name
                         },

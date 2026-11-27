@@ -45,7 +45,8 @@ fun PlantupiaPlantsRoute(
     val scroll = rememberScrollState()
     val calendarScroll = rememberScrollState()
     val scope = rememberCoroutineScope()
-    var inventoryOffset by rememberSaveable { mutableIntStateOf(0) }
+    var inventoryOffset by rememberSaveable(accountId) { mutableIntStateOf(0) }
+    var spaceIndexOffset by rememberSaveable(accountId) { mutableIntStateOf(0) }
     var showingCareCalendar by rememberSaveable(accountId) {
         androidx.compose.runtime.mutableStateOf(false)
     }
@@ -150,6 +151,13 @@ fun PlantupiaPlantsRoute(
                     onOpenPlant = {
                         inventoryOffset = scroll.value
                         scope.launch { scroll.animateScrollTo(0) }
+                    },
+                    onOpenSpace = {
+                        spaceIndexOffset = scroll.value
+                        scope.launch { scroll.scrollTo(0) }
+                    },
+                    onCloseSpace = {
+                        scope.launch { androidx.compose.runtime.withFrameNanos { }; scroll.scrollTo(spaceIndexOffset) }
                     },
                     returnToCalendar = returnFromPlantToCalendar,
                     onClosePlant = {

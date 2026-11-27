@@ -146,18 +146,18 @@ internal fun PlantupiaObservationRoute(plant: PlantupiaPlant, repository: Plantu
     if (current == null) PlantupiaAtlasCapture(
         title = plant.name, action = "Save private observation",
         disclosure = "Only saved to this plant's private record. You can inspect a detail afterwards.",
-        reference = reference, leaf = reference == null,
+        reference = reference, leaf = false,
         onCaptureWithNote = { uri, note ->
             if (!repository.isCurrentSession() || !plant.active || !plant.canRecord) false
             else { candidate = uri to note; true }
         },
         onClose = { close(false) }, onCapture = { false },
-    ) else AtlasObservation(plant, current.first, repository, note = current.second, autoAnalyse = false, close = close)
+    ) else AtlasObservation(plant, current.first, repository, note = current.second, autoAnalyse = false, close = { close(true) })
 }
 
 /** Real dated source photos: no interpolated biological change. */
 @Composable
-internal fun PlantupiaChronologyHeader(events: List<PlantupiaCareEvent>, onOpenPhoto: (PlantupiaCareEvent) -> Unit, onRepeat: (() -> Unit)?) {
+internal fun PlantupiaChronologyHeader(events: List<PlantupiaCareEvent>, onOpenPhoto: (PlantupiaCareEvent) -> Unit, onRepeat: ((PlantupiaCareEvent) -> Unit)?) {
     val photos = recordedPlantPhotos(events)
     if (photos.isEmpty()) return
     var selectedId by rememberSaveable { mutableStateOf(photos.first().id) }
@@ -177,7 +177,7 @@ internal fun PlantupiaChronologyHeader(events: List<PlantupiaCareEvent>, onOpenP
                     label = { Text(event.observedAt.take(10)) })
             }
         }
-        if (onRepeat != null) Button(onClick = onRepeat, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+        if (onRepeat != null) Button(onClick = { onRepeat(selected) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             Text("Photograph again from the same view")
         }
         Text("Only recorded photographs. Compare dates without inferring growth.", style = PlantupiaText.supporting)

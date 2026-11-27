@@ -522,6 +522,8 @@ internal fun PlantupiaAtlasCapture(
     var note by remember { mutableStateOf("") }
     var showNote by remember { mutableStateOf(false) }
     var compare by remember(reference?.id) { mutableStateOf(reference != null) }
+    var detailView by remember { mutableStateOf(leaf) }
+    var inspectOriginal by remember { mutableStateOf(false) }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) { candidate = uri; error = "" }
     }
@@ -555,6 +557,10 @@ internal fun PlantupiaAtlasCapture(
                         AsyncImage(model = photo, contentDescription = "Your photograph",
                             contentScale = ContentScale.Fit, onSuccess = { loaded = true }, onError = { loaded = false; error = "This photograph cannot be opened." },
                             modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(18.dp)))
+                        if (loaded) TextButton(onClick = { inspectOriginal = true }) {
+                            Text("Inspect original", color = Color(0xFFDCEDC8))
+                        }
+                        if (inspectOriginal && loaded) PlantupiaPhotoViewer(photo.toString(), title) { inspectOriginal = false }
                         if (onCaptureWithNote != null) {
                             TextButton(onClick = { showNote = !showNote }) {
                                 Text(if (showNote) "Hide note" else if (note.isBlank()) "Add a note" else "Edit note", color = Color(0xFFDCEDC8))
@@ -585,11 +591,15 @@ internal fun PlantupiaAtlasCapture(
                     } else {
                         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (reference == null && onCaptureWithNote != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                FilterChip(selected = !detailView, enabled = !writing, onClick = { detailView = false }, label = { Text("Whole plant") })
+                                FilterChip(selected = detailView, enabled = !writing, onClick = { detailView = true }, label = { Text("Detail") })
+                            }
                             if (reference != null && reference.photoUrl.isNotBlank()) TextButton(onClick = { compare = !compare }, enabled = !writing) {
                                 Text(if (compare) "Hide earlier view · " + reference.observedAt.take(10) else "Match earlier view", color = Color(0xFFDCEDC8))
                             }
-                            PlantupiaCameraPreview(if (leaf) CaptureView.LEAF else CaptureView.WHOLE, reference?.photoUrl.takeIf { compare }, writing,
-                                { writing = it }, leaf, immersiveHeight = (viewport - if (reference != null) 48.dp else 0.dp).coerceAtLeast(150.dp)) { uri ->
+                            PlantupiaCameraPreview(if (detailView) CaptureView.LEAF else CaptureView.WHOLE, reference?.photoUrl.takeIf { compare }, writing,
+                                { writing = it }, detailView, immersiveHeight = (viewport - if (reference != null || onCaptureWithNote != null) 48.dp else 0.dp).coerceAtLeast(150.dp)) { uri ->
                                 if (ownedCaptureFile(context.cacheDir, uri)?.isFile != true) false
                                 else {
                                     owned.getAndSet(uri)?.takeIf { it != uri }?.let { ownedCaptureFile(context.cacheDir, it)?.delete() }

@@ -44,6 +44,8 @@ internal fun PlantupiaPhotoIndex(
     alignmentEnabled: Boolean = false,
     measurementRepository: PlantupiaRepository? = null,
     measurementPlantId: String? = null,
+    editorialTimeline: Boolean = false,
+    onRepeat: ((PlantupiaCareEvent) -> Unit)? = null,
 ) {
     val photos = recordedPlantPhotos(events)
     val defaultPair = plantupiaLoadedPhotoPair(events)
@@ -51,9 +53,10 @@ internal fun PlantupiaPhotoIndex(
     var choosing by remember { mutableStateOf(false) }
     var firstId by remember { mutableStateOf<String?>(null) }
     var secondId by remember { mutableStateOf<String?>(null) }
-    val comparison = if (choosing) signatureComparisonPair(events, firstId, secondId) else defaultPair
+    val comparison = if (choosing) signatureComparisonPair(events, firstId, secondId) else if (editorialTimeline) null else defaultPair
 
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+        if (editorialTimeline) PlantupiaChronologyHeader(events, onOpenPhoto, onRepeat)
         Text(if (photos.size == 1) "1 saved photograph" else "${photos.size} saved photographs",
             style = PlantupiaText.itemTitle)
         // Two verified snapshots of the same person's private plant history.
@@ -98,7 +101,7 @@ internal fun PlantupiaPhotoIndex(
                 }
             }
         }
-        if (photos.size != 2 || comparison == null) LazyRow(
+        if (!editorialTimeline && (photos.size != 2 || comparison == null)) LazyRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
