@@ -452,6 +452,7 @@ class RoomRevision(models.Model):
     space = models.ForeignKey(Space, on_delete=models.CASCADE, related_name="room_revisions")
     revision = models.PositiveIntegerField()
     geometry = models.JSONField()
+    care_event_ids = models.JSONField(null=True)
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     created_at = models.DateTimeField(auto_now_add=True)
 

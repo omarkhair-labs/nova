@@ -1,3 +1,4 @@
+from datetime import timedelta
 from io import BytesIO
 from tempfile import TemporaryDirectory
 
@@ -166,8 +167,8 @@ class FieldWorkflowTests(TestCase):
         self.assertEqual(historical.data["room"]["height_m"], 2.8)
 
     def test_room_layout_history_stays_private_and_excludes_backdated_late_care(self):
-        stamp = timezone.now()
-        PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="care", observed_at=stamp)
+        stamp = timezone.now() - timedelta(minutes=1)
+        original = PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="care", observed_at=stamp)
         self.assertEqual(self.client.post(self.room, self.geometry, format="json").status_code, 201)
         later = PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="care",
                                           observed_at=timezone.now())
@@ -180,9 +181,10 @@ class FieldWorkflowTests(TestCase):
         historical = self.client.get(old_url).data
         self.assertTrue(historical["historical"])
         self.assertEqual(historical["room"]["width_m"], 4)
-        self.assertNotEqual(historical["room"]["plants"][0]["latest_event_id"], later.pk)
-        PlantEvent.objects.filter(pk=later.pk).update(observed_at=stamp)
-        self.assertNotEqual(self.client.get(old_url).data["room"]["plants"][0]["latest_event_id"], later.pk)
+        self.assertEqual(historical["room"]["plants"][0]["latest_event_id"], original.pk)
+        layout = RoomRevision.objects.get(space=self.site, revision=1)
+        PlantEvent.objects.filter(pk=later.pk).update(observed_at=layout.created_at, created_at=layout.created_at)
+        self.assertEqual(self.client.get(old_url).data["room"]["plants"][0]["latest_event_id"], original.pk)
         self.assertEqual(self.client.get(self.room + "?revision=3").status_code, 404)
         self.assertEqual(self.client.get(self.room + "?revision=-1").status_code, 400)
         self.client.force_authenticate(self.other)

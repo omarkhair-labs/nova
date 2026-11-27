@@ -7,6 +7,7 @@ from django.db import transaction
 from django.db.models import OuterRef, Subquery
 from django.http import Http404
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
@@ -83,7 +84,10 @@ class RoomView(ResearchView):
         # also exclude records created later and backdated into this layout.
         latest_event = PlantEvent.objects.filter(plant_id=OuterRef("pk"))
         if historical:
-            latest_event = latest_event.filter(observed_at__lte=selected.created_at, created_at__lte=selected.created_at)
+            if selected.care_event_ids is None:  # Layouts saved before event snapshots.
+                latest_event = latest_event.filter(observed_at__lte=selected.created_at, created_at__lte=selected.created_at)
+            else:
+                latest_event = latest_event.filter(pk__in=selected.care_event_ids)
         latest_event = latest_event.order_by("-observed_at", "-created_at", "-pk")
         geometry = dict(selected.geometry) if selected else None
         if geometry:
@@ -144,7 +148,12 @@ class RoomView(ResearchView):
             return Response({"revision": revision})
         if fields["base_revision"] != revision:
             return Response({"detail": "Refresh the room before editing.", "revision": revision}, status=409)
-        RoomRevision.objects.create(space=space, revision=revision + 1, actor=request.user, geometry=room)
+        observed = PlantEvent.objects.filter(plant_id=OuterRef("pk"), observed_at__lte=timezone.now())
+        observed = observed.order_by("-observed_at", "-created_at", "-pk")
+        latest_ids = PlantUnit.objects.filter(space=space, pk__in=ids).annotate(
+            event_id=Subquery(observed.values("pk")[:1])).values_list("event_id", flat=True)
+        RoomRevision.objects.create(space=space, revision=revision + 1, actor=request.user, geometry=room,
+                                    care_event_ids=[str(pk) for pk in latest_ids if pk])
         return Response({"revision": revision + 1}, status=201)
 
 
