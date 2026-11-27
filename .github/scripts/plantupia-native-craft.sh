@@ -250,6 +250,6 @@ PY
 
 # No backend-fixture journeys or actual account actions. The first pass also
 # exercises the real Android software keyboard with a stub login callback.
-run_pass nominal-390dp 390 1.0 "$entrance,$drafts,$keyboard,$time_lens" 10 10m
+run_pass nominal-390dp 390 1.0 "$entrance,$drafts,$keyboard,$time_lens" 11 10m
 run_pass large-text-320dp 320 2.0 "$entrance" 5 5m
 exit "$overall_status"

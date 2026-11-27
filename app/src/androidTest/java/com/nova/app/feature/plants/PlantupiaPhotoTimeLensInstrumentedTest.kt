@@ -10,6 +10,15 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import com.nova.app.feature.plants.data.PlantupiaCareEvent
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import androidx.test.platform.app.InstrumentationRegistry
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.net.Uri
+import java.io.File
 
 /** The date controls genuinely swap the selected private evidence frame. */
 class PlantupiaPhotoTimeLensInstrumentedTest {
@@ -61,5 +70,51 @@ class PlantupiaPhotoTimeLensInstrumentedTest {
         compose.onNodeWithText("2026-10-02 · 0 of 4 marks").assertExists()
         compose.onNodeWithText("Close alignment").performScrollTo().performClick()
         compose.onNodeWithText("Across time").assertExists()
+    }
+
+    @Test fun chronologicalScrubAndRepeatUseTheSelectedSourceRecord() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val folder = File(context.cacheDir, "plantupia-chronology-ui-test").apply { mkdirs() }
+        // Deliberately abstract local fixtures: no client imagery or network access.
+        fun fixture(id: String, date: String, color: Int): PlantupiaCareEvent {
+            val file = File(folder, "$id.png")
+            val bitmap = Bitmap.createBitmap(180, 240, Bitmap.Config.ARGB_8888)
+            bitmap.eraseColor(Color.rgb(238, 232, 214))
+            val canvas = Canvas(bitmap)
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color }
+            canvas.drawRect(24f, 28f, 156f, 212f, paint)
+            file.outputStream().use { assertTrue(bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)) }
+            bitmap.recycle()
+            return saved(id, date).copy(photoUrl = Uri.fromFile(file).toString(), note = "Synthetic chronology test")
+        }
+        val first = fixture("first", "2026-10-01T12:00:00Z", Color.rgb(68, 107, 77))
+        val middle = fixture("middle", "2026-10-13T12:00:00Z", Color.rgb(124, 153, 106))
+        val last = fixture("last", "2026-11-01T12:00:00Z", Color.rgb(35, 75, 62))
+        var repeated: String? = null
+        try {
+            compose.setContent {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    PlantupiaChronologyHeader(listOf(last, first, middle, first), {}, { repeated = it.id })
+                }
+            }
+            compose.onNodeWithText("3 / 3").assertExists()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithContentDescription("Photograph recorded 2026-11-01").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithContentDescription("Select recorded photograph date").performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetProgress) { it(0f) }
+            compose.onNodeWithText("1 / 3").assertExists()
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithContentDescription("Photograph recorded 2026-10-01").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText("Photograph again from the same view").performScrollTo().performClick()
+            compose.runOnIdle { assertEquals(first.id, repeated) }
+            compose.onNodeWithContentDescription("Select recorded photograph date").performScrollTo()
+                .performSemanticsAction(SemanticsActions.SetProgress) { it(1f) }
+            compose.onNodeWithText("2 / 3").assertExists()
+            compose.onNodeWithText("Photograph again from the same view").performScrollTo().performClick()
+            compose.runOnIdle { assertEquals(middle.id, repeated) }
+            compose.onAllNodesWithText("Healthy", substring = true).assertCountEquals(0)
+        } finally { folder.deleteRecursively() }
     }
 }

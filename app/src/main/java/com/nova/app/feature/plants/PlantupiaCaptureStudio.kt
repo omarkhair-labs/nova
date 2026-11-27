@@ -62,8 +62,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -221,6 +219,7 @@ internal fun PlantupiaCaptureStudio(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PlantupiaCameraPreview(
     view: CaptureView,
@@ -447,9 +446,9 @@ private fun PlantupiaCameraPreview(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp))
         val actualZoom = zoom
         val hasLight = ready && runCatching { controller.cameraInfo?.hasFlashUnit() == true }.getOrDefault(false)
-        if (ready && (actualZoom != null || hasLight)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                if (actualZoom != null && actualZoom.maxZoomRatio >= 1f) {
+        if (ready && (actualZoom != null || hasLight || canPreviewOutline)) {
+            FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                if (actualZoom != null && actualZoom.maxZoomRatio > actualZoom.minZoomRatio && actualZoom.maxZoomRatio >= 1f) {
                     TextButton(enabled = !writing, onClick = {
                         controlsError = ""
                         val target = if (actualZoom.zoomRatio > 1.15f) 1f else minOf(2f, actualZoom.maxZoomRatio)
@@ -552,7 +551,7 @@ private fun PlantupiaCameraPreview(
     if (immersiveHeight == null) {
         Text(view.guidance, style = PlantupiaText.supporting)
         Text("Review the photograph before keeping it.", style = PlantupiaText.supporting)
-    } else if (canPreviewOutline && outlineEnabled) TextButton(enabled = liveEnabled, onClick = { liveReading = null; selection++ }) {
+    } else if (canPreviewOutline && outlineEnabled && liveReading?.phase == LiveLensPhase.LOST) TextButton(enabled = liveEnabled, onClick = { liveReading = null; selection++ }) {
         Text("Find another region", color = Color(0xFFDCEDC8))
     }
     } // optical stage and capture dock
