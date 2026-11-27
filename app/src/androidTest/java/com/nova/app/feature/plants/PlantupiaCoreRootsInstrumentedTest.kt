@@ -183,16 +183,8 @@ class PlantupiaCoreRootsInstrumentedTest {
 
         awaitText("No check-ins due")
         capture("15-owner-today")
-        scrollToText("Your spaces").assertIsDisplayed()
-        capture("15b-place-index")
-        clickText("Enter this place")
-        awaitText("My plants")
-        scrollToText(requireNotNull(ownSpace).name).assertIsDisplayed()
-        capture("15c-place-detail")
-        compose.onNodeWithText("Explore this place").assertDoesNotExist()
-        compose.onNodeWithText("Map of your place").assertDoesNotExist()
-        tab("Today")
-
+        compose.onNodeWithText("Enter this place").assertDoesNotExist()
+        compose.onNodeWithText("Living Atlas", substring = true).assertDoesNotExist()
         val todayFocus = requireNotNull(todayCollectionFocus(plants))
         scrollToText("From your collection")
         capture("15a-owner-today-collection")
