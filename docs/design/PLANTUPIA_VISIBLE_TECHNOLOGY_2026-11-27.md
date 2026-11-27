@@ -1,0 +1,5 @@
+# Visible living technology — native interaction continuation
+
+The direct Lens route starts the optional QA live outline in its leaf camera; a status on the actual camera reports acquisition, tracking or loss from the existing analyzer, never a predicted plant identity. The saved photograph uses the server-signed boundary and animates the actual returned path, not a cosmetic detection. The immediate review shows the selected operator label and a single keep action. Fine tracing and calibration stay reachable. The exact accepted trace ID from the server selects its saved measurements and requests the existing visible-appearance inspection once. Today, the plant collection and plant overview expose the same Lens. Sunlight playback advances only over returned scenario samples, and optional point-cloud rotation uses the saved geometry. No synthetic health/diagnosis, new public sharing or simulated physical data.
+
+Validation remains required: exact-head build, physical device, visual critique, AR recovery, model accuracy, ARM neural and SfM runtime. The phone was not connected during this increment. This is a candidate, not company-demo acceptance.

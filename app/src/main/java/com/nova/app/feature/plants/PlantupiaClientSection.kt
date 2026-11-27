@@ -719,6 +719,8 @@ private fun PlantupiaAccountClientSection(
                     repository, plants, refreshVersion = refreshVersion,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
                 )
+                val lensPlants = plants.filter { plant -> plant.active && spaces.any { it.id == plant.spaceId && it.livingSystemsEnabled } }
+                if (lensPlants.isNotEmpty()) PlantupiaLensEntry(lensPlants, repository) { scope.launch { refresh() } }
                 PlantupiaTodayPanel(
                     plants = plants,
                     onScheduleDay = { day -> PlantupiaCareCalendarOpenSignal.open(accountId, fromToday = true, day = day) },

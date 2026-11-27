@@ -93,6 +93,7 @@ internal fun PlantupiaCaptureStudio(
     initialView: CaptureView = CaptureView.WHOLE,
     captureActionLabel: String? = null,
     captureDescription: String? = null,
+    startLiveOutline: Boolean = false,
 ) {
     val context = LocalContext.current
     var permission by remember {
@@ -193,7 +194,7 @@ internal fun PlantupiaCaptureStudio(
                     }
                 }
             }
-            PlantupiaCameraPreview(view, reference?.photoUrl.takeIf { compare }, writing, { writing = it }) { photo ->
+            PlantupiaCameraPreview(view, reference?.photoUrl.takeIf { compare }, writing, { writing = it }, startLiveOutline) { photo ->
                 if (ownedCaptureFile(context.cacheDir, photo)?.isFile != true) false
                 else {
                     owned.getAndSet(photo)?.let { previous ->
@@ -214,6 +215,7 @@ private fun PlantupiaCameraPreview(
     referenceUrl: String?,
     writing: Boolean,
     onWriting: (Boolean) -> Unit,
+    startLiveOutline: Boolean,
     onCapture: (Uri) -> Boolean,
 ) {
     val context = LocalContext.current
@@ -234,7 +236,7 @@ private fun PlantupiaCameraPreview(
     var error by remember { mutableStateOf("") }
     val active = remember(owner, controller) { AtomicBoolean(false) }
     val canPreviewOutline = BuildConfig.PLANTUPIA_LIVE_LENS_QA && view == CaptureView.LEAF && referenceUrl == null
-    var outlineEnabled by remember(view, referenceUrl) { mutableStateOf(false) }
+    var outlineEnabled by remember(view, referenceUrl) { mutableStateOf(startLiveOutline && canPreviewOutline) }
     var previewSize by remember { mutableStateOf(IntSize.Zero) }
     var liveReading by remember { mutableStateOf<LiveLensReading?>(null) }
     var selection by remember(view, referenceUrl) { mutableStateOf(0) }
@@ -290,7 +292,7 @@ private fun PlantupiaCameraPreview(
             analysis.shutdown()
         }
     }
-    if (canPreviewOutline) {
+    if (canPreviewOutline && !startLiveOutline) {
         FilterChip(selected = outlineEnabled, onClick = {
             outlineEnabled = !outlineEnabled
             if (outlineEnabled) { liveReading = null; selection++ }
@@ -368,6 +370,32 @@ private fun PlantupiaCameraPreview(
                     }
                 }
             }
+            if (canPreviewOutline && outlineEnabled) {
+                val tracking = liveEnabled && liveReading?.phase == LiveLensPhase.TRACKING && liveReading?.region != null
+                val label = when {
+                    !ready -> "CAMERA STARTING"
+                    writing -> "CAPTURING"
+                    tracking -> "REGION TRACKED"
+                    liveReading?.phase == LiveLensPhase.LOST -> "REGION LOST"
+                    else -> "FINDING A REGION"
+                }
+                Surface(color = Color(0xDD102E25), shape = PlantupiaShapes.badge,
+                    modifier = Modifier.align(Alignment.TopStart).padding(12.dp)) {
+                    Row(Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                        Canvas(Modifier.size(8.dp)) { drawCircle(if (tracking) Color(0xFFB9FF84) else Color(0xFFFFD091)) }
+                        Text(label, style = PlantupiaText.sectionLabel, color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+    if (startLiveOutline && canPreviewOutline) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            FilterChip(selected = outlineEnabled, enabled = !writing,
+                onClick = { outlineEnabled = !outlineEnabled; liveReading = null; selection++ },
+                label = { Text("Live outline") })
+            TextButton(enabled = liveEnabled, onClick = { liveReading = null; selection++ }) { Text("Find again") }
         }
     }
     val guidance = when {

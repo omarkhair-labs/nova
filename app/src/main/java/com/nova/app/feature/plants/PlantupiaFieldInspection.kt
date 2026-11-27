@@ -27,6 +27,7 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
             var feedback by remember { mutableStateOf("") }
             var busy by remember { mutableStateOf(false) }
             var generation by remember { mutableIntStateOf(0) }
+            var savedFocus by remember { mutableStateOf<Long?>(null) }
             LaunchedEffect(generation) {
                 feedback = ""
                 when (val result = repository.fieldEvidence(plant.id, event.id)) {
@@ -94,11 +95,15 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                                 busy = busy,
                                 revision = generation,
                                 initialAutoOutline = focusOutline,
+                                initialSelectedRegionId = savedFocus,
                                 suggest = { body, result -> submit("suggest-region/", body, result) },
                                 inspectOutline = { traceId, result ->
                                     submit("", JSONObject().put("symptom", "uncertain").put("trace_id", traceId), result)
                                 },
-                            ) { body -> submit("regions/", body) { generation++ } }
+                            ) { body -> submit("regions/", body) { response ->
+                                if (focusOutline) savedFocus = response.optLong("id").takeIf { it > 0 }
+                                generation++
+                            } }
                             CaptureNotes(quality)
                         } else {
                             PlantupiaEvidencePhoto(event.photoUrl, "Original recorded plant photograph",

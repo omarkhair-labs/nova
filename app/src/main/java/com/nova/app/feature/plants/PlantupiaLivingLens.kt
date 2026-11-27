@@ -241,6 +241,7 @@ private fun LensStudio(plants: List<PlantupiaPlant>, repository: PlantupiaReposi
     if (target != null && repository.isCurrentSession()) PlantupiaCaptureStudio(
         plantName = if (target == LensCapture.WHOLE) "Whole plant" else if (target == LensCapture.DETAIL) "Leaf or flower" else subject?.name.orEmpty(),
         initialView = if (target == LensCapture.WHOLE) CaptureView.WHOLE else CaptureView.LEAF,
+        startLiveOutline = target == LensCapture.SCAN,
         captureActionLabel = if (target == LensCapture.SCAN) "Analyse & save privately" else "Use this view",
         captureDescription = if (target == LensCapture.SCAN) "Saves the photo as a private observation, then opens its analysis." else "Used for this private comparison only.",
         onClose = { capture = null },

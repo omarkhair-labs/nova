@@ -1,5 +1,7 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -39,6 +41,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -147,6 +150,7 @@ internal fun PlantupiaRegionStudy(
     suggest: (JSONObject, (JSONObject) -> Unit) -> Unit,
     inspectOutline: ((Long, (JSONObject) -> Unit) -> Unit)? = null,
     initialAutoOutline: Boolean = false,
+    initialSelectedRegionId: Long? = null,
     save: (JSONObject) -> Unit,
 ) {
     var tracing by remember(revision, url) { mutableStateOf(false) }
@@ -155,7 +159,10 @@ internal fun PlantupiaRegionStudy(
         mutableStateOf(initialAutoOutline && canTrace && canSuggest && !autoRequested)
     }
     var neural by remember(revision, url, assisting, canNeuralSuggest) { mutableStateOf(false) }
-    var selected by remember(revision, url) { mutableStateOf<Long?>(null) }
+    var selected by remember(revision, url, initialSelectedRegionId, regions.map { it.id }) {
+        mutableStateOf(initialSelectedRegionId?.takeIf { id -> regions.any { it.id == id } })
+    }
+    var showTools by remember(revision, url) { mutableStateOf(!initialAutoOutline) }
     var points by remember(revision, tracing, url) { mutableStateOf(emptyList<IntOffset>()) }
     var part by remember(revision, tracing, assisting, url) { mutableStateOf("leaf") }
     var foreground by remember(revision, assisting, url) { mutableStateOf(emptyList<IntOffset>()) }
@@ -174,6 +181,24 @@ internal fun PlantupiaRegionStudy(
     val chosen = regions.firstOrNull { it.id == selected }
     var highlighted by remember(selected) { mutableStateOf<Int?>(null) }
     var outlineInspection by remember(revision, url, selected) { mutableStateOf<JSONObject?>(null) }
+    var requestedInspection by remember(url, initialSelectedRegionId) { mutableStateOf(false) }
+    val reveal = remember(url) { Animatable(1f) }
+    LaunchedEffect(proposal?.token) {
+        if (initialAutoOutline && proposal != null) {
+            reveal.snapTo(0f)
+            reveal.animateTo(1f, tween(620))
+        } else reveal.snapTo(1f)
+    }
+    LaunchedEffect(chosen?.id, busy, initialSelectedRegionId) {
+        if (initialAutoOutline && chosen != null && chosen.id == initialSelectedRegionId && !busy &&
+            !requestedInspection && inspectOutline != null && chosen.label in setOf("plant", "leaf", "stem", "flower", "exposed_root", "visible_damage")) {
+            requestedInspection = true
+            inspectOutline(chosen.id) { answer ->
+                if (answer.optString("input_source") == "saved_outline" && answer.optJSONObject("photo_evidence")?.optLong("trace_id") == chosen.id)
+                    outlineInspection = answer
+            }
+        }
+    }
     val scalePayload = if (calibrating) scaleDraft.payload() else null
     var useMarkers by remember(revision, tracing, assisting, url) { mutableStateOf(false) }
     var markerWidth by remember { mutableStateOf("2.0") }
@@ -278,10 +303,15 @@ internal fun PlantupiaRegionStudy(
                         if (projected.size >= 3) close()
                     }
                     val edgeInk = if (initialAutoOutline && active) Color(0xFFB9FF84) else ink
-                    if (projected.size >= 3 && active) drawPath(path, edgeInk.copy(alpha = .26f))
-                    drawPath(path, edgeInk.copy(alpha = if (active) 1f else .65f),
+                    val fraction = if (initialAutoOutline && assisting && active && proposal != null) reveal.value else 1f
+                    if (projected.size >= 3 && active) drawPath(path, edgeInk.copy(alpha = .26f * fraction))
+                    val visiblePath = if (fraction < 1f) Path().also { partial ->
+                        val measure = PathMeasure().apply { setPath(path, false) }
+                        measure.getSegment(0f, measure.length * fraction, partial, true)
+                    } else path
+                    drawPath(visiblePath, edgeInk.copy(alpha = if (active) 1f else .65f),
                         style = Stroke(if (active) 4.dp.toPx() else 2.5.dp.toPx()))
-                    drawPath(path, paper.copy(alpha = if (active) 1f else .8f),
+                    drawPath(visiblePath, paper.copy(alpha = if (active) 1f else .8f),
                         style = Stroke(1.5.dp.toPx()))
                     if (tracing) projected.forEach { point ->
                         drawCircle(ink, 4.dp.toPx(), point)
@@ -331,13 +361,20 @@ internal fun PlantupiaRegionStudy(
                 if (!busy) Text(if (proposal != null) "The highlighted boundary is a suggestion. Confirm it or refine it with a tap."
                     else feedback.ifBlank { "Tap inside the object, then outside it to refine the selection." }, style = PlantupiaText.supporting)
                 proposal?.let { candidate ->
+                    InspectionChoice("This is a", part,
+                        listOf("leaf", "plant", "stem", "flower", "pot", "soil", "exposed_root", "visible_damage"),
+                        assistingEnabled) { part = it }
                     Button(enabled = assistingEnabled && scaleReady && !calibrating,
                         onClick = { acceptProposal(candidate) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                        Text("Keep this outline")
+                        Text("Keep outline & see findings")
                     }
+                }
+                if (!busy) TextButton(onClick = { showTools = !showTools }) {
+                    Text(if (showTools) "Hide fine controls" else "Refine or measure this outline")
                 }
             }
         }
+        if (!showTools && !tracing && !calibrating) return
     }
     if (marking && !calibrating && (points.size >= 3 || proposal != null)) {
         TagScaleControls(useMarkers, markerWidth, !busy, { useMarkers = it }, { markerWidth = it })
@@ -456,7 +493,16 @@ internal fun PlantupiaRegionStudy(
             else if (regions.isEmpty()) "No outlined regions in this record." else "Tap an outline on the photo or choose one below."
         Text(regionCount, style = PlantupiaText.supporting)
         if (chosen != null) {
-            RegionMeasurements(chosen)
+            if (initialAutoOutline) {
+                Surface(color = PlantupiaColors.softSage, shape = PlantupiaShapes.inset,
+                    modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("YOUR INSPECTION", style = PlantupiaText.sectionLabel)
+                        RegionMeasurements(chosen)
+                    }
+                }
+                if (busy && outlineInspection == null) LinearProgressIndicatorForLens()
+            } else RegionMeasurements(chosen)
             if (chosen.patches.isNotEmpty()) {
                 Text("Visible colour patches", style = PlantupiaText.itemTitle)
                 Text("Select a patch to locate it on the photograph. Lighting and natural markings affect colour.",
@@ -507,6 +553,12 @@ internal fun PlantupiaRegionStudy(
             }
         }
     }
+}
+
+@Composable
+private fun LinearProgressIndicatorForLens() {
+    androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
+    Text("Reading visible appearance…", style = PlantupiaText.supporting)
 }
 
 @Composable

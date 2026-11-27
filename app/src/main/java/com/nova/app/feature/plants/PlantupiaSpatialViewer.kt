@@ -15,6 +15,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlin.math.cos
 import kotlin.math.sin
@@ -89,7 +91,15 @@ internal fun PointCloudStage(points: List<SpatialPoint>, description: String = "
     var yaw by remember(points) { mutableFloatStateOf(0f) }
     var pitch by remember(points) { mutableFloatStateOf(0f) }
     var zoom by remember(points) { mutableFloatStateOf(1f) }
+    var rotating by remember(points) { mutableStateOf(false) }
+    LaunchedEffect(rotating, points) {
+        while (rotating) {
+            delay(50)
+            yaw = (yaw + .018f) % 6.283185f
+        }
+    }
     val gestures = rememberTransformableState { ratio, pan, _ ->
+        rotating = false
         yaw = (yaw + pan.x * .012f) % 6.283185f
         pitch = (pitch - pan.y * .012f).coerceIn(-1.5f, 1.5f)
         zoom = (zoom * ratio).coerceIn(.55f, 2.8f)
@@ -140,11 +150,12 @@ internal fun PointCloudStage(points: List<SpatialPoint>, description: String = "
         }
     }
     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        TextButton(onClick = { yaw -= .35f }) { Text("Turn left") }
-        TextButton(onClick = { yaw += .35f }) { Text("Turn right") }
+        TextButton(onClick = { rotating = !rotating }) { Text(if (rotating) "Pause rotation" else "Rotate scene") }
+        TextButton(onClick = { rotating = false; yaw -= .35f }) { Text("Turn left") }
+        TextButton(onClick = { rotating = false; yaw += .35f }) { Text("Turn right") }
         TextButton(onClick = { pitch = (pitch + .30f).coerceAtMost(1.5f) }) { Text("Tilt view") }
         TextButton(onClick = { zoom = if (zoom > 1f) 1f else 1.65f }) { Text("Change zoom") }
-        TextButton(onClick = { yaw = 0f; pitch = 0f; zoom = 1f }) { Text("Reset view") }
+        TextButton(onClick = { rotating = false; yaw = 0f; pitch = 0f; zoom = 1f }) { Text("Reset view") }
     }
 }
 

@@ -14,6 +14,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +44,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -129,6 +131,15 @@ internal fun PlantupiaDaylightStudy(
     var message by remember(simulation) { mutableStateOf("") }
     var index by remember(simulation) { mutableIntStateOf(0) }
     var editing by remember { mutableStateOf(true) }
+    var playing by remember(simulation, samples) { mutableStateOf(false) }
+    LaunchedEffect(playing, samples, editing) {
+        if (!playing || editing) return@LaunchedEffect
+        while (playing && index < samples.lastIndex) {
+            delay(260)
+            index++
+        }
+        playing = false
+    }
     val active = samples.getOrNull(index)
     fun reaches(sample: RoomDaylightSample): Boolean =
         position?.let { sampledDirectRay(sample, it, submittedPoint) } == true
@@ -169,9 +180,12 @@ internal fun PlantupiaDaylightStudy(
             }
         }
         if (samples.size > 1) {
+            Button(enabled = !busy && !editing, onClick = {
+                if (playing) playing = false else { index = 0; playing = true }
+            }, modifier = Modifier.fillMaxWidth()) { Text(if (playing) "Pause daylight" else "Play the day") }
             Slider(
                 value = index.toFloat(),
-                onValueChange = { index = it.roundToInt().coerceIn(0, samples.lastIndex) },
+                onValueChange = { playing = false; index = it.roundToInt().coerceIn(0, samples.lastIndex) },
                 valueRange = 0f..samples.lastIndex.toFloat(),
                 steps = samples.size - 2,
                 modifier = Modifier.fillMaxWidth().semantics {
@@ -223,7 +237,7 @@ internal fun PlantupiaDaylightStudy(
             if (recordedPoint != null && ref != recordedPoint)
                 TextButton(enabled = !busy, onClick = { referencePoint = recordedPoint }) { Text("Use recorded position") }
         }
-        TextButton(onClick = { editing = !editing }) { Text(if (editing) "Hide scenario inputs" else "Change date or placement") }
+        TextButton(onClick = { playing = false; editing = !editing }) { Text(if (editing) "Hide scenario inputs" else "Change date or placement") }
     } else if (!editing) {
         Text("Run the updated scenario to see sunlight here.", style = PlantupiaText.supporting)
         Button(enabled = !busy, onClick = { editing = true }) { Text("Show scenario inputs") }
