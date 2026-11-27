@@ -45,6 +45,7 @@ internal fun PlantupiaRoomDrawing(
     beam: List<Pair<Double, Double>> = emptyList(),
     shadow: List<Pair<Double, Double>> = emptyList(),
     sample: Pair<Double, Double>? = null,
+    referencePoint: Pair<Double, Double>? = null,
     onSelectPlant: ((String?) -> Unit)? = null,
     onChoosePoint: ((Double, Double) -> Unit)? = null,
 ) {
@@ -124,6 +125,13 @@ internal fun PlantupiaRoomDrawing(
             drawCircle(paper, 10.dp.toPx(), p)
             drawCircle(ink, 8.dp.toPx(), p, style = Stroke(1.5.dp.toPx()))
             drawCircle(if (selectedPlant == plant.id) ink else PlantupiaColors.mutedSage, 4.5.dp.toPx(), p)
+        }
+        referencePoint?.takeIf { it != sample }?.let { (x,y) ->
+            val p = frame.project(x,y)
+            val r = 9.dp.toPx()
+            drawCircle(paper, 12.dp.toPx(), p)
+            drawRect(windowInk, p-Offset(r,r), Size(2*r,2*r), style = Stroke(2.dp.toPx()))
+            drawCircle(windowInk, 3.dp.toPx(), p)
         }
         sample?.let { (x, y) ->
             val p = frame.project(x, y)

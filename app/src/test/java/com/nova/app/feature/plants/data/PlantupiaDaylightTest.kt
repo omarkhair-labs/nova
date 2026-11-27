@@ -18,6 +18,21 @@ class PlantupiaDaylightTest {
         assertTrue(autumn.zipWithNext().all { (a, b) -> a.isBefore(b) })
     }
 
+    @Test fun comparesIdenticalSampleTimesIncludingScreenShadow() {
+        val at = java.time.OffsetDateTime.parse("2026-03-20T09:00:00Z")
+        val beam = listOf(0.0 to 0.0, 3.0 to 0.0, 3.0 to 3.0, 0.0 to 3.0)
+        val shadow = listOf(1.0 to 1.0, 2.0 to 1.0, 2.0 to 2.0, 1.0 to 2.0)
+        val ref = 1.5 to 1.5
+        val candidate = 2.5 to 1.5
+        val samples = listOf(RoomDaylightSample(at,false,45.0,beam,shadow),
+            RoomDaylightSample(at.plusMinutes(30),true,45.0,beam),
+            RoomDaylightSample(at.plusMinutes(60),false,-1.0,emptyList()))
+        assertEquals(DaylightPointComparison(1,2,3),compareDaylightPoints(samples,ref,candidate,ref))
+        assertEquals(null,compareDaylightPoints(samples.reversed(),ref,candidate,ref))
+        assertEquals(null,compareDaylightPoints(samples,Double.NaN to 1.5,candidate,ref))
+        assertFalse(inDirectSunFootprint(Double.NaN to 1.5,beam))
+    }
+
     @Test fun anotherPointCanBeTestedAgainstTheSameFootprint() {
         val corners = listOf(1.0 to 0.2, 2.0 to 0.2, 2.0 to 1.5, 1.0 to 1.5)
         assertTrue(inDirectSunFootprint(1.2 to 0.5, corners))

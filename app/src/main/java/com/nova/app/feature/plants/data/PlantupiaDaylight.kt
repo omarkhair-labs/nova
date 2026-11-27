@@ -55,6 +55,8 @@ internal fun daylightSampleTimes(date: LocalDate, zone: ZoneId): List<OffsetDate
 
 internal fun parseDaylight(body: JSONObject, scenario: RoomDaylightScenario): List<RoomDaylightSample> {
     require(body.getString("source") == "simulation" && body.getInt("revision") == scenario.revision)
+    require(body.optBoolean("historical") == scenario.historical)
+    require(body.isNull("illuminance_lux"))
     require(body.getDouble("plane_height_m") == scenario.height)
     val samples = body.getJSONArray("samples")
     require(samples.length() == scenario.times.size)
@@ -62,27 +64,23 @@ internal fun parseDaylight(body: JSONObject, scenario: RoomDaylightScenario): Li
         val sample = samples.getJSONObject(index)
         val at = OffsetDateTime.parse(sample.getString("at"))
         require(at == scenario.times[index])
-        val footprint = sample.getJSONArray("footprint_xy_m")
-        require(footprint.length() in 0..8)
+        fun polygon(vertices: JSONArray, maximum: Int): List<Pair<Double, Double>> {
+            require(vertices.length() == 0 || vertices.length() in 3..maximum)
+            return List(vertices.length()) { vertex ->
+                val point = vertices.getJSONArray(vertex)
+                require(point.length() == 2)
+                val x = point.getDouble(0)
+                val y = point.getDouble(1)
+                require(x.isFinite() && y.isFinite() && x >= -1e-8 && y >= -1e-8)
+                x.coerceAtLeast(0.0) to y.coerceAtLeast(0.0)
+            }
+        }
         RoomDaylightSample(
             at = at,
             direct = sample.getBoolean("direct_ray"),
             elevation = sample.getDouble("sun_elevation_deg").also { require(it in -90.0..90.0) },
-            shadow = sample.optJSONArray("shadow_xy_m")?.let { outline ->
-                require(outline.length() <= 16)
-                List(outline.length()) { i ->
-                    val xy = outline.getJSONArray(i)
-                    xy.getDouble(0) to xy.getDouble(1)
-                }
-            }.orEmpty(),
-            footprint = List(footprint.length()) { vertex ->
-                val point = footprint.getJSONArray(vertex)
-                require(point.length() == 2)
-                val x = point.getDouble(0)
-                val y = point.getDouble(1)
-                require(x.isFinite() && y.isFinite())
-                x to y
-            },
+            shadow = polygon(sample.optJSONArray("shadow_xy_m") ?: JSONArray(), 16),
+            footprint = polygon(sample.getJSONArray("footprint_xy_m"), 8),
         )
     }
 }
@@ -93,7 +91,8 @@ internal fun inDirectSunFootprint(
     point: Pair<Double, Double>,
     polygon: List<Pair<Double, Double>>,
 ): Boolean {
-    if (polygon.size < 3) return false
+    if (polygon.size < 3 || !point.first.isFinite() || !point.second.isFinite() ||
+        polygon.any { !it.first.isFinite() || !it.second.isFinite() }) return false
     val (x, y) = point
     var followsClockwise = false
     var followsCounterclockwise = false
@@ -107,4 +106,25 @@ internal fun inDirectSunFootprint(
         if (followsClockwise && followsCounterclockwise) return false
     }
     return kotlin.math.abs(twiceArea) > 1e-10
+}
+
+
+/** Same time samples, aperture, plane and reported screen. Counts are not hours or lux. */
+internal fun sampledDirectRay(sample: RoomDaylightSample, point: Pair<Double, Double>,
+                              submittedPoint: Pair<Double, Double>?): Boolean =
+    if (sample.elevation <= 0) false
+    else if (point == submittedPoint) sample.direct
+    else inDirectSunFootprint(point, sample.footprint) && !inDirectSunFootprint(point, sample.shadow)
+
+internal data class DaylightPointComparison(val referenceHits: Int, val candidateHits: Int, val sampleCount: Int)
+
+internal fun compareDaylightPoints(samples: List<RoomDaylightSample>, reference: Pair<Double, Double>,
+                                   candidate: Pair<Double, Double>, submittedPoint: Pair<Double, Double>?): DaylightPointComparison? {
+    if (samples.isEmpty() || samples.size > 96 || samples.zipWithNext().any { (a,b) -> !a.at.isBefore(b.at) } ||
+        listOf(reference,candidate).any { !it.first.isFinite() || !it.second.isFinite() }) return null
+    return DaylightPointComparison(
+        samples.count { sampledDirectRay(it,reference,submittedPoint) },
+        samples.count { sampledDirectRay(it,candidate,submittedPoint) },
+        samples.size,
+    )
 }

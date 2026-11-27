@@ -3,7 +3,7 @@ from calendar import isleap
 from datetime import timezone
 from math import asin, atan2, cos, degrees, isfinite, pi, radians, sin
 
-from .living_measurements import aperture_footprint, direct_sun
+from .living_measurements import _sun_slopes, aperture_footprint, direct_sun
 
 
 def solar_position(stamp, latitude, longitude):
@@ -41,7 +41,10 @@ def intersect_convex(subject, clip):
                 result.append([start[i] + t*(end[i]-start[i]) for i in range(2)])
             if de >= 0:
                 result.append(end)
-    return result if len(result) >= 3 and any(abs(cross(result[0], result[1], v)) > 1e-9 for v in result[2:]) else []
+    # Clipping can repeat a vertex at a grazing edge. Use the full polygon
+    # area rather than its first edge to decide whether a shadow exists.
+    area = abs(sum(a[0]*b[1]-a[1]*b[0] for a,b in zip(result,result[1:]+result[:1])))
+    return result if len(result) >= 3 and area > 1e-9 else []
 
 
 def window_scenario(room, window_id, point, *, top_normal_deg, width_m, sill_m, head_m,
@@ -52,6 +55,11 @@ def window_scenario(room, window_id, point, *, top_normal_deg, width_m, sill_m, 
         raise ValueError("Choose a window from this room revision.")
     wx, wy = opening["x_m"], opening["y_m"]
     x, y, z = point
+    ceiling = room.get("height_m")
+    if not all(isfinite(v) for v in (x,y,z,width_m,sill_m,head_m,top_normal_deg)):
+        raise ValueError("Supply finite scenario dimensions.")
+    if not 0 <= sill_m < head_m or (ceiling is not None and (head_m > ceiling or z > ceiling)):
+        raise ValueError("Keep the opening and sample plane within the recorded room height.")
     if (wx in (0,w) and wy in (0,l)) or not (0 < x < w and 0 < y < l and z >= 0):
         raise ValueError("Choose an unambiguous wall opening and an interior sample point.")
     if wy == 0:
@@ -71,7 +79,8 @@ def window_scenario(room, window_id, point, *, top_normal_deg, width_m, sill_m, 
 
     if screen:
         offset, span, screen_height = screen
-        if not (0 < offset < depth and 0 < span <= 2 * min(middle, length-middle) and 0 < screen_height <= 1000):
+        if not (0 < offset < depth and 0 < span <= 2 * min(middle, length-middle) and 0 < screen_height <= 1000
+                and (ceiling is None or screen_height <= ceiling)):
             raise ValueError("The opaque screen must fit inside the room, centred opposite the window.")
 
     def to_room(along_wall, inward):
@@ -97,8 +106,15 @@ def window_scenario(room, window_id, point, *, top_normal_deg, width_m, sill_m, 
                                "window_left_m": middle-span/2, "window_right_m": middle+span/2}
             projected = aperture_footprint(wall_span=length, room_depth=depth-offset, **screen_aperture)
             shadow = intersect_convex([(a, i+offset) for a, i in projected], footprint)
-        shaded = bool(shadow) and all(cross(a, b, (along, inward)) >= -1e-9
-                                      for a, b in zip(shadow, shadow[1:]+shadow[:1]))
+        # The point answer uses the actual ray at the screen plane. Do not
+        # infer occlusion from a degenerate drawing polygon at grazing edges.
+        slopes = _sun_slopes(elevation, azimuth, top_normal_deg+side)
+        shaded = False
+        if screen and slopes is not None and ray["unobstructed_direct_ray"] and inward >= offset:
+            lateral, rise = slopes
+            screen_x = along + (inward-offset)*lateral
+            screen_z = z + (inward-offset)*rise
+            shaded = middle-span/2 <= screen_x <= middle+span/2 and 0 <= screen_z <= screen_height
         rows.append({"at": stamp.isoformat(), "sun_elevation_deg": elevation, "sun_azimuth_deg": azimuth,
                      "direct_ray": ray["unobstructed_direct_ray"] and not shaded,
                      "shadow_xy_m": [to_room(a, i) for a, i in shadow],

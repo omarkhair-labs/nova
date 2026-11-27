@@ -35,7 +35,9 @@ import com.nova.app.feature.plants.data.RoomPlant
 import com.nova.app.feature.plants.data.RoomDaylightSample
 import com.nova.app.feature.plants.data.RoomDaylightScenario
 import com.nova.app.feature.plants.data.daylightSampleTimes
-import com.nova.app.feature.plants.data.inDirectSunFootprint
+import com.nova.app.feature.plants.data.sampledDirectRay
+import com.nova.app.feature.plants.data.compareDaylightPoints
+import androidx.compose.runtime.key
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -60,6 +62,7 @@ internal fun PlantupiaDaylightStudy(
     }
     if (windows.isEmpty()) {
         Text("Record a window centre on one wall to study sunlight.", style = PlantupiaText.supporting)
+        if (!room.historical) PlantupiaAmbientLightCheck()
         return
     }
 
@@ -88,6 +91,10 @@ internal fun PlantupiaDaylightStudy(
     val x = xText.toDoubleOrNull()?.takeIf { it > 0 && it < width }
     val y = yText.toDoubleOrNull()?.takeIf { it > 0 && it < length }
     val position = if (x != null && y != null) x to y else null
+    val recordedPoint = initialPlacement?.let { it.x to it.y }?.takeIf {
+        it.first > 0 && it.first < width && it.second > 0 && it.second < length
+    }
+    var referencePoint by remember(room.revision, width, length, initialPlacement) { mutableStateOf(recordedPoint) }
     val times = remember(date, zone) {
         runCatching { daylightSampleTimes(LocalDate.parse(date.trim()), ZoneId.of(zone.trim())) }
             .getOrDefault(emptyList())
@@ -99,7 +106,8 @@ internal fun PlantupiaDaylightStudy(
     val top = head.toDoubleOrNull()
     val lat = latitude.toDoubleOrNull()
     val lon = longitude.toDoubleOrNull()
-    val scenario = if ((!screenOn || (screen?.size == 3 && screen.all { it in .001..1000.0 })) && position != null && times.size >= 2 && planeHeight != null && orientation != null &&
+    val ceiling = room.height ?: 1000.0
+    val scenario = if ((!screenOn || (screen?.size == 3 && screen.all { it in .001..1000.0 } && screen[2] <= ceiling)) && position != null && times.size >= 2 && planeHeight != null && orientation != null &&
         openingWidth != null && bottom != null && top != null && lat != null && lon != null
     ) {
         val window = windows.first { it.id == windowId }
@@ -108,8 +116,8 @@ internal fun PlantupiaDaylightStudy(
         } else {
             minOf(window.y, length - window.y)
         }
-        if (planeHeight in 0.0..1000.0 && orientation in 0.0..360.0 &&
-            openingWidth in 0.001..(2 * edgeDistance) && bottom >= 0 && bottom < top && top in 0.001..1000.0 &&
+        if (planeHeight in 0.0..ceiling && orientation in 0.0..360.0 &&
+            openingWidth in 0.001..(2 * edgeDistance) && bottom >= 0 && bottom < top && top in 0.001..ceiling &&
             lat in -90.0..90.0 && lon in -180.0..180.0
         ) RoomDaylightScenario(room.revision, windowId, position.first, position.second, planeHeight,
             orientation, openingWidth, bottom, top, lat, lon, times, historical = room.historical, screen = screen) else null
@@ -123,7 +131,7 @@ internal fun PlantupiaDaylightStudy(
     var editing by remember { mutableStateOf(true) }
     val active = samples.getOrNull(index)
     fun reaches(sample: RoomDaylightSample): Boolean =
-        position?.let { if (it == submittedPoint) sample.direct else inDirectSunFootprint(it, sample.footprint) && !inDirectSunFootprint(it, sample.shadow) } == true
+        position?.let { sampledDirectRay(sample, it, submittedPoint) } == true
     val clock = active?.at?.format(DateTimeFormatter.ofPattern("HH:mm xxx"))
     val status = active?.let {
         when {
@@ -142,6 +150,7 @@ internal fun PlantupiaDaylightStudy(
     PlantupiaRoomDrawing(
         width, length, room.plants, room.windows,
         selectedWindow = windowId, beam = active?.footprint.orEmpty(), shadow = active?.shadow.orEmpty(), sample = position,
+        referencePoint = referencePoint.takeIf { samples.isNotEmpty() },
         onChoosePoint = if (busy) null else { px, py ->
             xText = String.format(Locale.ROOT, "%.3f", px).takeIf { it.toDouble() in 0.000001..<width } ?: px.toString()
             yText = String.format(Locale.ROOT, "%.3f", py).takeIf { it.toDouble() in 0.000001..<length } ?: py.toString()
@@ -179,11 +188,47 @@ internal fun PlantupiaDaylightStudy(
         }
         Text(if (screenOn) "The dark patch shows the shadow of your opaque screen. Glass, diffuse light and lamps are unmodelled." else "One clear opening. Glass, diffuse light and lamps are unmodelled.",
             style = PlantupiaText.supporting)
+        Text("Compare two positions", style = PlantupiaText.editorialHeading)
+        val ref = referencePoint
+        val candidate = position
+        val comparison = if (ref != null && candidate != null && ref != candidate)
+            compareDaylightPoints(samples, ref, candidate, submittedPoint) else null
+        if (comparison != null) {
+            Text(if (ref == recordedPoint && plantName != null) "Recorded position of $plantName" else "Reference point · square marker",
+                style = PlantupiaText.itemTitle)
+            Text("${comparison.referenceHits} of ${comparison.sampleCount} sampled times with a direct ray", style = PlantupiaText.body)
+            Canvas(Modifier.fillMaxWidth().height(8.dp)) {
+                val tick = size.width / samples.size
+                samples.forEachIndexed { i,sample ->
+                    drawRect(if (sampledDirectRay(sample,ref!!,submittedPoint)) ink else PlantupiaColors.softSage,
+                        Offset(i*tick,0f),Size(tick,size.height))
+                }
+            }
+            Text("Alternative point · cross marker", style = PlantupiaText.itemTitle)
+            Text("${comparison.candidateHits} of ${comparison.sampleCount} sampled times with a direct ray", style = PlantupiaText.body)
+            Canvas(Modifier.fillMaxWidth().height(8.dp)) {
+                val tick = size.width / samples.size
+                samples.forEachIndexed { i,sample ->
+                    drawRect(if (reaches(sample)) ink else PlantupiaColors.softSage,
+                        Offset(i*tick,0f),Size(tick,size.height))
+                }
+            }
+            Text("Same day and height, using the reported opening and screen. Counts are sampled moments, not measured light, exposure hours or a plant placement recommendation.",
+                style = PlantupiaText.supporting)
+        } else Text(if (ref == null) "Keep a reference point, then tap elsewhere in the plan."
+            else "Tap another point in the plan to compare it with the reference.", style = PlantupiaText.supporting)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(enabled = !busy && candidate != null && candidate != ref,
+                onClick = { referencePoint = candidate }) { Text("Keep point as reference") }
+            if (recordedPoint != null && ref != recordedPoint)
+                TextButton(enabled = !busy, onClick = { referencePoint = recordedPoint }) { Text("Use recorded position") }
+        }
         TextButton(onClick = { editing = !editing }) { Text(if (editing) "Hide scenario inputs" else "Change date or placement") }
     } else if (!editing) {
         Text("Run the updated scenario to see sunlight here.", style = PlantupiaText.supporting)
         Button(enabled = !busy, onClick = { editing = true }) { Text("Show scenario inputs") }
     }
+    if (!room.historical) key(room.revision, position, planeHeight) { PlantupiaAmbientLightCheck() }
     if (!editing) return
 
     HorizontalDivider(color = PlantupiaColors.border)
