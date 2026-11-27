@@ -25,8 +25,27 @@ def solar_position(stamp, latitude, longitude):
     return degrees(asin(max(-1, min(1, up)))), degrees(atan2(east, north)) % 360
 
 
+def cross(a, b, p):
+    return (b[0]-a[0])*(p[1]-a[1]) - (b[1]-a[1])*(p[0]-a[0])
+
+
+def intersect_convex(subject, clip):
+    # Aperture polygons are ordered counterclockwise in (along, inward).
+    result = list(subject)
+    for a, b in zip(clip, clip[1:] + clip[:1]):
+        polygon, result = result, []
+        for start, end in zip(polygon, polygon[1:] + polygon[:1]):
+            ds, de = cross(a, b, start), cross(a, b, end)
+            if (ds >= 0) != (de >= 0):
+                t = ds / (ds-de)
+                result.append([start[i] + t*(end[i]-start[i]) for i in range(2)])
+            if de >= 0:
+                result.append(end)
+    return result if len(result) >= 3 and any(abs(cross(result[0], result[1], v)) > 1e-9 for v in result[2:]) else []
+
+
 def window_scenario(room, window_id, point, *, top_normal_deg, width_m, sill_m, head_m,
-                    latitude, longitude, timestamps):
+                    latitude, longitude, timestamps, screen=None):
     w, l = room["width_m"], room["length_m"]
     opening = next((row for row in room["windows"] if row["id"] == window_id), None)
     if not opening:
@@ -50,6 +69,11 @@ def window_scenario(room, window_id, point, *, top_normal_deg, width_m, sill_m, 
         raise ValueError("Supply a finite orientation.")
     depth = l if side in (0, 180) else w
 
+    if screen:
+        offset, span, screen_height = screen
+        if not (0 < offset < depth and 0 < span <= 2 * min(middle, length-middle) and 0 < screen_height <= 1000):
+            raise ValueError("The opaque screen must fit inside the room, centred opposite the window.")
+
     def to_room(along_wall, inward):
         if side == 0:
             return [along_wall, inward]
@@ -67,9 +91,18 @@ def window_scenario(room, window_id, point, *, top_normal_deg, width_m, sill_m, 
                         outward_normal_deg=top_normal_deg+side)
         ray = direct_sun(inward_m=inward, along_m=along, **aperture)
         footprint = aperture_footprint(wall_span=length, room_depth=depth, **aperture)
+        shadow = []
+        if screen and footprint and screen_height > z:
+            screen_aperture = {**aperture, "sill_m": 0, "head_m": screen_height,
+                               "window_left_m": middle-span/2, "window_right_m": middle+span/2}
+            projected = aperture_footprint(wall_span=length, room_depth=depth-offset, **screen_aperture)
+            shadow = intersect_convex([(a, i+offset) for a, i in projected], footprint)
+        shaded = bool(shadow) and all(cross(a, b, (along, inward)) >= -1e-9
+                                      for a, b in zip(shadow, shadow[1:]+shadow[:1]))
         rows.append({"at": stamp.isoformat(), "sun_elevation_deg": elevation, "sun_azimuth_deg": azimuth,
-                     "direct_ray": ray["unobstructed_direct_ray"],
+                     "direct_ray": ray["unobstructed_direct_ray"] and not shaded,
+                     "shadow_xy_m": [to_room(a, i) for a, i in shadow],
                      "footprint_xy_m": [to_room(a, i) for a, i in footprint]})
     return {"source": "simulation", "geometry_source": room["geometry_source"], "samples": rows, "plane_height_m": z,
-            "assumptions": ["one vertical opening", "no glazing attenuation", "unobstructed exterior and interior"],
+            "assumptions": ["one vertical opening", "no glazing attenuation", "unobstructed exterior", "one reported opaque interior screen" if screen else "unobstructed interior"],
             "illuminance_lux": None, "artificial_lighting": "unmodelled", "placement_suitability": "unassessed"}

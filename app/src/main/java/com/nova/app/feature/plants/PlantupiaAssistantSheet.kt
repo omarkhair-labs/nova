@@ -127,8 +127,8 @@ internal fun PlantupiaAssistantSheet(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Include plant context", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
                             Text(
-                                if (historyDay == null) "Name, placement and recent notes. Includes available plant identity, measured areas, review findings, care guide and recorded window distance. Photos and delivery addresses stay private."
-                                else "Name, placement and notes for $historyDay. Includes available plant identity, measured areas, review findings, care guide and recorded window distance. Photos and delivery addresses stay private.",
+                                if (historyDay == null) "Name, placement and recent notes. Includes available plant identity, measured areas, visible colour patches, review findings, care guide and recorded window distance. Photos and delivery addresses stay private."
+                                else "Name, placement and notes for $historyDay. Includes available plant identity, measured areas, visible colour patches, review findings, care guide and recorded window distance. Photos and delivery addresses stay private.",
                                 style = PlantupiaText.supporting,
                             )
                             if (onOpenHistory != null) TextButton(onClick = onOpenHistory, enabled = !pending) {

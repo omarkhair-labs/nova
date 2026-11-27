@@ -21,10 +21,12 @@ internal data class RoomDaylightScenario(
     val longitude: Double,
     val times: List<OffsetDateTime>,
     val historical: Boolean = false,
+    val screen: List<Double>? = null,
 ) {
     fun body(): JSONObject = JSONObject()
         .put("revision", revision)
         .put("historical", historical)
+        .apply { screen?.let { put("screen", JSONArray(it)) } }
         .put("window_id", windowId)
         .put("point", JSONArray(listOf(x, y, height)))
         .put("top_normal_deg", orientation)
@@ -41,6 +43,7 @@ internal data class RoomDaylightSample(
     val direct: Boolean,
     val elevation: Double,
     val footprint: List<Pair<Double, Double>>,
+    val shadow: List<Pair<Double, Double>> = emptyList(),
 )
 
 internal fun daylightSampleTimes(date: LocalDate, zone: ZoneId): List<OffsetDateTime> {
@@ -65,6 +68,13 @@ internal fun parseDaylight(body: JSONObject, scenario: RoomDaylightScenario): Li
             at = at,
             direct = sample.getBoolean("direct_ray"),
             elevation = sample.getDouble("sun_elevation_deg").also { require(it in -90.0..90.0) },
+            shadow = sample.optJSONArray("shadow_xy_m")?.let { outline ->
+                require(outline.length() <= 16)
+                List(outline.length()) { i ->
+                    val xy = outline.getJSONArray(i)
+                    xy.getDouble(0) to xy.getDouble(1)
+                }
+            }.orEmpty(),
             footprint = List(footprint.length()) { vertex ->
                 val point = footprint.getJSONArray(vertex)
                 require(point.length() == 2)

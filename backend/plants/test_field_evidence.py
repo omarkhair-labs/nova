@@ -35,6 +35,28 @@ class FieldWorkflowTests(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(self.owner)
 
+    @override_settings(PLANTUPIA_ROOM_SFM_ENABLED=True)
+    def test_photo_scene_revision_subject_permissions_replay_and_removal(self):
+        self.client.post(self.room, self.geometry, format="json")
+        url = reverse("plantupia-room-photo-scene", args=[self.site.pk, 1])
+        def submit(target):
+            files = {str(i): SimpleUploadedFile("view.png", png("RGB", (256, 256), (i*40, 70, 40)),
+                                                 content_type="image/png") for i in range(5)}
+            return self.client.post(target, files, format="multipart")
+        response = submit(url)
+        self.assertEqual(response.status_code, 202, response.data)
+        digest = response.data["digest"]
+        self.assertEqual(submit(url).status_code, 200)
+        self.assertEqual(self.client.get(url, {"plant": str(self.plant.pk)}).data["state"], "empty")
+        self.assertEqual(submit(url + "?plant=" + str(self.plant.pk)).status_code, 202)
+        self.client.force_authenticate(self.other)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        self.client.force_authenticate(self.owner)
+        self.assertEqual(self.client.delete(url + "?expected=old").status_code, 409)
+        self.assertEqual(self.client.delete(url + "?expected=" + digest).status_code, 204)
+        self.assertEqual(self.client.get(url).data["state"], "empty")
+        self.assertEqual(self.client.get(url, {"plant": str(self.plant.pk)}).data["state"], "queued")
+
     def test_measured_depth_faces_round_trip_and_reject_discontinuities(self):
         face = [[0, 0, 0], [.1, 0, 0], [0, .1, 0]]
         mesh = {**self.geometry, "survey_source": "arcore_depth_faces", "survey_points_m": face * 10}

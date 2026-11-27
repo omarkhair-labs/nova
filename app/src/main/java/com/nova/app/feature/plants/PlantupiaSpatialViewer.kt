@@ -68,8 +68,7 @@ internal fun PlantupiaSpatialViewer(spaceName: String, onBack: () -> Unit) {
             }
         }
     }
-    Text("Point cloud study", style = PlantupiaText.editorialHeading)
-    Text("Open a Plantupia reconstruction export to examine it alongside $spaceName.", style = PlantupiaText.body)
+    Text("Local PLY file", style = PlantupiaText.itemTitle)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         TextButton(enabled = !busy, onClick = onBack) { Text("Return to room") }
         TextButton(enabled = !busy, onClick = { picker.launch(arrayOf("*/*")) }) { Text("Open PLY scene") }
@@ -80,7 +79,7 @@ internal fun PlantupiaSpatialViewer(spaceName: String, onBack: () -> Unit) {
         PointCloudStage(points)
         Text("Relative coordinates · ${points.size} visible points", style = PlantupiaText.supporting)
     }
-    Text("The scene stays on this device for this session. The floor plan uses its own recorded measurements.",
+    Text("An imported file is visible only on this device. $spaceName keeps its recorded measurements.",
         style = PlantupiaText.supporting)
 }
 

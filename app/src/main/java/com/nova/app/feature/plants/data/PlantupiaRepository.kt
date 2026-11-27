@@ -746,6 +746,27 @@ class PlantupiaRepository(
     private fun changedSession() = ApiResult.Failure("Your account changed. Reopen your Plantupia space.", 409)
 
     /** Additive native QA contracts use the same authenticated API and account guards. */
+    internal suspend fun buildPhotoScene(path: String, views: List<Uri>): ApiResult<JSONObject> = authorized { token ->
+        if (views.size !in 5..8) return@authorized ApiResult.Failure("Choose 5 to 8 overlapping views.")
+        val files = mutableMapOf<String, UploadFile>()
+        var total = 0
+        for ((index, uri) in views.withIndex()) {
+            when (val result = loadPrivatePhoto(uri)) {
+                is ApiResult.Failure -> return@authorized result
+                is ApiResult.Success -> {
+                    total += result.value.bytes?.size ?: 0
+                    if (total > 24 * 1024 * 1024) return@authorized ApiResult.Failure("Choose smaller photos, up to 24 MB together.")
+                    files["view_$index"] = result.value
+                }
+            }
+        }
+        api.requestMultipart(path = "plantupia/$path", method = "POST", fields = emptyMap(), files = files, bearerToken = token)
+    }
+
+    internal suspend fun removePhotoScene(path: String): ApiResult<JSONObject> = authorized { token ->
+        api.requestJson(path = "plantupia/$path", method = "DELETE", bearerToken = token)
+    }
+
     internal suspend fun demoGet(path: String): ApiResult<JSONObject> = authorized { token ->
         api.requestJson(path = "plantupia/$path", bearerToken = token)
     }

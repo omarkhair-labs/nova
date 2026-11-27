@@ -43,6 +43,7 @@ internal fun PlantupiaRoomDrawing(
     selectedPlant: String? = null,
     selectedWindow: String? = null,
     beam: List<Pair<Double, Double>> = emptyList(),
+    shadow: List<Pair<Double, Double>> = emptyList(),
     sample: Pair<Double, Double>? = null,
     onSelectPlant: ((String?) -> Unit)? = null,
     onChoosePoint: ((Double, Double) -> Unit)? = null,
@@ -96,6 +97,16 @@ internal fun PlantupiaRoomDrawing(
             }
             drawPath(outline, accent.copy(alpha = 0.23f))
             drawPath(outline, accent, style = Stroke(1.2.dp.toPx()))
+        }
+        if (shadow.size >= 3) {
+            val shade = Path().apply {
+                shadow.forEachIndexed { i, (x, y) ->
+                    val p = frame.project(x, y)
+                    if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y)
+                }
+                close()
+            }
+            drawPath(shade, ink.copy(alpha = .55f))
         }
         drawRect(ink, frame.origin, frame.footprint, style = Stroke(2.dp.toPx()))
         windows.forEach { window ->

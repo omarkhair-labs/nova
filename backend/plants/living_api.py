@@ -426,6 +426,8 @@ class ProjectedComparisonView(ResearchView):
 
 
 class ScenarioInput(serializers.Serializer):
+    screen = serializers.ListField(required=False, min_length=3, max_length=3,
+                                   child=serializers.FloatField(min_value=.001, max_value=1000))
     historical = serializers.BooleanField(default=False)
     revision = serializers.IntegerField(min_value=1)
     window_id = serializers.CharField(max_length=128)

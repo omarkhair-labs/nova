@@ -4,7 +4,7 @@ from math import hypot
 
 from PIL import Image, ImageDraw
 
-from .living_vision import _open, region_features
+from .living_vision import _category, _open, region_features
 from .living_measurements import projected_region
 from .living_calibration import planar_reference
 
@@ -36,6 +36,44 @@ def polygon(points, width, height):
     return [tuple(p) for p in points]
 
 
+def visible_patches(crop, mask, box):
+    """Connected colour changes inside the selected outline, in original upright coordinates."""
+    from collections import deque
+    crop = crop.copy()
+    crop.thumbnail((144, 144))
+    allowed = mask.resize(crop.size, Image.Resampling.NEAREST)
+    width, height = crop.size
+    labels = [(_category(*pixel) if inside else "") for pixel, inside in
+              zip(crop.convert("HSV").getdata(), allowed.getdata())]
+    total = sum(bool(label) for label in labels)
+    patches = []
+    for index, label in enumerate(labels):
+        if label not in ("yellow_like", "brown_like"):
+            continue
+        labels[index] = ""
+        stack = deque([index])
+        xs, ys = [], []
+        while stack:
+            i = stack.pop()
+            x, y = i % width, i // width
+            xs.append(x)
+            ys.append(y)
+            for nx, ny in ((x-1, y), (x+1, y), (x, y-1), (x, y+1)):
+                j = ny * width + nx
+                if 0 <= nx < width and 0 <= ny < height and labels[j] == label:
+                    labels[j] = ""
+                    stack.append(j)
+        # Broad colour fields and isolated noise do not describe a local patch.
+        fraction = len(xs) / total
+        if len(xs) >= 8 and .004 <= fraction <= .45:
+            sx, sy = (box[2] - box[0]) / width, (box[3] - box[1]) / height
+            patches.append({"appearance": label, "region_fraction": round(fraction, 4),
+                            "bounds": [box[0] + int(min(xs)*sx), box[1] + int(min(ys)*sy),
+                                       min(box[2]-1, box[0]+int((max(xs)+1)*sx)),
+                                       min(box[3]-1, box[1]+int((max(ys)+1)*sy))]})
+    return sorted(patches, key=lambda p: -p["region_fraction"])[:8]
+
+
 def measure_trace(data, points, reference=None, point_reference=None):
     image = _open(data, {"JPEG", "PNG", "WEBP"})
     shape = polygon(points, image.width, image.height)
@@ -63,4 +101,5 @@ def measure_trace(data, points, reference=None, point_reference=None):
     crop.save(photo, "PNG")
     sample.save(bitmap, "PNG")
     features = region_features(photo.getvalue(), bitmap.getvalue())
-    return {"geometry": geometry, "color_fractions": features["color_fractions"]}
+    return {"geometry": geometry, "color_fractions": features["color_fractions"],
+            "visible_patches": visible_patches(crop, sample, box)}

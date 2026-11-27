@@ -147,9 +147,17 @@ def recorded_evidence(plant, events, zone):
     species = plant.verified_species or plant.selected_species
     basis = "staff_verified" if plant.verified_species_id else "user_selected" if species else "unknown"
     areas = []
+    appearances = []
     traces = TracedRegion.objects.filter(event_id__in=ids).select_related("event").order_by("-created_at", "-pk")[:12]
     for trace in traces:
         geometry = trace.measurements.get("geometry", {})
+        patches = trace.measurements.get("visible_patches", [])
+        if patches:
+            appearances.append({"observed_on": timezone.localdate(trace.event.observed_at, zone).isoformat(),
+                                "operator_label": trace.annotation.get("part"),
+                                "uncalibrated_colour_patches": [
+                                    {"appearance": p["appearance"], "fraction_of_outlined_region": p["region_fraction"]}
+                                    for p in patches[:3] if p.get("appearance") in {"yellow_like", "brown_like"}]})
         calibration = geometry.get("calibration") or {}
         area = geometry.get("projected_area_cm2")
         if (calibration.get("method") == PLANAR_CALIBRATION and calibration.get("status") == "accepted"
@@ -159,7 +167,7 @@ def recorded_evidence(plant, events, zone):
     reviews = EvidenceReview.objects.filter(event_id__in=ids).order_by("-created_at", "-pk").values_list(
         "event__observed_at", "finding")[:6]
     return {"current_botanical_identity": {"basis": basis, "scientific_name": species.scientific_name if species else None},
-            "accepted_projected_areas": areas,
+            "accepted_projected_areas": areas, "photographic_appearances": appearances,
             "specialist_findings": [{"observed_on": timezone.localdate(stamp, zone).isoformat(), "finding": finding}
                                     for stamp, finding in reviews]}
 

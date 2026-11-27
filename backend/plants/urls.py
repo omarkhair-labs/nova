@@ -1,3 +1,4 @@
+from .room_scene_api import RoomPhotoSceneView
 from .species_recognition import SpeciesRecognitionView
 from .living_api import DaylightView, FieldEvidenceView, ProjectedComparisonView, RegionView, RegionSuggestionView, ReviewView, RoomView
 from django.urls import path
@@ -27,6 +28,8 @@ urlpatterns = [
     path("plants/<uuid:plant_id>/compare-regions/", ProjectedComparisonView.as_view(), name="plantupia-compare-regions"),
     path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/suggest-region/", RegionSuggestionView.as_view(), name="plantupia-suggest-region"),
     path("spaces/<uuid:space_id>/room/daylight/", DaylightView.as_view(), name="plantupia-daylight"),
+    path("spaces/<uuid:space_id>/room/<int:number>/scene/", RoomPhotoSceneView.as_view(),
+         name="plantupia-room-photo-scene"),
     path("spaces/<uuid:space_id>/room/", RoomView.as_view(), name="plantupia-room"),
     path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/", FieldEvidenceView.as_view(), name="plantupia-field-evidence"),
     path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/reviews/", ReviewView.as_view(), name="plantupia-evidence-review"),

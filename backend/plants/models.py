@@ -459,6 +459,24 @@ class RoomRevision(models.Model):
         constraints = [models.UniqueConstraint(fields=["space", "revision"], name="plant_room_revision_unique")]
 
 
+class RoomPhotoScene(models.Model):
+    revision = models.ForeignKey(RoomRevision, on_delete=models.CASCADE, related_name="photo_scenes")
+    subject = models.CharField(max_length=36, default="room")
+    surface = models.JSONField(default=dict)
+    digest = models.CharField(max_length=64)
+    state = models.CharField(max_length=12, default="queued", db_index=True)
+    submitted_views = models.PositiveSmallIntegerField()
+    inputs = models.BinaryField(default=bytes, editable=False)
+    ply = models.BinaryField(default=bytes, editable=False)
+    summary = models.JSONField(default=dict)
+    lease = models.UUIDField(null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+    class Meta:
+        constraints = [models.UniqueConstraint(fields=["revision", "subject"], name="room_scene_revision_subject")]
+
+
 class TracedRegion(models.Model):
     event = models.ForeignKey(PlantEvent, on_delete=models.CASCADE, related_name="traced_regions")
     author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)

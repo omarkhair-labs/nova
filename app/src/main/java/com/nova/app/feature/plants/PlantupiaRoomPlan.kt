@@ -57,6 +57,12 @@ internal fun PlantupiaRoomPlan(
             navigationKey = listOf(revision, generation, task),
         ) {
             if (task == PlaceTask.SOURCE && repository.isCurrentSession()) {
+                val layout = room
+                if (layout != null && layout.revision > 0) {
+                    key(layout.revision) {
+                        PlantupiaRoomPhotoScene(space, layout, plants, focusedId, repository)
+                    }
+                }
                 PlantupiaSpatialViewer(space.name) { returnToPlan() }
                 return@PlantupiaLivingWorkspace
             }
@@ -188,7 +194,7 @@ internal fun PlantupiaRoomPlan(
                 }
             }
             if (!current.historical && (spatialPlan || width == null || length == null)) {
-                TextButton(enabled = !saving, onClick = { task = PlaceTask.SOURCE }) { Text("Inspect a reconstruction file") }
+                TextButton(enabled = !saving, onClick = { task = PlaceTask.SOURCE }) { Text("Explore photographic reconstruction") }
             }
         }
     }

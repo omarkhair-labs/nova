@@ -55,6 +55,8 @@ import kotlin.math.roundToInt
 import kotlin.math.min
 import java.util.Locale
 
+internal data class FieldPatch(val color: String, val first: IntOffset, val last: IntOffset, val fraction: Double)
+
 internal data class FieldRegion(
     val id: Long,
     val label: String,
@@ -66,6 +68,7 @@ internal data class FieldRegion(
     val planarAreaCm2: Double? = null,
     val calibrationError: Double? = null,
     val calibrationReason: String? = null,
+    val patches: List<FieldPatch> = emptyList(),
 )
 
 private val regionColorKeys = listOf("green_like", "yellow_like", "brown_like", "other")
@@ -97,7 +100,21 @@ internal fun fieldRegions(rows: JSONArray?, width: Int, height: Int): List<Field
         val accepted = calibrated && calibration?.optString("status") == "accepted"
         val cm2 = geometry.optDouble("projected_area_cm2").takeIf { accepted && it.isFinite() && it > 0 }
         val scaleError = calibration?.optDouble("scale_check_relative_error")?.takeIf { it.isFinite() && it >= 0 }
-        FieldRegion(id, part, area, outline, length, colors,
+        val patches = measurements.optJSONArray("visible_patches")
+        val parsed = (0 until minOf(patches?.length() ?: 0, 8)).mapNotNull { i ->
+            val patch = patches?.optJSONObject(i) ?: return@mapNotNull null
+            val b = patch.optJSONArray("bounds") ?: return@mapNotNull null
+            val appearance = patch.optString("appearance")
+            val fraction = patch.optDouble("region_fraction")
+            if (b.length() != 4 || appearance !in setOf("yellow_like", "brown_like") || fraction !in 0.0..1.0)
+                return@mapNotNull null
+            val first = IntOffset(b.optInt(0), b.optInt(1))
+            val last = IntOffset(b.optInt(2), b.optInt(3))
+            if (first.x !in 0 until width || first.y !in 0 until height ||
+                last.x !in first.x until width || last.y !in first.y until height) return@mapNotNull null
+            FieldPatch(appearance, first, last, fraction)
+        }
+        FieldRegion(id, part, area, outline, length, colors, patches = parsed,
             reviewedProposal = measurements.optString("method") in setOf("reviewed-grabcut-points-v1", "reviewed-grabcut-frame-v1") &&
                 measurements.optJSONObject("assistance")?.optBoolean("operator_accepted") == true,
             planarAreaCm2 = cm2, calibrationError = scaleError,
@@ -145,6 +162,7 @@ internal fun PlantupiaRegionStudy(
     val ink = PlantupiaColors.forest
     val paper = PlantupiaColors.paper
     val chosen = regions.firstOrNull { it.id == selected }
+    var highlighted by remember(selected) { mutableStateOf<Int?>(null) }
     val scalePayload = if (calibrating) scaleDraft.payload() else null
     val scaleReady = !calibrating || scalePayload != null
     val submission = remember(points, part, proposal?.token, calibrating, scaleDraft) { UUID.randomUUID().toString() }
@@ -242,6 +260,14 @@ internal fun PlantupiaRegionStudy(
                             drawCircle(color, 5.dp.toPx(), marks[j])
                         }
                     }
+                }
+                if (!marking) chosen?.patches?.forEachIndexed { i, patch ->
+                    val first = frame.project(patch.first)
+                    val last = frame.project(patch.last)
+                    val bounds = Size(last.x - first.x, last.y - first.y)
+                    if (highlighted == i) drawRect(paper.copy(alpha = .25f), first, bounds)
+                    drawRect(if (patch.color == "yellow_like") Color(0xFFFFDA52) else Color(0xFFEB9B78),
+                        first, bounds, style = Stroke(if (highlighted == i) 3.dp.toPx() else 1.dp.toPx()))
                 }
                 if (assisting) {
                     for ((seeds, isIncluded) in listOf(foreground to true, background to false)) {
@@ -373,7 +399,23 @@ internal fun PlantupiaRegionStudy(
         val regionCount = if (totalRegions > regions.size) "Showing ${regions.size} of $totalRegions saved outlines."
             else if (regions.isEmpty()) "No outlined regions in this record." else "Tap an outline on the photo or choose one below."
         Text(regionCount, style = PlantupiaText.supporting)
-        if (chosen != null) RegionMeasurements(chosen)
+        if (chosen != null) {
+            RegionMeasurements(chosen)
+            if (chosen.patches.isNotEmpty()) {
+                Text("Visible colour patches", style = PlantupiaText.itemTitle)
+                Text("Select a patch to locate it on the photograph. Lighting and natural markings affect colour.",
+                    style = PlantupiaText.supporting)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    chosen.patches.forEachIndexed { i, patch ->
+                        val color = if (patch.color == "yellow_like") "Yellow" else "Brown"
+                        androidx.compose.material3.FilterChip(selected = highlighted == i, onClick = {
+                            highlighted = if (highlighted == i) null else i
+                            scope.launch { photoAnchor.bringIntoView() }
+                        }, label = { Text("$color ${i+1} · ${(100 * patch.fraction).roundToInt()}%") })
+                    }
+                }
+            }
+        }
         regions.forEach { region ->
             val active = selected == region.id
             Surface(

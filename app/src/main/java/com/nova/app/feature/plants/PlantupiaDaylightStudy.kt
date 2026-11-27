@@ -68,6 +68,11 @@ internal fun PlantupiaDaylightStudy(
     var yText by remember(length, initialPlacement) { mutableStateOf((initialPlacement?.y ?: (length / 2)).toString()) }
     var height by remember { mutableStateOf("0") }
     var bearing by remember { mutableStateOf("") }
+    var screenOn by remember { mutableStateOf(false) }
+    var screenDepth by remember { mutableStateOf("") }
+    var screenWidth by remember { mutableStateOf("") }
+    var screenHeight by remember { mutableStateOf("") }
+    val screen = if (screenOn) listOfNotNull(screenDepth.toDoubleOrNull(), screenWidth.toDoubleOrNull(), screenHeight.toDoubleOrNull()) else null
     var aperture by remember { mutableStateOf("") }
     var sill by remember { mutableStateOf("") }
     var head by remember { mutableStateOf("") }
@@ -94,7 +99,7 @@ internal fun PlantupiaDaylightStudy(
     val top = head.toDoubleOrNull()
     val lat = latitude.toDoubleOrNull()
     val lon = longitude.toDoubleOrNull()
-    val scenario = if (position != null && times.size >= 2 && planeHeight != null && orientation != null &&
+    val scenario = if ((!screenOn || (screen?.size == 3 && screen.all { it in .001..1000.0 })) && position != null && times.size >= 2 && planeHeight != null && orientation != null &&
         openingWidth != null && bottom != null && top != null && lat != null && lon != null
     ) {
         val window = windows.first { it.id == windowId }
@@ -107,7 +112,7 @@ internal fun PlantupiaDaylightStudy(
             openingWidth in 0.001..(2 * edgeDistance) && bottom >= 0 && bottom < top && top in 0.001..1000.0 &&
             lat in -90.0..90.0 && lon in -180.0..180.0
         ) RoomDaylightScenario(room.revision, windowId, position.first, position.second, planeHeight,
-            orientation, openingWidth, bottom, top, lat, lon, times, historical = room.historical) else null
+            orientation, openingWidth, bottom, top, lat, lon, times, historical = room.historical, screen = screen) else null
     } else null
     // The footprint depends on the aperture and plane, not the chosen point.
     val simulation = scenario?.copy(x = 0.0, y = 0.0)
@@ -118,7 +123,7 @@ internal fun PlantupiaDaylightStudy(
     var editing by remember { mutableStateOf(true) }
     val active = samples.getOrNull(index)
     fun reaches(sample: RoomDaylightSample): Boolean =
-        position?.let { if (it == submittedPoint) sample.direct else inDirectSunFootprint(it, sample.footprint) } == true
+        position?.let { if (it == submittedPoint) sample.direct else inDirectSunFootprint(it, sample.footprint) && !inDirectSunFootprint(it, sample.shadow) } == true
     val clock = active?.at?.format(DateTimeFormatter.ofPattern("HH:mm xxx"))
     val status = active?.let {
         when {
@@ -136,7 +141,7 @@ internal fun PlantupiaDaylightStudy(
     }
     PlantupiaRoomDrawing(
         width, length, room.plants, room.windows,
-        selectedWindow = windowId, beam = active?.footprint.orEmpty(), sample = position,
+        selectedWindow = windowId, beam = active?.footprint.orEmpty(), shadow = active?.shadow.orEmpty(), sample = position,
         onChoosePoint = if (busy) null else { px, py ->
             xText = String.format(Locale.ROOT, "%.3f", px).takeIf { it.toDouble() in 0.000001..<width } ?: px.toString()
             yText = String.format(Locale.ROOT, "%.3f", py).takeIf { it.toDouble() in 0.000001..<length } ?: py.toString()
@@ -172,7 +177,7 @@ internal fun PlantupiaDaylightStudy(
                     style = PlantupiaText.supporting)
             }
         }
-        Text("One clear opening and unobstructed rays. Glass, shade, diffuse light and lamps are outside this simulation.",
+        Text(if (screenOn) "The dark patch shows the shadow of your opaque screen. Glass, diffuse light and lamps are unmodelled." else "One clear opening. Glass, diffuse light and lamps are unmodelled.",
             style = PlantupiaText.supporting)
         TextButton(onClick = { editing = !editing }) { Text(if (editing) "Hide scenario inputs" else "Change date or placement") }
     } else if (!editing) {
@@ -204,6 +209,14 @@ internal fun PlantupiaDaylightStudy(
     DaylightField("Along width (m)", xText, !busy) { xText = it }
     DaylightField("Along length (m)", yText, !busy) { yText = it }
     DaylightField("Sample height (m)", height, !busy) { height = it }
+    androidx.compose.material3.FilterChip(selected = screenOn, enabled = !busy, onClick = { screenOn = !screenOn },
+        label = { Text("Model an opaque screen") })
+    if (screenOn) {
+        Text("Place a vertical screen parallel to the window, centred on its opening.", style = PlantupiaText.supporting)
+        DaylightField("Distance inside the window (m)", screenDepth, !busy) { screenDepth = it }
+        DaylightField("Screen width (m)", screenWidth, !busy) { screenWidth = it }
+        DaylightField("Screen height from floor (m)", screenHeight, !busy) { screenHeight = it }
+    }
     Text("Place and day", style = PlantupiaText.itemTitle)
     DaylightField("Latitude (°)", latitude, !busy) { latitude = it }
     DaylightField("Longitude (°)", longitude, !busy) { longitude = it }
