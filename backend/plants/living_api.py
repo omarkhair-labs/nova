@@ -25,6 +25,7 @@ from .living_neural_outline import METHOD as NEURAL_METHOD, neural_outline_avail
 from .living_vision import _open
 from .living_daylight import window_scenario
 from .living_temporal import compare_projected_areas
+from .living_outline_review import METHOD as OUTLINE_REVIEW_METHOD, review_outline
 from .living_registration import align_retained_photos, checked_box
 from .vision_evidence import MAX_BYTES, inspect_photo
 from .models import CareGuideVersion, EvidenceReview, PlantEvent, PlantUnit, RoomRevision, Space, SpaceMember, TracedRegion
@@ -163,6 +164,12 @@ class RoomView(ResearchView):
 class TriageInput(serializers.Serializer):
     symptom = serializers.ChoiceField(choices=["wilting", "discoloration", "spots", "damage", "uncertain"])
     substrate_report = serializers.ChoiceField(choices=["dry", "wet", "unknown"], default="unknown")
+    trace_id = serializers.IntegerField(min_value=1, max_value=9223372036854775807, required=False)
+
+    def validate(self, attrs):
+        if "trace_id" in attrs and (attrs["symptom"] != "uncertain" or attrs["substrate_report"] != "unknown"):
+            raise serializers.ValidationError("Keep a photo-based inspection separate from a person-reported symptom.")
+        return attrs
 
 
 def inspection_options(symptom, substrate):
@@ -238,6 +245,19 @@ class FieldEvidenceView(ResearchView):
         data = TriageInput(data=request.data)
         data.is_valid(raise_exception=True)
         plant = event.plant
+        fields = data.validated_data
+        outline_evidence = None
+        options = inspection_options(fields["symptom"], fields["substrate_report"])
+        if "trace_id" in fields:
+            trace = get_object_or_404(event.traced_regions, pk=fields["trace_id"])
+            if not event.photo:
+                return Response({"detail": "This outline has no retained photograph."}, status=409)
+            try:
+                with event.photo.open("rb") as source:
+                    raw = source.read(MAX_BYTES + 1)
+                outline_evidence, options = review_outline(trace, raw)
+            except (ValueError, OSError) as exc:
+                return Response({"detail": "The saved outline or photograph could not be verified."}, status=409)
         species_id = plant.verified_species_id or plant.selected_species_id
         guide = CareGuideVersion.objects.filter(species_id=species_id, published=True).order_by("-version").first()
         maintenance = plant.events.filter(kind=PlantEvent.Kind.CARE, observed_at__lte=event.observed_at)
@@ -250,12 +270,13 @@ class FieldEvidenceView(ResearchView):
                 placement = {"source": "reported_layout", "revision": layout.revision,
                              "recorded_at": layout.created_at, "x_m": point["x_m"], "y_m": point["y_m"]}
 
-        return Response({"event_id": event.pk, "observed_at": event.observed_at, "input_source": "user_report",
+        return Response({"event_id": event.pk, "observed_at": event.observed_at, "input_source": "saved_outline" if outline_evidence is not None else "user_report",
+                         "photo_evidence": outline_evidence,
                          "species_basis": "verified" if plant.verified_species_id else "selected" if species_id else "unknown",
                          "guide_version": guide.version if guide else None, "placement_at_observation": placement,
                          "recent_care": list(maintenance.order_by("-observed_at", "-pk").values("id", "observed_at", "note")[:3]),
-                         "inspection_options": inspection_options(data.validated_data["symptom"], data.validated_data["substrate_report"]),
-                         "diagnosis": None, "model": "inspection-rules-01"})
+                         "inspection_options": options,
+                         "diagnosis": None, "model": OUTLINE_REVIEW_METHOD if outline_evidence is not None else "inspection-rules-01"})
 
 
 class ReviewInput(serializers.Serializer):

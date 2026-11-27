@@ -144,6 +144,7 @@ internal fun PlantupiaRegionStudy(
     busy: Boolean,
     revision: Int,
     suggest: (JSONObject, (JSONObject) -> Unit) -> Unit,
+    inspectOutline: ((Long, (JSONObject) -> Unit) -> Unit)? = null,
     save: (JSONObject) -> Unit,
 ) {
     var tracing by remember(revision, url) { mutableStateOf(false) }
@@ -167,6 +168,7 @@ internal fun PlantupiaRegionStudy(
     val paper = PlantupiaColors.paper
     val chosen = regions.firstOrNull { it.id == selected }
     var highlighted by remember(selected) { mutableStateOf<Int?>(null) }
+    var outlineInspection by remember(revision, url, selected) { mutableStateOf<JSONObject?>(null) }
     val scalePayload = if (calibrating) scaleDraft.payload() else null
     var useMarkers by remember(revision, tracing, assisting, url) { mutableStateOf(false) }
     var markerWidth by remember { mutableStateOf("2.0") }
@@ -440,6 +442,19 @@ internal fun PlantupiaRegionStudy(
                             scope.launch { photoAnchor.bringIntoView() }
                         }, label = { Text("$color ${i+1} · ${(100 * patch.fraction).roundToInt()}%") })
                     }
+                }
+            }
+            if (inspectOutline != null && chosen.label in setOf("plant","leaf","stem","flower","exposed_root","visible_damage")) {
+                TextButton(enabled = !busy, onClick = {
+                    outlineInspection = null
+                    inspectOutline(chosen.id) { answer ->
+                        val evidence = answer.optJSONObject("photo_evidence")
+                        if (answer.optString("input_source") == "saved_outline" && evidence?.optLong("trace_id") == chosen.id)
+                            outlineInspection = answer
+                    }
+                }) { Text("Inspect this outlined part") }
+                outlineInspection?.let { answer ->
+                    InspectionEvidence(answer, "uncertain")
                 }
             }
         }

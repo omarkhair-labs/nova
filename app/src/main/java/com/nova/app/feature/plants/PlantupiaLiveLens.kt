@@ -9,14 +9,16 @@ internal class LiveLensRegion(val width: Int, val height: Int, private val cells
     fun contains(x: Int, y: Int): Boolean =
         x in 0 until width && y in 0 until height && cells[y * width + x]
 
-    fun overlap(other: LiveLensRegion): Float {
+    fun overlap(other: LiveLensRegion): Float = shiftedOverlap(other, 0, 0)
+
+    fun shiftedOverlap(other: LiveLensRegion, dx: Int, dy: Int): Float {
         if (width != other.width || height != other.height) return 0f
         var intersection = 0
         var union = 0
         for (i in cells.indices) {
-            if (cells[i] && other.cells[i]) intersection++
-            if (cells[i] || other.cells[i]) union++
+            if (cells[i] && other.contains(i % width + dx, i / width + dy)) intersection++
         }
+        union = cells.count { it } + other.cells.count { it } - intersection
         return if (union == 0) 0f else intersection.toFloat() / union
     }
 }
@@ -30,10 +32,10 @@ internal fun liveLensPixel(y: Int, u: Int, v: Int): Int = (y shl 16) or (u shl 8
  * GrabCut/review pipeline. Use a contrasting background and one complete part.
  * Weak contrast, ambiguous/fragmented foreground and cropped parts abstain.
  */
-internal fun proposeLiveLensRegion(width: Int, height: Int, samples: IntArray): LiveLensRegion? {
-    if (width !in 24..96 || height !in 24..96 || samples.size != width * height) return null
-    val cx = width / 2
-    val cy = height / 2
+internal fun proposeLiveLensRegion(width: Int, height: Int, samples: IntArray,
+                                   cx: Int = width / 2, cy: Int = height / 2): LiveLensRegion? {
+    if (width !in 24..96 || height !in 24..96 || samples.size != width * height ||
+        cx !in 3 until width - 3 || cy !in 3 until height - 3) return null
     val center = ArrayList<Int>(25)
     for (y in cy - 2..cy + 2) for (x in cx - 2..cx + 2) center.add(samples[y * width + x])
 

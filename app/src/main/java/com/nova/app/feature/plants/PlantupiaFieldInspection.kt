@@ -102,6 +102,9 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                                 busy = busy,
                                 revision = generation,
                                 suggest = { body, result -> submit("suggest-region/", body, result) },
+                                inspectOutline = { traceId, result ->
+                                    submit("", JSONObject().put("symptom", "uncertain").put("trace_id", traceId), result)
+                                },
                             ) { body -> submit("regions/", body) { generation++ } }
                             CaptureNotes(quality)
                         } else {
@@ -229,8 +232,19 @@ private fun CaptureNotes(quality: JSONObject?) {
 }
 
 @Composable
-private fun InspectionEvidence(result: JSONObject, symptom: String) {
-    Text("Reported · $symptom", style = PlantupiaText.itemTitle)
+internal fun InspectionEvidence(result: JSONObject, symptom: String) {
+    val photo = result.optJSONObject("photo_evidence")
+    if (result.optString("input_source") == "saved_outline" && photo != null) {
+        Text("Inspect the visible appearance", style = PlantupiaText.itemTitle)
+        Text("Based on this saved outline · " + photo.optString("operator_label").replace('_', ' '),
+            style = PlantupiaText.supporting)
+        Text(when (photo.optString("status")) {
+            "review_capture" -> "Colour interpretation needs a better photograph."
+            "visible_patch_candidate" -> "Local colour patches are visible in the selected region."
+            else -> "No local patch candidate from this colour rule."
+        }, style = PlantupiaText.body)
+        Text("Appearance only · neither health nor cause is established.", style = PlantupiaText.supporting)
+    } else Text("Reported · $symptom", style = PlantupiaText.itemTitle)
     val options = result.optJSONArray("inspection_options") ?: JSONArray()
     if (options.length() == 0) Text("No inspection steps for this report.", style = PlantupiaText.supporting)
     for (index in 0 until options.length()) {

@@ -10,8 +10,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.roundToInt
 
-internal data class LiveLensTarget(val enabled: Boolean, val width: Int, val height: Int)
-internal data class LiveLensReading(val region: LiveLensRegion, val timestamp: Long)
+internal data class LiveLensTarget(val enabled: Boolean, val width: Int, val height: Int, val selection: Int = 0)
+internal data class LiveLensReading(val phase: LiveLensPhase, val region: LiveLensRegion?, val timestamp: Long)
 
 /**
  * The existing private CameraX analyzer owns both the capture hints and the
@@ -31,13 +31,13 @@ internal class PlantupiaLiveLensAnalyzer(
     private var lastQualityAt = 0L
     private var lastLensAt = 0L
     private var previousAt = 0L
-    private var previous: LiveLensRegion? = null
+    private val tracker = LiveLensTracker()
     private var previousTarget: LiveLensTarget? = null
     private var previousTransform: Matrix? = null
 
     /** Called on main; changing the viewport or turning the aid off drops the old result. */
-    fun configure(enabled: Boolean, width: Int, height: Int) {
-        val next = LiveLensTarget(previewAllowed && enabled, width, height)
+    fun configure(enabled: Boolean, width: Int, height: Int, selection: Int = 0) {
+        val next = LiveLensTarget(previewAllowed && enabled, width, height, selection)
         val old = target.get()
         if (old != next) {
             target.set(next)
@@ -78,26 +78,27 @@ internal class PlantupiaLiveLensAnalyzer(
             val viewport = target.get()
             val transform = sensorToView.get()
             if (!viewport.enabled || transform == null) {
-                previous = null
+                tracker.reset()
+                previousTarget = null
+                previousTransform = null
                 return
             }
             // At most ~7 proposals/s; CameraX keeps only the latest frame.
             if (now - lastLensAt < 140L) return
             lastLensAt = now
-            if (viewport !== previousTarget || transform !== previousTransform || now - previousAt > 450L) {
-                previous = null
-            }
-            val proposal = runCatching { analyseLens(image, viewport, transform) }.getOrNull()
-            val stable = stableLiveLensRegion(previous, proposal)
-            previous = proposal
+            if (viewport !== previousTarget) tracker.reset()
+            else if (transform !== previousTransform || now - previousAt > 450L) tracker.interrupt()
+            val frame = runCatching { analyseLens(image, viewport, transform) }.getOrNull()
+            val update = tracker.update(frame)
             previousAt = now
             previousTarget = viewport
             previousTransform = transform
             main.execute {
                 // Never draw a result from an old viewport/rotation/disabled mode.
                 if (active.get() && target.get() === viewport && sensorToView.get() === transform) {
-                    onLens(stable?.takeIf { SystemClock.elapsedRealtime() - now < 500L }
-                        ?.let { LiveLensReading(it, now) })
+                    if (SystemClock.elapsedRealtime() - now < 500L)
+                        onLens(LiveLensReading(update.phase, update.region, now))
+                    else onLens(null)
                 }
             }
         } finally {
@@ -105,7 +106,7 @@ internal class PlantupiaLiveLensAnalyzer(
         }
     }
 
-    private fun analyseLens(image: ImageProxy, viewport: LiveLensTarget, transform: Matrix): LiveLensRegion? {
+    private fun analyseLens(image: ImageProxy, viewport: LiveLensTarget, transform: Matrix): LiveLensFrame? {
         if (image.format != ImageFormat.YUV_420_888 || image.planes.size < 3 ||
             viewport.width <= 0 || viewport.height <= 0) return null
         val viewToSensor = Matrix()
@@ -138,7 +139,7 @@ internal class PlantupiaLiveLensAnalyzer(
             if (!crop.contains(x, y) || x !in 0 until image.width || y !in 0 until image.height) return null
             samples[i] = liveLensPixel(sample(yuv[0], x, y), sample(yuv[1], x / 2, y / 2), sample(yuv[2], x / 2, y / 2))
         }
-        return proposeLiveLensRegion(width, height, samples)
+        return LiveLensFrame(width, height, samples)
     }
 
     private fun sample(plane: ImageProxy.PlaneProxy, x: Int, y: Int): Int {

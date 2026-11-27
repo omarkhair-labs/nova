@@ -234,16 +234,17 @@ private fun PlantupiaCameraPreview(
     var outlineEnabled by remember(view, referenceUrl) { mutableStateOf(false) }
     var previewSize by remember { mutableStateOf(IntSize.Zero) }
     var liveReading by remember { mutableStateOf<LiveLensReading?>(null) }
+    var selection by remember(view, referenceUrl) { mutableStateOf(0) }
     val lensAnalyzer = remember(active, main) {
         PlantupiaLiveLensAnalyzer(BuildConfig.PLANTUPIA_LIVE_LENS_QA, active, main,
             onQuality = { quality = it }, onLens = { liveReading = it })
     }
     val liveEnabled = canPreviewOutline && outlineEnabled && ready && !writing
-    SideEffect { lensAnalyzer.configure(liveEnabled, previewSize.width, previewSize.height) }
+    SideEffect { lensAnalyzer.configure(liveEnabled, previewSize.width, previewSize.height, selection) }
     LaunchedEffect(liveReading) {
-        val reading = liveReading ?: return@LaunchedEffect
+        val reading = liveReading?.takeIf { it.region != null } ?: return@LaunchedEffect
         delay((550L - (SystemClock.elapsedRealtime() - reading.timestamp)).coerceAtLeast(0L))
-        if (liveReading === reading) liveReading = null
+        if (liveReading === reading) liveReading = reading.copy(phase = LiveLensPhase.LOST, region = null)
     }
     DisposableEffect(owner, controller, preview, lensAnalyzer) {
         active.set(true)
@@ -289,8 +290,11 @@ private fun PlantupiaCameraPreview(
     if (canPreviewOutline) {
         FilterChip(selected = outlineEnabled, onClick = { outlineEnabled = !outlineEnabled },
             label = { Text("Live outline preview") }, enabled = !writing)
-        if (outlineEnabled) Text("Centre one leaf against a contrasting background. Contrast guide only · not plant identification.",
-            style = PlantupiaText.supporting)
+        if (outlineEnabled) {
+            Text("Centre one leaf against a contrasting background, then move slowly. Local tracking guide only.",
+                style = PlantupiaText.supporting)
+            TextButton(enabled = liveEnabled, onClick = { liveReading = null; selection++ }) { Text("Select another region") }
+        }
     }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth().height((maxWidth * 1.02f).coerceIn(230.dp, 420.dp))
@@ -369,8 +373,11 @@ private fun PlantupiaCameraPreview(
         else -> "Keep the subject inside the guide."
     }
     Text(guidance, style = PlantupiaText.itemTitle)
-    if (liveEnabled) Text(if (liveReading != null) "Outline visible · preview only"
-        else "Finding a distinct centred region…", style = PlantupiaText.supporting)
+    if (liveEnabled) Text(when (liveReading?.phase) {
+        LiveLensPhase.TRACKING -> "Following the selected region · preview only"
+        LiveLensPhase.LOST -> "Track lost · centre the part and select again"
+        else -> "Finding a distinct centred region…"
+    }, style = PlantupiaText.supporting)
     Surface(
         enabled = ready && !writing,
         modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
