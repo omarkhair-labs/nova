@@ -58,6 +58,7 @@ internal class RecordedRoomProjection(
 @Composable
 internal fun PlantupiaRecordedSpatialPlan(
     room: PlantupiaRoom, width: Double, length: Double, selected: String?,
+    immersive: Boolean = false,
     onSelect: (String?) -> Unit,
 ) {
     var yaw by remember(room) { mutableFloatStateOf(-.65f) }
@@ -72,11 +73,11 @@ internal fun PlantupiaRecordedSpatialPlan(
         zoom = (zoom * ratio).coerceIn(.75f, 2.5f)
     }
     val height = room.height
-    val ink = PlantupiaColors.forest
-    val paper = PlantupiaColors.paper
-    val windowInk = Color(0xFF477F83)
+    val ink = if (immersive) Color(0xFFD0E7CB) else PlantupiaColors.forest
+    val paper = if (immersive) Color(0xFF203B2E) else PlantupiaColors.paper
+    val windowInk = if (immersive) Color(0xFFF1CD86) else Color(0xFF477F83)
     Canvas(Modifier.fillMaxWidth().height(340.dp).clip(PlantupiaShapes.inset)
-        .background(PlantupiaColors.cream).padding(12.dp)
+        .background(if (immersive) Color(0xFF10241D) else PlantupiaColors.cream).padding(12.dp)
         .semantics { contentDescription = "3D view of recorded room geometry" }
         .transformable(gestures)
         .pointerInput(width, length, height, room.revision) {
@@ -96,7 +97,7 @@ internal fun PlantupiaRecordedSpatialPlan(
             points.drop(1).forEach { lineTo(it.x,it.y) }
             close()
         }
-        drawPath(path(floor), PlantupiaColors.softSage.copy(alpha=.68f))
+        drawPath(path(floor), if (immersive) Color(0xFF284637) else PlantupiaColors.softSage.copy(alpha=.68f))
         // A consistent quarter grid communicates scale without asserting plant geometry.
         for (i in 1..3) {
             val x = width*i/4
@@ -107,6 +108,15 @@ internal fun PlantupiaRecordedSpatialPlan(
         drawPath(path(floor), ink, style=Stroke(1.8.dp.toPx()))
         if (height != null) {
             val top = corners.map { (x,y) -> projection.point(x,y,height) }
+            if (immersive) {
+                // Reported wall planes only; no photographic reconstruction is inferred.
+                val back = floor.indices.minByOrNull { floor[it].y } ?: 0
+                listOf((back+3)%4, back).forEach { a ->
+                    val b = (a+1)%4
+                    drawPath(path(listOf(floor[a], floor[b], top[b], top[a])), Color(0xFF365344).copy(alpha=.65f))
+                    drawPath(path(listOf(floor[a], floor[b], top[b], top[a])), ink.copy(alpha=.35f), style=Stroke(1.dp.toPx()))
+                }
+            }
             drawPath(path(top), ink.copy(alpha=.54f),style=Stroke(1.2.dp.toPx()))
             floor.zip(top).forEach { (bottom,upper) ->
                 drawLine(ink.copy(alpha=.58f),bottom,upper,1.2.dp.toPx())
@@ -121,13 +131,19 @@ internal fun PlantupiaRecordedSpatialPlan(
         }
         room.plants.sortedBy { projection.point(it.x,it.y).y }.forEach { plant ->
             val p = projection.point(plant.x,plant.y)
-            if (selected == plant.id) drawCircle(ink.copy(alpha=.2f),16.dp.toPx(),p)
+            if (selected == plant.id) {
+                drawCircle(ink.copy(alpha=.2f),21.dp.toPx(),p)
+                if (immersive) drawCircle(ink.copy(alpha=.75f),21.dp.toPx(),p,style=Stroke(1.dp.toPx()))
+            }
             drawCircle(paper,9.dp.toPx(),p)
             drawCircle(ink,8.dp.toPx(),p,style=Stroke(1.5.dp.toPx()))
             drawCircle(if(selected==plant.id) ink else PlantupiaColors.mutedSage,4.dp.toPx(),p)
         }
     }
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement=Arrangement.spacedBy(2.dp)) {
+    if (immersive) {
+        Text("Drag to orbit · pinch to zoom · tap a plant", style=PlantupiaText.supporting)
+        TextButton(onClick={yaw=-.65f;elevation=.67f;zoom=1f}) { Text("Reset perspective") }
+    } else FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement=Arrangement.spacedBy(2.dp)) {
         TextButton(onClick={yaw-=.4f}) { Text("Turn left") }
         TextButton(onClick={yaw+=.4f}) { Text("Turn right") }
         TextButton(onClick={elevation=if(elevation<1f)1.48f else .67f}) { Text("Change tilt") }

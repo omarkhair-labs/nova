@@ -15,6 +15,9 @@ import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -60,6 +63,10 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -216,6 +223,7 @@ private fun PlantupiaCameraPreview(
     writing: Boolean,
     onWriting: (Boolean) -> Unit,
     startLiveOutline: Boolean,
+    immersiveHeight: Dp? = null,
     onCapture: (Uri) -> Boolean,
 ) {
     val context = LocalContext.current
@@ -305,7 +313,7 @@ private fun PlantupiaCameraPreview(
         }
     }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth().height((maxWidth * 1.02f).coerceIn(230.dp, 420.dp))
+        Box(Modifier.fillMaxWidth().height(immersiveHeight ?: (maxWidth * 1.02f).coerceIn(230.dp, 420.dp))
             .clip(PlantupiaShapes.card).background(Color(0xFF192820)).onSizeChanged { previewSize = it }) {
             AndroidView(factory = { preview }, modifier = Modifier.fillMaxSize())
             if (referenceUrl != null) AsyncImage(
@@ -390,7 +398,7 @@ private fun PlantupiaCameraPreview(
             }
         }
     }
-    if (startLiveOutline && canPreviewOutline) {
+    if (startLiveOutline && canPreviewOutline && immersiveHeight == null) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             FilterChip(selected = outlineEnabled, enabled = !writing,
                 onClick = { outlineEnabled = !outlineEnabled; liveReading = null; selection++ },
@@ -406,8 +414,8 @@ private fun PlantupiaCameraPreview(
         quality == PlantupiaCaptureQuality.LOW_DETAIL -> "Hold still and tap the subject to focus."
         else -> "Keep the subject inside the guide."
     }
-    Text(guidance, style = PlantupiaText.itemTitle)
-    if (liveEnabled) Text(when (liveReading?.phase) {
+    Text(guidance, style = PlantupiaText.itemTitle, color = if (immersiveHeight != null) Color.White else PlantupiaColors.forestText)
+    if (liveEnabled && immersiveHeight == null) Text(when (liveReading?.phase) {
         LiveLensPhase.TRACKING -> "Following the selected region · preview only"
         LiveLensPhase.LOST -> "Track lost · centre the part and select again"
         else -> "Finding a distinct centred region…"
@@ -476,6 +484,101 @@ private fun PlantupiaCameraPreview(
                 style = PlantupiaText.itemTitle.copy(color = shutterInk), modifier = Modifier.weight(1f))
         }
     }
-    Text(view.guidance, style = PlantupiaText.supporting)
-    Text("Review the photograph before keeping it.", style = PlantupiaText.supporting)
+    if (immersiveHeight == null) {
+        Text(view.guidance, style = PlantupiaText.supporting)
+        Text("Review the photograph before keeping it.", style = PlantupiaText.supporting)
+    } else if (canPreviewOutline) TextButton(enabled = liveEnabled, onClick = { liveReading = null; selection++ }) {
+        Text("Find another region", color = Color(0xFFDCEDC8))
+    }
+}
+
+/** Camera-first route for the Atlas. No photo leaves the device until accepted. */
+@Composable
+internal fun PlantupiaAtlasCapture(
+    title: String,
+    action: String,
+    disclosure: String,
+    leaf: Boolean = true,
+    onClose: () -> Unit,
+    onCapture: (Uri) -> Boolean,
+) {
+    val context = LocalContext.current
+    var permission by remember {
+        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
+    }
+    val request = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { permission = it }
+    var candidate by remember { mutableStateOf<Uri?>(null) }
+    var writing by remember { mutableStateOf(false) }
+    val owned = remember { AtomicReference<Uri?>(null) }
+    var error by remember { mutableStateOf("") }
+    val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) { candidate = uri; error = "" }
+    }
+    fun discard() {
+        owned.getAndSet(null)?.let { ownedCaptureFile(context.cacheDir, it)?.delete() }
+        candidate = null
+        error = ""
+    }
+    DisposableEffect(owned) {
+        onDispose { owned.getAndSet(null)?.let { ownedCaptureFile(context.cacheDir, it)?.delete() } }
+    }
+    Dialog(onDismissRequest = { if (!writing) { if (candidate == null) onClose() else discard() } },
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnClickOutside = false, dismissOnBackPress = !writing)) {
+        Surface(color = Color(0xFF10241D), modifier = Modifier.fillMaxSize()) {
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                // Preserve usable shutter and text at compact heights; normal phones get a large optical stage.
+                val viewport = (maxHeight - 238.dp).coerceIn(150.dp, 620.dp)
+                Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        TextButton(enabled = !writing, onClick = { if (candidate == null) onClose() else discard() }) {
+                            Text(if (candidate == null) "Close" else "Retake", color = Color.White)
+                        }
+                        Text(title, color = Color.White, style = PlantupiaText.itemTitle, modifier = Modifier.weight(1f))
+                        if (candidate == null) TextButton(enabled = !writing, onClick = { gallery.launch("image/*") }) {
+                            Text("Photos", color = Color(0xFFDCEDC8))
+                        }
+                    }
+                    val photo = candidate
+                    if (photo != null) {
+                        var loaded by remember(photo) { mutableStateOf(false) }
+                        AsyncImage(model = photo, contentDescription = "Your photograph",
+                            contentScale = ContentScale.Fit, onSuccess = { loaded = true }, onError = { loaded = false; error = "This photograph cannot be opened." },
+                            modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(18.dp)))
+                        Text(disclosure, color = Color(0xFFDCEDC8), style = PlantupiaText.supporting)
+                        if (error.isNotBlank()) Text(error, color = Color.White, style = PlantupiaText.supporting)
+                        Button(enabled = loaded, onClick = {
+                            val fromCamera = owned.get() == photo
+                            if ((!fromCamera || ownedCaptureFile(context.cacheDir, photo)?.isFile == true) && onCapture(photo)) {
+                                owned.compareAndSet(photo, null)
+                                candidate = null
+                            } else error = "This session changed. Close and try again."
+                        }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(action) }
+                    } else if (!permission) {
+                        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            Column(verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("See your plant", color = Color.White, style = PlantupiaText.display)
+                                Text("Allow the camera or choose an existing photograph.", color = Color(0xFFDCEDC8), style = PlantupiaText.supporting)
+                                Button(onClick = { request.launch(Manifest.permission.CAMERA) }) { Text("Allow camera") }
+                            }
+                        }
+                    } else {
+                        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PlantupiaCameraPreview(if (leaf) CaptureView.LEAF else CaptureView.WHOLE, null, writing,
+                                { writing = it }, leaf, immersiveHeight = viewport) { uri ->
+                                if (ownedCaptureFile(context.cacheDir, uri)?.isFile != true) false
+                                else {
+                                    owned.getAndSet(uri)?.takeIf { it != uri }?.let { ownedCaptureFile(context.cacheDir, it)?.delete() }
+                                    candidate = uri
+                                    error = ""
+                                    true
+                                }
+                            }
+                        }
+                        Text("Live camera · private on this device", color = Color(0xFFDCEDC8), style = PlantupiaText.supporting)
+                    }
+                }
+            }
+        }
+    }
 }

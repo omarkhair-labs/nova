@@ -713,14 +713,19 @@ private fun PlantupiaAccountClientSection(
             }
             // Quiet Care: real persisted inspections and check-ins before optional help.
             if (!loading && error == null && section == PlantupiaPrimarySection.TODAY && !firstArrival) {
+                val lensPlants = plants.filter { plant -> plant.active && spaces.any { it.id == plant.spaceId && it.livingSystemsEnabled } }
+                if (lensPlants.isNotEmpty()) PlantupiaAtlasHome(lensPlants, spaces, repository,
+                    refreshVersion = refreshVersion,
+                    onRecordChanged = { scope.launch { refresh() } },
+                    onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
+                    onOpenPlace = { space -> focusedSpaceId = space.id; NovaRootNavigationSignal.request(NovaRootTab.Plants) },
+                )
                 // Actual company-approved inspections take priority over a
                 // duplicated empty personal check-in message on the first fold.
                 PlantupiaDemoHome(
                     repository, plants, refreshVersion = refreshVersion,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
                 )
-                val lensPlants = plants.filter { plant -> plant.active && spaces.any { it.id == plant.spaceId && it.livingSystemsEnabled } }
-                if (lensPlants.isNotEmpty()) PlantupiaLensEntry(lensPlants, repository) { scope.launch { refresh() } }
                 PlantupiaTodayPanel(
                     plants = plants,
                     onScheduleDay = { day -> PlantupiaCareCalendarOpenSignal.open(accountId, fromToday = true, day = day) },
@@ -806,7 +811,6 @@ private fun PlantupiaAccountClientSection(
                 )
                 val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
                 val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
-                if (featured.livingSystemsEnabled) PlantupiaLensEntry(focusedPlants, repository) { scope.launch { refresh() } }
                 // Separate authentic plant media from the identity of its private place.
                 val heroPlant = focusedPlants.firstOrNull { it.coverPhoto.isNotBlank() }
                 val heroPhoto = heroPlant?.coverPhoto.orEmpty()
