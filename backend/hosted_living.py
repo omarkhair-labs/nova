@@ -16,6 +16,7 @@ from urllib.parse import urlsplit
 from urllib.request import urlopen
 
 ROOT = Path("/opt/plantupia-models")
+ARM_NEURAL_PYTHON = Path("/opt/plantupia-neural/bin/python")
 MANIFEST = ROOT / "runtime.json"
 QA_HOST = "253.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io"
 QA_DB = "imfiwc6cb0pkuyuzu1y1rxsu"
@@ -41,20 +42,24 @@ def prepare():
     full = arch == "x86_64"
     arm_candidate = arch == "aarch64" and os.environ.get("PLANTUPIA_HOSTED_ARM_VISION_QA") == "1"
     neural = full or arm_candidate
-    # MediaPipe requires opencv-contrib-python. Install exactly one cv2 wheel.
-    # The ARM candidate stays opt-in until native Linux inference/reconstruction pass.
+    # Preserve the working backend/ONNX environment. The legacy ARM MediaPipe
+    # protobuf and NumPy constraints belong in a separate virtual environment.
     packages = [
-        ("numpy==1.26.4" if arm_candidate else "numpy==2.2.6"), "onnxruntime==1.31.1",
-        ("opencv-contrib-python" if neural else "opencv-python-headless") + "==4.11.0.86",
+        "numpy==2.2.6", "onnxruntime==1.31.1",
+        ("opencv-contrib-python" if full else "opencv-python-headless") + "==4.11.0.86",
     ]
     if full:
         packages += ["mediapipe==0.10.32", "matplotlib==3.10.8", "pycolmap==4.2.1"]
-    elif arm_candidate:
-        packages += ["mediapipe==0.10.18", "protobuf==4.25.8", "jax==0.4.38",
-                     "jaxlib==0.4.38", "matplotlib==3.10.8"]
     subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir",
                     "--only-binary=:all:", *packages], check=True)
     subprocess.run([sys.executable, "-m", "pip", "check"], check=True)
+    if arm_candidate:
+        subprocess.run([sys.executable, "-m", "venv", str(ARM_NEURAL_PYTHON.parent.parent)], check=True)
+        subprocess.run([str(ARM_NEURAL_PYTHON), "-m", "pip", "install", "--no-cache-dir", "--only-binary=:all:",
+                        "numpy==1.26.4", "opencv-contrib-python==4.11.0.86",
+                        "mediapipe==0.10.18", "protobuf==4.25.8", "jax==0.4.38",
+                        "jaxlib==0.4.38", "matplotlib==3.10.8"], check=True)
+        subprocess.run([str(ARM_NEURAL_PYTHON), "-m", "pip", "check"], check=True)
     species = ROOT / "species"
     species.mkdir(parents=True, exist_ok=True)
     model = species / "species_dinov2_v12_int8.onnx"
@@ -86,18 +91,22 @@ def prepare():
         from plants.room_colmap_cli import colmap_version
         colmap_version()
     if neural:
-        import mediapipe as mp
-        assert mp.__version__ == ("0.10.18" if arm_candidate else "0.10.32")
         magic = ROOT / "magic_touch.tflite"
         download(magic, MAGIC_URL,
                  "e24338a717c1b7ad8d159666677ef400babb7f33b8ad60c4d96db4ecf694cd25",
                  7 * 1024 * 1024)
-        opts = mp.tasks.vision.InteractiveSegmenterOptions(
-            base_options=mp.tasks.BaseOptions(model_asset_buffer=magic.read_bytes()),
-            output_confidence_masks=True, output_category_mask=False,
-        )
-        with mp.tasks.vision.InteractiveSegmenter.create_from_options(opts):
-            pass
+        if arm_candidate:
+            subprocess.run([str(ARM_NEURAL_PYTHON), "/app/plants/arm_neural_worker.py", "--check", str(magic)],
+                           timeout=45, check=True, env=dict(os.environ, OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="1"))
+        else:
+            import mediapipe as mp
+            assert mp.__version__ == "0.10.32"
+            opts = mp.tasks.vision.InteractiveSegmenterOptions(
+                base_options=mp.tasks.BaseOptions(model_asset_buffer=magic.read_bytes()),
+                output_confidence_masks=True, output_category_mask=False,
+            )
+            with mp.tasks.vision.InteractiveSegmenter.create_from_options(opts):
+                pass
     MANIFEST.write_text(json.dumps({"architecture": arch, "species": True,
                                     "neural": neural, "sfm": neural,
                                     "neural_runtime": ("0.10.18" if arm_candidate else "0.10.32") if neural else "",
@@ -148,6 +157,7 @@ def start():
         "PLANTUPIA_ROOM_SFM_ENABLED": "1" if capabilities["sfm"] else "0",
         "PLANTUPIA_ROOM_SFM_ENGINE": capabilities.get("sfm_engine", "pycolmap"),
         "PLANTUPIA_NEURAL_RUNTIME_VERSION": capabilities.get("neural_runtime", "0.10.32"),
+        "PLANTUPIA_ARM_NEURAL_PYTHON": str(ARM_NEURAL_PYTHON) if capabilities.get("neural_runtime") == "0.10.18" else "",
         "PLANTUPIA_ROOM_SFM_THREADS": "2",
         "OPENCV_FOR_THREADS_NUM": "2",
         "OMP_NUM_THREADS": "2",

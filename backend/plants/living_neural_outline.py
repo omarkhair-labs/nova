@@ -6,6 +6,8 @@ from pathlib import Path
 import os
 import platform
 from threading import Lock
+import subprocess
+from tempfile import TemporaryDirectory
 
 from PIL import Image
 
@@ -16,6 +18,15 @@ MODEL_SHA256 = "e24338a717c1b7ad8d159666677ef400babb7f33b8ad60c4d96db4ecf694cd25
 MODEL_BYTES = 6227884
 RUNTIME_VERSION = "0.10.32"
 NEURAL_LOCK = Lock()
+ARM_PYTHON = Path("/opt/plantupia-neural/bin/python")
+
+
+def arm_neural_python():
+    if (platform.machine() == "aarch64" and
+            os.environ.get("PLANTUPIA_NEURAL_RUNTIME_VERSION") == "0.10.18" and
+            os.environ.get("PLANTUPIA_ARM_NEURAL_PYTHON") == str(ARM_PYTHON)):
+        return ARM_PYTHON
+    return None
 
 
 def neural_outline_available(model_path):
@@ -23,7 +34,9 @@ def neural_outline_available(model_path):
         return False
     try:
         path = Path(model_path)
-        return path.is_file() and path.stat().st_size == MODEL_BYTES and find_spec("mediapipe") is not None
+        arm = arm_neural_python()
+        runtime_ok = arm.is_file() and os.access(arm, os.X_OK) if arm else find_spec("mediapipe") is not None
+        return path.is_file() and path.stat().st_size == MODEL_BYTES and runtime_ok
     except (OSError, ValueError, ImportError):
         return False
 
@@ -36,9 +49,7 @@ def load_neural_engine(model_path):
         if len(body) != MODEL_BYTES or sha256(body).hexdigest() != MODEL_SHA256:
             raise VisionUnavailable("The configured neural model does not match the reviewed artifact.")
         import mediapipe as mp
-        expected_runtime = ("0.10.18" if platform.machine() == "aarch64" and
-                            os.environ.get("PLANTUPIA_NEURAL_RUNTIME_VERSION") == "0.10.18" else RUNTIME_VERSION)
-        if mp.__version__ != expected_runtime:
+        if mp.__version__ != RUNTIME_VERSION:
             raise VisionUnavailable("The configured neural runtime has not been reviewed.")
         vision = mp.tasks.vision
         options = vision.InteractiveSegmenterOptions(
@@ -79,6 +90,33 @@ def neural_mask(rgb, seed, engine):
         raise VisionUnavailable("The neural outline could not be computed.") from exc
 
 
+def isolated_arm_mask(rgb, seed, model_path, python):
+    """Private bounded ndarray exchange; no server dependency changes or network calls."""
+    import numpy as np
+    script = Path(__file__).with_name("arm_neural_worker.py")
+    try:
+        with TemporaryDirectory(prefix="plantupia-neural-") as root:
+            source = Path(root) / "rgb.npy"
+            target = Path(root) / "mask.npy"
+            np.save(source, rgb, allow_pickle=False)
+            # The worker receives only local file paths and a minimal environment,
+            # not the Django, database, or provider credentials.
+            subprocess.run([str(python), str(script), str(model_path), str(source), str(target),
+                            str(seed[0]), str(seed[1])], timeout=25, check=True,
+                           env={"PATH": "/usr/local/bin:/usr/bin:/bin", "HOME": root,
+                                "MPLCONFIGDIR": root, "OPENBLAS_NUM_THREADS": "1", "OMP_NUM_THREADS": "1",
+                                "PYTHONDONTWRITEBYTECODE": "1"},
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if target.stat().st_size > MAX_SIDE * MAX_SIDE + 1024:
+                raise VisionUnavailable("Unexpected neural mask size.")
+            mask = np.load(target, allow_pickle=False)
+            if mask.shape != rgb.shape[:2] or mask.dtype != np.uint8 or not np.isin(mask, (0, 1)).all():
+                raise VisionUnavailable("Unexpected neural mask geometry.")
+            return mask
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        raise VisionUnavailable("The neural outline could not be computed. Try the standard outline.") from exc
+
+
 def propose_neural_outline(image, foreground, background, model_path):
     """First positive mark guides the network; other marks verify the polygon."""
     if not vision_available():
@@ -106,7 +144,8 @@ def propose_neural_outline(image, foreground, background, model_path):
         raise VisionUnavailable("The neural engine is busy. Try again or use the standard outline.")
     try:
         try:
-            mask = neural_mask(rgb, fg[0], load_neural_engine(model_path))
+            arm = arm_neural_python()
+            mask = isolated_arm_mask(rgb, fg[0], model_path, arm) if arm else neural_mask(rgb, fg[0], load_neural_engine(model_path))
         except (ImportError, OSError) as exc:
             raise VisionUnavailable("The neural engine is unavailable.") from exc
     finally:

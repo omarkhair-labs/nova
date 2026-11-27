@@ -15,6 +15,7 @@ ARG PLANTUPIA_HOSTED_LIVING_QA=0
 ARG PLANTUPIA_HOSTED_ARM_VISION_QA=0
 COPY hosted_living.py ./
 COPY plants/room_colmap_cli.py ./plants/room_colmap_cli.py
+COPY plants/arm_neural_worker.py ./plants/arm_neural_worker.py
 RUN if [ "$PLANTUPIA_HOSTED_LIVING_QA" = "1" ]; then \
         apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 libgomp1 libportaudio2 && \
         if [ "$PLANTUPIA_HOSTED_ARM_VISION_QA" = "1" ] && [ "$(uname -m)" = "aarch64" ]; then \

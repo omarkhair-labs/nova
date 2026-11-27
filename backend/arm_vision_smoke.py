@@ -31,7 +31,7 @@ def main():
     assert platform.machine() == "aarch64"
     capabilities = json.loads(MANIFEST.read_text())
     assert capabilities["neural_runtime"] == "0.10.18" and capabilities["sfm_engine"] == "colmap-cli"
-    os.environ.update(PLANTUPIA_NEURAL_RUNTIME_VERSION="0.10.18", PLANTUPIA_ROOM_SFM_ENGINE="colmap-cli",
+    os.environ.update(PLANTUPIA_NEURAL_RUNTIME_VERSION="0.10.18", PLANTUPIA_ARM_NEURAL_PYTHON="/opt/plantupia-neural/bin/python", PLANTUPIA_ROOM_SFM_ENGINE="colmap-cli",
                       PLANTUPIA_ROOM_SFM_THREADS="2", OMP_NUM_THREADS="2", OPENBLAS_NUM_THREADS="2")
     cv2.setNumThreads(1)
     with TemporaryDirectory() as temp:
