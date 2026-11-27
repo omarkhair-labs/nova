@@ -8,6 +8,8 @@ import com.nova.app.BuildConfig
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.TorchState
+import androidx.camera.core.ZoomState
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.view.CameraController
@@ -59,6 +61,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -224,6 +229,8 @@ private fun PlantupiaCameraPreview(
     onWriting: (Boolean) -> Unit,
     startLiveOutline: Boolean,
     immersiveHeight: Dp? = null,
+    dock: Boolean = false,
+    modifier: Modifier = Modifier,
     onCapture: (Uri) -> Boolean,
 ) {
     val context = LocalContext.current
@@ -240,6 +247,9 @@ private fun PlantupiaCameraPreview(
         }
     }
     var ready by remember { mutableStateOf(false) }
+    var zoom by remember { mutableStateOf<ZoomState?>(null) }
+    var torch by remember { mutableStateOf(false) }
+    var controlsError by remember { mutableStateOf("") }
     var quality by remember { mutableStateOf<PlantupiaCaptureQuality?>(null) }
     var error by remember { mutableStateOf("") }
     val active = remember(owner, controller) { AtomicBoolean(false) }
@@ -271,6 +281,10 @@ private fun PlantupiaCameraPreview(
             }
         }
         preview.previewStreamState.observe(owner, stream)
+        val zoomObserver = Observer<ZoomState> { zoom = it }
+        val torchObserver = Observer<Int> { torch = it == TorchState.ON }
+        controller.zoomState.observe(owner, zoomObserver)
+        controller.torchState.observe(owner, torchObserver)
         try {
             controller.setEnabledUseCases(CameraController.IMAGE_CAPTURE or CameraController.IMAGE_ANALYSIS)
             controller.setImageAnalysisBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
@@ -294,12 +308,16 @@ private fun PlantupiaCameraPreview(
             active.set(false)
             lensAnalyzer.configure(false, 0, 0)
             preview.previewStreamState.removeObserver(stream)
+            controller.zoomState.removeObserver(zoomObserver)
+            controller.torchState.removeObserver(torchObserver)
+            if (torch) runCatching { controller.enableTorch(false) }
             preview.controller = null
             controller.clearImageAnalysisAnalyzer()
             controller.unbind()
             analysis.shutdown()
         }
     }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(if (dock) 4.dp else 0.dp)) {
     if (canPreviewOutline && !startLiveOutline) {
         FilterChip(selected = outlineEnabled, onClick = {
             outlineEnabled = !outlineEnabled
@@ -312,9 +330,10 @@ private fun PlantupiaCameraPreview(
             TextButton(enabled = liveEnabled, onClick = { liveReading = null; selection++ }) { Text("Select another region") }
         }
     }
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        Box(Modifier.fillMaxWidth().height(immersiveHeight ?: (maxWidth * 1.02f).coerceIn(230.dp, 420.dp))
-            .clip(PlantupiaShapes.card).background(Color(0xFF192820)).onSizeChanged { previewSize = it }) {
+    BoxWithConstraints(Modifier.fillMaxWidth().then(if (dock) Modifier.weight(1f) else Modifier)) {
+        Box(Modifier.fillMaxWidth().then(if (dock) Modifier.fillMaxSize() else Modifier.height(immersiveHeight ?: (maxWidth * 1.02f).coerceIn(230.dp, 420.dp)))
+            .clip(RoundedCornerShape(if (immersiveHeight != null) 4.dp else 16.dp))
+            .background(Color(0xFF192820)).onSizeChanged { previewSize = it }) {
             AndroidView(factory = { preview }, modifier = Modifier.fillMaxSize())
             if (referenceUrl != null) AsyncImage(
                 model = referenceUrl, contentDescription = "Earlier plant photograph over live preview",
@@ -325,13 +344,22 @@ private fun PlantupiaCameraPreview(
                 val height = size.height * view.frameHeight
                 val corner = CornerRadius(18.dp.toPx())
                 val start = Offset((size.width - width) / 2f, (size.height - height) / 2f)
-                val shade = Color.Black.copy(alpha = .36f)
+                val shade = Color.Black.copy(alpha = if (immersiveHeight != null) .12f else .36f)
                 drawRect(shade, Offset.Zero, Size(size.width, start.y))
                 drawRect(shade, Offset(0f, start.y + height), Size(size.width, start.y))
                 drawRect(shade, Offset(0f, start.y), Size(start.x, height))
                 drawRect(shade, Offset(start.x + width, start.y), Size(start.x, height))
-                drawRoundRect(PlantupiaColors.cream, start, Size(width, height), corner,
+                if (immersiveHeight == null) drawRoundRect(PlantupiaColors.cream, start, Size(width, height), corner,
                     style = Stroke(1.5.dp.toPx()))
+                else {
+                    val arm = 18.dp.toPx().coerceAtMost(minOf(width, height) / 4f)
+                    val end = start + Offset(width, height)
+                    listOf(Triple(start, 1f, 1f), Triple(Offset(end.x,start.y), -1f,1f),
+                        Triple(Offset(start.x,end.y),1f,-1f), Triple(end,-1f,-1f)).forEach { (p,dx,dy) ->
+                        drawLine(PlantupiaColors.cream.copy(alpha=.85f),p,p+Offset(arm*dx,0f),1.5.dp.toPx())
+                        drawLine(PlantupiaColors.cream.copy(alpha=.85f),p,p+Offset(0f,arm*dy),1.5.dp.toPx())
+                    }
+                }
                 val tick = 12.dp.toPx()
                 val mid = size.width / 2f
                 drawLine(PlantupiaColors.cream, Offset(mid - tick, start.y), Offset(mid + tick, start.y), 2.dp.toPx())
@@ -381,11 +409,11 @@ private fun PlantupiaCameraPreview(
             if (canPreviewOutline && outlineEnabled) {
                 val tracking = liveEnabled && liveReading?.phase == LiveLensPhase.TRACKING && liveReading?.region != null
                 val label = when {
-                    !ready -> "CAMERA STARTING"
-                    writing -> "CAPTURING"
-                    tracking -> "REGION TRACKED"
-                    liveReading?.phase == LiveLensPhase.LOST -> "REGION LOST"
-                    else -> "FINDING A REGION"
+                    !ready -> "Opening camera"
+                    writing -> "Capturing"
+                    tracking -> "Following detail"
+                    liveReading?.phase == LiveLensPhase.LOST -> "Detail lost"
+                    else -> "Looking for an edge"
                 }
                 Surface(color = Color(0xDD102E25), shape = PlantupiaShapes.badge,
                     modifier = Modifier.align(Alignment.TopStart).padding(12.dp)) {
@@ -414,7 +442,38 @@ private fun PlantupiaCameraPreview(
         quality == PlantupiaCaptureQuality.LOW_DETAIL -> "Hold still and tap the subject to focus."
         else -> "Keep the subject inside the guide."
     }
-    Text(guidance, style = PlantupiaText.itemTitle, color = if (immersiveHeight != null) Color.White else PlantupiaColors.forestText)
+    if (immersiveHeight != null) {
+        Text(controlsError.ifBlank { guidance }, style = PlantupiaText.supporting, color = Color.White,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp))
+        val actualZoom = zoom
+        val hasLight = ready && runCatching { controller.cameraInfo?.hasFlashUnit() == true }.getOrDefault(false)
+        if (ready && (actualZoom != null || hasLight)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                if (actualZoom != null && actualZoom.maxZoomRatio >= 1f) {
+                    TextButton(enabled = !writing, onClick = {
+                        controlsError = ""
+                        val target = if (actualZoom.zoomRatio > 1.15f) 1f else minOf(2f, actualZoom.maxZoomRatio)
+                        runCatching {
+                            val future = controller.setZoomRatio(target.coerceIn(actualZoom.minZoomRatio, actualZoom.maxZoomRatio))
+                            future.addListener({ if(active.get() && runCatching { future.get() }.isFailure) controlsError = "Zoom unavailable." }, main)
+                        }.onFailure { controlsError = "Zoom unavailable." }
+                    }) {
+                        Text(java.lang.String.format(java.util.Locale.US, "%.1f×", actualZoom.zoomRatio), color = Color.White)
+                    }
+                }
+                if (hasLight) TextButton(enabled = !writing, onClick = {
+                    controlsError = ""
+                    runCatching {
+                        val future = controller.enableTorch(!torch)
+                        future.addListener({ if(active.get() && runCatching { future.get() }.isFailure) controlsError = "Camera light unavailable." }, main)
+                    }.onFailure { controlsError = "Camera light unavailable." }
+                }) { Text(if (torch) "Light on" else "Light off", color = Color.White) }
+                if (canPreviewOutline) TextButton(enabled = !writing, onClick = {
+                    outlineEnabled = !outlineEnabled; liveReading = null; selection++
+                }) { Text(if (outlineEnabled) "Guide on" else "Guide off", color = Color.White) }
+            }
+        }
+    } else Text(guidance, style = PlantupiaText.itemTitle, color = PlantupiaColors.forestText)
     if (liveEnabled && immersiveHeight == null) Text(when (liveReading?.phase) {
         LiveLensPhase.TRACKING -> "Following the selected region · preview only"
         LiveLensPhase.LOST -> "Track lost · centre the part and select again"
@@ -493,9 +552,10 @@ private fun PlantupiaCameraPreview(
     if (immersiveHeight == null) {
         Text(view.guidance, style = PlantupiaText.supporting)
         Text("Review the photograph before keeping it.", style = PlantupiaText.supporting)
-    } else if (canPreviewOutline) TextButton(enabled = liveEnabled, onClick = { liveReading = null; selection++ }) {
+    } else if (canPreviewOutline && outlineEnabled) TextButton(enabled = liveEnabled, onClick = { liveReading = null; selection++ }) {
         Text("Find another region", color = Color(0xFFDCEDC8))
     }
+    } // optical stage and capture dock
 }
 
 /** Camera-first route for the Atlas. No photo leaves the device until accepted. */
@@ -541,12 +601,16 @@ internal fun PlantupiaAtlasCapture(
             BoxWithConstraints(Modifier.fillMaxSize()) {
                 // Preserve usable shutter and text at compact heights; normal phones get a large optical stage.
                 val viewport = (maxHeight - 238.dp).coerceIn(150.dp, 620.dp)
-                Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                val useDock = maxHeight >= 550.dp && maxWidth >= 300.dp && LocalDensity.current.fontScale <= 1.2f
+                Column(Modifier.fillMaxSize().padding(horizontal = 10.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                         TextButton(enabled = !writing, onClick = { if (candidate == null) onClose() else discard() }) {
                             Text(if (candidate == null) "Close" else "Retake", color = Color.White)
                         }
-                        Text(title, color = Color.White, style = PlantupiaText.itemTitle, modifier = Modifier.weight(1f))
+                        Column(Modifier.weight(1f)) {
+                            Text(if(candidate == null) "OBSERVE" else "REVIEW", color = Color(0xFFDCEDC8), style = PlantupiaText.sectionLabel)
+                            Text(title, color = Color.White, style = PlantupiaText.itemTitle)
+                        }
                         if (candidate == null) TextButton(enabled = !writing, onClick = { gallery.launch("image/*") }) {
                             Text("Photos", color = Color(0xFFDCEDC8))
                         }
@@ -556,7 +620,7 @@ internal fun PlantupiaAtlasCapture(
                         var loaded by remember(photo) { mutableStateOf(false) }
                         AsyncImage(model = photo, contentDescription = "Your photograph",
                             contentScale = ContentScale.Fit, onSuccess = { loaded = true }, onError = { loaded = false; error = "This photograph cannot be opened." },
-                            modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(18.dp)))
+                            modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(4.dp)))
                         if (loaded) TextButton(onClick = { inspectOriginal = true }) {
                             Text("Inspect original", color = Color(0xFFDCEDC8))
                         }
@@ -565,11 +629,12 @@ internal fun PlantupiaAtlasCapture(
                             TextButton(onClick = { showNote = !showNote }) {
                                 Text(if (showNote) "Hide note" else if (note.isBlank()) "Add a note" else "Edit note", color = Color(0xFFDCEDC8))
                             }
-                            if (showNote) androidx.compose.material3.OutlinedTextField(
-                                value = note, onValueChange = { note = it.take(500) },
-                                label = { Text("What did you notice?", color = Color(0xFFDCEDC8)) },
-                                modifier = Modifier.fillMaxWidth(), maxLines = 2,
-                                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White))
+                            if (showNote) androidx.compose.material3.AlertDialog(
+                                onDismissRequest = { showNote = false },
+                                title = { Text("Observation note") },
+                                text = { androidx.compose.material3.OutlinedTextField(value = note, onValueChange = { note = it.take(500) },
+                                    label = { Text("What did you notice?") }, modifier = Modifier.fillMaxWidth(), minLines = 2, maxLines = 4) },
+                                confirmButton = { TextButton(onClick = { showNote = false }) { Text("Done") } })
                         }
                         Text(disclosure, color = Color(0xFFDCEDC8), style = PlantupiaText.supporting)
                         if (error.isNotBlank()) Text(error, color = Color.White, style = PlantupiaText.supporting)
@@ -589,8 +654,8 @@ internal fun PlantupiaAtlasCapture(
                             }
                         }
                     } else {
-                        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.weight(1f).fillMaxWidth().then(if (useDock) Modifier else Modifier.verticalScroll(rememberScrollState())),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             if (reference == null && onCaptureWithNote != null) Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 FilterChip(selected = !detailView, enabled = !writing, onClick = { detailView = false }, label = { Text("Whole plant") })
                                 FilterChip(selected = detailView, enabled = !writing, onClick = { detailView = true }, label = { Text("Detail") })
@@ -599,7 +664,8 @@ internal fun PlantupiaAtlasCapture(
                                 Text(if (compare) "Hide earlier view · " + reference.observedAt.take(10) else "Match earlier view", color = Color(0xFFDCEDC8))
                             }
                             PlantupiaCameraPreview(if (detailView) CaptureView.LEAF else CaptureView.WHOLE, reference?.photoUrl.takeIf { compare }, writing,
-                                { writing = it }, detailView, immersiveHeight = (viewport - if (reference != null || onCaptureWithNote != null) 48.dp else 0.dp).coerceAtLeast(150.dp)) { uri ->
+                                { writing = it }, detailView, immersiveHeight = (viewport - if (reference != null || onCaptureWithNote != null) 48.dp else 0.dp).coerceAtLeast(150.dp),
+                                dock = useDock, modifier = if (useDock) Modifier.weight(1f) else Modifier) { uri ->
                                 if (ownedCaptureFile(context.cacheDir, uri)?.isFile != true) false
                                 else {
                                     owned.getAndSet(uri)?.takeIf { it != uri }?.let { ownedCaptureFile(context.cacheDir, it)?.delete() }

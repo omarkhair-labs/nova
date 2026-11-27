@@ -61,9 +61,9 @@ internal fun PlantupiaRecordedSpatialPlan(
     immersive: Boolean = false,
     onSelect: (String?) -> Unit,
 ) {
-    var yaw by remember(room) { mutableFloatStateOf(-.65f) }
-    var elevation by remember(room) { mutableFloatStateOf(.67f) }
-    var zoom by remember(room) { mutableFloatStateOf(1f) }
+    var yaw by remember(room.revision, width, length, room.height) { mutableFloatStateOf(-.65f) }
+    var elevation by remember(room.revision, width, length, room.height) { mutableFloatStateOf(.67f) }
+    var zoom by remember(room.revision, width, length, room.height) { mutableFloatStateOf(1f) }
     val selectPlant = rememberUpdatedState(onSelect)
     val pose = rememberUpdatedState(Triple(yaw, elevation, zoom))
     val selectable = rememberUpdatedState(room.plants)
@@ -76,7 +76,7 @@ internal fun PlantupiaRecordedSpatialPlan(
     val ink = if (immersive) Color(0xFFD0E7CB) else PlantupiaColors.forest
     val paper = if (immersive) Color(0xFF203B2E) else PlantupiaColors.paper
     val windowInk = if (immersive) Color(0xFFF1CD86) else Color(0xFF477F83)
-    Canvas(Modifier.fillMaxWidth().height(340.dp).clip(PlantupiaShapes.inset)
+    Canvas(Modifier.fillMaxWidth().height(if (immersive) 380.dp else 340.dp).clip(PlantupiaShapes.inset)
         .background(if (immersive) Color(0xFF10241D) else PlantupiaColors.cream).padding(12.dp)
         .semantics { contentDescription = "3D view of recorded room geometry" }
         .transformable(gestures)
@@ -142,7 +142,12 @@ internal fun PlantupiaRecordedSpatialPlan(
     }
     if (immersive) {
         Text("Drag to orbit · pinch to zoom · tap a plant", style=PlantupiaText.supporting)
-        TextButton(onClick={yaw=-.65f;elevation=.67f;zoom=1f}) { Text("Reset perspective") }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            TextButton(onClick={yaw-=.4f}) { Text("Turn left") }
+            TextButton(onClick={yaw+=.4f}) { Text("Turn right") }
+            TextButton(onClick={zoom=if(zoom>1.1f)1f else 1.65f}) { Text("Zoom") }
+            TextButton(onClick={yaw=-.65f;elevation=.67f;zoom=1f}) { Text("Reset perspective") }
+        }
     } else FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement=Arrangement.spacedBy(2.dp)) {
         TextButton(onClick={yaw-=.4f}) { Text("Turn left") }
         TextButton(onClick={yaw+=.4f}) { Text("Turn right") }

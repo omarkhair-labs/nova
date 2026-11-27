@@ -206,14 +206,25 @@ internal fun PlantupiaRoomPlan(
                     }
                 } else Text("No recorded plant placements yet.", style = PlantupiaText.supporting)
                 if (selectedPoint != null && selectedPlant != null) {
-                    PlantupiaActionRow(
-                        icon = com.nova.app.ui.icons.NovaIconAsset.Home,
-                        title = "Open " + selectedPlant.name,
-                        detail = "Recorded position · ${selectedPoint.x}, ${selectedPoint.y} m" +
-                            selectedPoint.latest.takeIf { it.isNotBlank() }?.let { " · Last record " + it.take(10) }.orEmpty(),
-                        accent = true, enabled = !saving,
-                        onClick = { expanded = false; openPlant(selectedPlant) },
-                    )
+                    Surface(color = PlantupiaColors.forest, shape = androidx.compose.foundation.shape.RoundedCornerShape(4.dp), modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                if (selectedPlant.coverPhoto.isNotBlank()) PlantupiaEvidencePhoto(selectedPlant.coverPhoto, selectedPlant.name,
+                                    Modifier.size(80.dp), cornerRadius = 3.dp, compact = true)
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text(selectedPlant.name, color = androidx.compose.ui.graphics.Color.White, style = PlantupiaText.editorialHeading)
+                                    Text("Recorded position · ${selectedPoint.x}, ${selectedPoint.y} m", color = androidx.compose.ui.graphics.Color(0xFFD9E8CF), style = PlantupiaText.supporting)
+                                    if (selectedPoint.latest.isNotBlank()) Text("Last record " + selectedPoint.latest.take(10),
+                                        color = androidx.compose.ui.graphics.Color(0xFFD9E8CF), style = PlantupiaText.supporting)
+                                }
+                            }
+                            Button(enabled = !saving, onClick = { expanded = false; openPlant(selectedPlant) },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.cream, contentColor = PlantupiaColors.forest)) {
+                                Text("Open " + selectedPlant.name)
+                            }
+                        }
+                    }
                 }
                 if (current.windows.isNotEmpty()) {
                     PlantupiaActionRow(

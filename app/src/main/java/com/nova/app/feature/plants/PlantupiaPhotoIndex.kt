@@ -51,6 +51,7 @@ internal fun PlantupiaPhotoIndex(
     val defaultPair = plantupiaLoadedPhotoPair(events)
     if (photos.isEmpty()) return
     var choosing by remember { mutableStateOf(false) }
+    var compareFullScreen by remember { mutableStateOf(false) }
     var firstId by remember { mutableStateOf<String?>(null) }
     var secondId by remember { mutableStateOf<String?>(null) }
     val comparison = if (choosing) signatureComparisonPair(events, firstId, secondId) else if (editorialTimeline) null else defaultPair
@@ -68,10 +69,11 @@ internal fun PlantupiaPhotoIndex(
                         firstId = defaultPair?.earlier?.id
                         secondId = defaultPair?.later?.id
                         choosing = true
+                        if (editorialTimeline) compareFullScreen = true
                     },
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
                 ) { Text("Choose two recorded photos") }
-            } else {
+            } else if (!editorialTimeline) {
                 Text("COMPARE TWO MOMENTS", style = PlantupiaText.sectionLabel)
                 SignaturePhotoChoice("First photo", photos, firstId) { firstId = it }
                 SignaturePhotoChoice("Second photo", photos, secondId) { secondId = it }
@@ -84,7 +86,7 @@ internal fun PlantupiaPhotoIndex(
                 }
             }
         }
-        if (comparison != null) {
+        if (comparison != null && !editorialTimeline) {
             PlantupiaPhotoTimeLens(
                 pair = comparison,
                 hasOlderPages = hasOlderPages,
@@ -98,6 +100,27 @@ internal fun PlantupiaPhotoIndex(
             if (alignmentEnabled && measurementRepository != null && measurementPlantId != null) {
                 key(measurementPlantId, comparison.earlier.id, comparison.later.id, measurementRepository) {
                     PlantupiaMeasuredVisits(measurementRepository, measurementPlantId, comparison)
+                }
+            }
+        }
+        if (editorialTimeline && compareFullScreen) {
+            PlantupiaLivingWorkspace("FIELD RECORD", "Compare dates", "Same plant · two saved photographs", false,
+                close = { compareFullScreen = false; choosing = false }) {
+                SignaturePhotoChoice("First photo", photos, firstId) { firstId = it }
+                SignaturePhotoChoice("Second photo", photos, secondId) { secondId = it }
+                if (comparison == null) Text("Choose different recorded dates.", style = PlantupiaText.supporting)
+                else {
+                    PlantupiaPhotoTimeLens(pair = comparison, hasOlderPages = hasOlderPages, onOpenPhoto = onOpenPhoto,
+                        alignmentEnabled = alignmentEnabled,
+                        automaticAlignment = if (measurementRepository != null && measurementPlantId != null) { marks ->
+                            measurementRepository.alignVisits(measurementPlantId, comparison.earlier.id, comparison.later.id, marks)
+                        } else null,
+                        isCurrentSession = { measurementRepository?.isCurrentSession() == true })
+                    if (alignmentEnabled && measurementRepository != null && measurementPlantId != null) {
+                        key(measurementPlantId, comparison.earlier.id, comparison.later.id, measurementRepository) {
+                            PlantupiaMeasuredVisits(measurementRepository, measurementPlantId, comparison)
+                        }
+                    }
                 }
             }
         }

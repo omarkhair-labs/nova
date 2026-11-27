@@ -298,6 +298,23 @@ internal fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plant
             }
         }
     }
+    fun revealSelection(fg: IntOffset, bg: IntOffset) {
+        if (busy || !loaded || !repository.isCurrentSession()) return
+        busy = true
+        showOutline = true
+        scope.launch {
+            try {
+                val body = JSONObject().put("foreground", atlasPoints(listOf(fg))).put("background", atlasPoints(listOf(bg)))
+                if (tryNeural && evidence?.optBoolean("can_neural_suggest_region") == true) body.put("mode", "neural")
+                suggest(body)
+                refining = proposal == null
+                if (proposal == null) {
+                    tryNeural = false
+                    if (message.isBlank()) message = "No reliable boundary. Select the detail again."
+                } else { foreground = null; background = null }
+            } finally { busy = false }
+        }
+    }
     LaunchedEffect(attempt) {
         busy = true
         message = ""
@@ -371,7 +388,11 @@ internal fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plant
                             if (p.x >= 0 && p.x < width && p.y >= 0 && p.y < height) {
                                 val mark = IntOffset(p.x.toInt(),p.y.toInt())
                                 if (foreground == null || background != null) { foreground = mark; background = null }
-                                else background = mark
+                                else {
+                                    val fg = foreground ?: return@detectTapGestures
+                                    background = mark
+                                    revealSelection(fg, mark)
+                                }
                             }
                         }
                     }) {
@@ -412,8 +433,8 @@ internal fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plant
                     when {
                         saved != null -> {
                             Text("Recorded boundary", color = atlasMint, style = PlantupiaText.sectionLabel)
-                            Text("${saved.pixels} px²", color = Color.White, style = PlantupiaText.display)
-                            Text("Visible image area, not physical size", color = atlasMint, style = PlantupiaText.supporting)
+                            Text("Appearance of your selected detail", color = Color.White, style = PlantupiaText.editorialHeading)
+                            Text("Image area: ${saved.pixels} px² · not physical size", color = atlasMint, style = PlantupiaText.supporting)
                             if (saved.colors.isNotEmpty()) {
                                 val palette = listOf(Color(0xFF86B778),Color(0xFFE4C66B),Color(0xFFA78066),Color(0xFF9DA59B))
                                 Canvas(Modifier.fillMaxWidth().height(15.dp).clip(RoundedCornerShape(6.dp))) {
@@ -432,7 +453,7 @@ internal fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plant
                                     FilterChip(selected = part == p, enabled = !busy, onClick = { part = p }, label = { Text(p.replaceFirstChar { it.uppercase() }) })
                                 }
                             }
-                            Button(enabled = !busy && loaded, modifier = Modifier.fillMaxWidth(), onClick = {
+                            Button(enabled = !busy && loaded && showOutline, modifier = Modifier.fillMaxWidth(), onClick = {
                                 val id = eventId ?: return@Button
                                 busy = true; phase = "Measuring the accepted boundary"; message = ""
                                 scope.launch {
@@ -452,22 +473,17 @@ internal fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plant
                                         }
                                     } finally { busy=false }
                                 }
-                            }) { Text("Keep boundary") }
+                            }) { Text("Save this detail") }
                             TextButton(enabled = !busy, onClick = { refining=true; foreground=null; background=null; proposal=null }) { Text("Choose another part", color = atlasMint) }
                         }
                         refining -> {
-                            Text(if(foreground==null) "Tap the part you want." else if(background==null) "Tap outside the part." else "Ready to refine.", color = Color.White, style = PlantupiaText.editorialHeading)
+                            Text(if (busy) "Finding your detail…" else if (foreground == null) "Touch the detail" else if (background == null) "Touch just outside it" else "Adjust your selection",
+                                color = Color.White, style = PlantupiaText.editorialHeading)
+                            Text("Two touches define the region. Your original photo remains unchanged.", color = atlasMint, style = PlantupiaText.supporting)
                             val fg = foreground; val bg = background
-                            if (fg != null && bg != null) Button(enabled = !busy, modifier = Modifier.fillMaxWidth(), onClick = {
-                                busy=true;scope.launch { try {
-                                    val body=JSONObject().put("foreground",atlasPoints(listOf(fg))).put("background",atlasPoints(listOf(bg)))
-                                    if(tryNeural && evidence?.optBoolean("can_neural_suggest_region")==true) body.put("mode","neural")
-                                    suggest(body)
-                                    refining=proposal==null
-                                    if (proposal==null) tryNeural=false
-                                } finally {busy=false} }
-                            }) { Text("Reveal this part") }
-                            TextButton(enabled = !busy, onClick = {foreground=null;background=null;tryNeural=true}) { Text("Reset selection",color=atlasMint) }
+                            if (!busy && fg != null && bg != null) TextButton(onClick = { revealSelection(fg,bg) }) { Text("Try selection again", color = atlasMint) }
+                            TextButton(enabled = !busy, onClick = { foreground = null; background = null; tryNeural = true; message = "" }) { Text("Start selection again", color = atlasMint) }
+                            TextButton(enabled = !busy, onClick = { refining = false; foreground = null; background = null; message = "" }) { Text("Keep photo only", color = atlasMint) }
                         }
                         !busy -> {
                             if (message.isNotBlank()) Text(message,color=Color.White,style=PlantupiaText.supporting)

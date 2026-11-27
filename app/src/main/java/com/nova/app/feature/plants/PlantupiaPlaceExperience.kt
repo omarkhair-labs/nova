@@ -5,6 +5,16 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.contentDescription
+import kotlin.math.roundToInt
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -155,31 +165,64 @@ internal fun PlantupiaObservationRoute(plant: PlantupiaPlant, repository: Plantu
     ) else AtlasObservation(plant, current.first, repository, note = current.second, autoAnalyse = false, close = { close(true) })
 }
 
-/** Real dated source photos: no interpolated biological change. */
+/** A photographic contact sheet and a discrete date scrubber, sharing one selected real record. */
 @Composable
 internal fun PlantupiaChronologyHeader(events: List<PlantupiaCareEvent>, onOpenPhoto: (PlantupiaCareEvent) -> Unit, onRepeat: ((PlantupiaCareEvent) -> Unit)?) {
-    val photos = recordedPlantPhotos(events)
+    val photos = recordedPlantPhotos(events).asReversed()
     if (photos.isEmpty()) return
-    var selectedId by rememberSaveable { mutableStateOf(photos.first().id) }
-    val selected = photos.firstOrNull { it.id == selectedId } ?: photos.first()
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Through time", style = PlantupiaText.editorialHeading)
-        Text(selected.observedAt.take(10), style = PlantupiaText.sectionLabel)
-        Crossfade(targetState = selected, animationSpec = tween(180), label = "Recorded photograph") { event ->
-            PlantupiaEvidencePhoto(event.photoUrl, "Photograph recorded " + event.observedAt.take(10),
-                Modifier.fillMaxWidth().height(250.dp), cornerRadius = 3.dp,
-                framing = PlantupiaPhotoFraming.FULL_RECORD, onOpenPhoto = { onOpenPhoto(event) })
-        }
-        if (photos.size > 1) LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            items(photos.size, key = { photos[it].id }) { i ->
-                val event = photos[i]
-                FilterChip(selected = selected.id == event.id, onClick = { selectedId = event.id },
-                    label = { Text(event.observedAt.take(10)) })
+    var selectedId by rememberSaveable { mutableStateOf(photos.last().id) }
+    val selected = photos.firstOrNull { it.id == selectedId } ?: photos.last()
+    val position = photos.indexOf(selected).coerceAtLeast(0)
+    val strip = rememberLazyListState(initialFirstVisibleItemIndex = position)
+    LaunchedEffect(selected.id, photos.size) {
+        val visible = strip.layoutInfo.visibleItemsInfo.any { it.index == position }
+        if (!visible) strip.scrollToItem(position)
+    }
+    Surface(color = PlantupiaColors.forest, shape = RoundedCornerShape(4.dp), modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f)) {
+                    Text("FIELD RECORD / TIME", color = Color(0xFFD9E8CF), style = PlantupiaText.sectionLabel)
+                    Text(selected.observedAt.take(10), color = Color.White, style = PlantupiaText.editorialHeading)
+                }
+                Text("${position + 1} / ${photos.size}", color = Color(0xFFD9E8CF), style = PlantupiaText.supporting)
             }
+            Crossfade(targetState = selected.id, animationSpec = tween(140), label = "Actual recorded date") { id ->
+                val event = photos.firstOrNull { it.id == id } ?: selected
+                PlantupiaEvidencePhoto(event.photoUrl, "Photograph recorded " + event.observedAt.take(10),
+                    Modifier.fillMaxWidth().height(294.dp), cornerRadius = 2.dp,
+                    framing = PlantupiaPhotoFraming.FULL_RECORD, onOpenPhoto = { onOpenPhoto(event) })
+            }
+            if (photos.size > 1) {
+                Slider(value = position.toFloat(), onValueChange = { selectedId = photos[it.roundToInt().coerceIn(0, photos.lastIndex)].id },
+                    valueRange = 0f..photos.lastIndex.toFloat(), steps = if (photos.size <= 102) photos.size - 2 else 0,
+                    colors = SliderDefaults.colors(thumbColor = PlantupiaColors.cream, activeTrackColor = Color(0xFFC2D9AE)),
+                    modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Select recorded photograph date" })
+                LazyRow(state = strip, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    items(photos.size, key = { photos[it].id }) { i ->
+                        val event = photos[i]
+                        val active = event.id == selected.id
+                        Surface(onClick = { selectedId = event.id },
+                            modifier = Modifier.width(94.dp).semantics { role = Role.Tab; this.selected = active },
+                            color = if (active) PlantupiaColors.cream else Color(0xFF294A3B),
+                            shape = RoundedCornerShape(3.dp),
+                            border = BorderStroke(1.dp, if (active) PlantupiaColors.cream else Color(0xFF426451))) {
+                            Column(Modifier.padding(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                PlantupiaEvidencePhoto(event.photoUrl, "Recorded photograph " + event.observedAt.take(10), Modifier.fillMaxWidth().height(68.dp),
+                                    cornerRadius = 1.dp, compact = true)
+                                Text(event.observedAt.take(10), color = if (active) PlantupiaColors.forest else Color.White,
+                                    style = PlantupiaText.supporting)
+                            }
+                        }
+                    }
+                }
+            }
+            if (selected.note.isNotBlank()) Text(selected.note, style = PlantupiaText.supporting, color = Color.White, maxLines = 3)
+            if (onRepeat != null) Button(onClick = { onRepeat(selected) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.cream, contentColor = PlantupiaColors.forest)) {
+                Text("Photograph again from the same view")
+            }
+            Text("Recorded photographs only. No inferred growth.", style = PlantupiaText.supporting, color = Color(0xFFD9E8CF))
         }
-        if (onRepeat != null) Button(onClick = { onRepeat(selected) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Text("Photograph again from the same view")
-        }
-        Text("Only recorded photographs. Compare dates without inferring growth.", style = PlantupiaText.supporting)
     }
 }
