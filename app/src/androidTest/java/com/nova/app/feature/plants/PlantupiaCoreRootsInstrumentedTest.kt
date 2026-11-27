@@ -7,6 +7,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.test.core.app.ActivityScenario
+import androidx.test.espresso.Espresso.closeSoftKeyboard
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.platform.app.InstrumentationRegistry
 import com.nova.app.MainActivity
@@ -28,9 +29,9 @@ import org.junit.Rule
 import org.junit.Test
 
 /**
- * Read-only navigation through the real app against the guarded disposable seed.
- * The seed's customer has no claimed delivery; the existing staff owner holds
- * the seven synthetic plants. No claim, order, publication or account is created.
+ * Navigation through the real app against the guarded disposable seed.
+ * The field journey adds a reported room to the seven-plant fixture. No claim,
+ * order, care record, publication or account is created by these tests.
  */
 class PlantupiaCoreRootsInstrumentedTest {
     @get:Rule val compose = createEmptyComposeRule()
@@ -104,14 +105,22 @@ class PlantupiaCoreRootsInstrumentedTest {
         scrollToText("Your circle is quiet")
         capture("06-circle-moments")
         clickText("Back to Circle")
-        awaitText("Circle")
+        // The restored lazy list may be below its title at 2x text. Prove the
+        // Circle title is reachable and displayed, without requiring a reset
+        // of the user’s previously selected scroll position.
+        scrollToText("Circle").assertIsDisplayed()
         openProfile()
         awaitText("Your private places")
         compose.onNodeWithContentDescription("Settings").assertIsDisplayed()
         compose.onNodeWithContentDescription("Messages").assertIsDisplayed()
         capture("07-profile")
+        clickText("Circle profile")
+        compose.onNodeWithText("Your private places").assertDoesNotExist()
         scrollToText("Edit public profile")
         capture("08-profile-public")
+        clickText("Private world")
+        awaitText("Your private places")
+        compose.onNodeWithText("Edit public profile").assertDoesNotExist()
 
         clickDescription("Settings")
         awaitText("Settings")
@@ -174,6 +183,13 @@ class PlantupiaCoreRootsInstrumentedTest {
 
         awaitText("No check-ins due")
         capture("15-owner-today")
+        val todayFocus = requireNotNull(todayCollectionFocus(plants))
+        scrollToText("From your collection")
+        capture("15a-owner-today-collection")
+        clickText("Open plant →")
+        awaitText(todayFocus.name)
+        awaitNode(hasText("Overview") and SemanticsMatcher.expectValue(SemanticsProperties.Role,Role.Tab)).assertIsSelected()
+        clickText("← Back to space")
         tab("Plants")
         awaitText("My plants")
         awaitText(requireNotNull(ownSpace).name)
@@ -219,12 +235,18 @@ class PlantupiaCoreRootsInstrumentedTest {
         scrollToText("CARE & OBSERVATIONS")
         capture("19-owner-plant-care")
 
-        clickText("History")
+        clickText("Overview")
+        // The overview's record entry must reach the same empty private history.
+        clickText("History →")
         compose.onNode(hasText("History") and chapterRole).assertIsSelected()
         scrollToText("No field notes yet")
         capture("20-owner-plant-history")
 
-        clickText("Care")
+        // The empty field book leads to the existing editor without saving a record.
+        clickText("Record care")
+        compose.onNode(hasText("Care") and chapterRole).assertIsSelected()
+        scrollToText("What would you like to record?")
+        clickText("Close care actions ↑")
         clickText("Care guide")
         awaitText("Reviewed care")
         clickText("Read complete care notes")
@@ -243,6 +265,126 @@ class PlantupiaCoreRootsInstrumentedTest {
         assertTrue("Read-only navigation must retain the original inventory.",
             after is ApiResult.Success && after.value.map { it.id }.toSet() == expectedIds &&
                 after.value.associate { it.id to it.active } == plants.associate { it.id to it.active })
+    }
+
+    @Test fun livingRoomDaylightAndCaptureReachCurrentPlant() {
+        val repository = openSeedAccount("staff")
+        val id = fixture.getString("space_id")
+        val specimenId = fixture.getJSONArray("plant_ids").getString(0)
+        val payload = JSONObject("""
+            {"base_revision":0,"width_m":4,"length_m":3,
+             "plants":[{"plant_id":"$specimenId","x_m":3.7,"y_m":1.5}],
+             "windows":[{"id":"East window","x_m":4,"y_m":1.5}]}
+        """.trimIndent())
+        val original = runBlocking { repository.room(id) }
+        assertTrue("The disposable room must be available.", original is ApiResult.Success)
+        val initialRevision = (original as ApiResult.Success).value.revision
+        if (initialRevision == 0) {
+            val first = JSONObject(payload.toString()).put("length_m", 2.8)
+            val saved = runBlocking { repository.saveRoom(id, first) }
+            assertTrue("The first layout must be acknowledged.", saved is ApiResult.Success && saved.value == 1)
+            val revised = runBlocking { repository.saveRoom(id, payload.put("base_revision", 1)) }
+            assertTrue("The updated layout must be acknowledged.", revised is ApiResult.Success && revised.value == 2)
+        } else {
+            assertTrue("Only both expected layouts may exist on this repeat pass.", initialRevision == 2)
+        }
+        tab("Plants")
+        clickText("Explore this place")
+        scrollToText("Reported room", substring = true)
+        compose.onNodeWithContentDescription("Floor plan with 1 recorded plants and 1 windows").assertExists()
+        capture("22-room-placements")
+        clickText("Choose a plant in this room")
+        clickText("Synthetic plant 01 ·", substring = true)
+        clickText("Perspective")
+        compose.onNodeWithContentDescription("3D view of recorded room geometry").assertExists()
+        scrollToText("Open Synthetic plant 01", clickable = true)
+        clickText("Floor plan")
+        clickText("Browse layout history")
+        clickText("Revision 1", substring = true)
+        scrollToText("Earlier layout", substring = true)
+        clickText("Return to current layout")
+        clickText("Perspective")
+        clickText("Explore photographic reconstruction")
+        scrollToText("Photographic reconstruction")
+        scrollToText("Open PLY scene", clickable = true)
+        clickText("Return to room")
+        clickText("Study sunlight at Synthetic plant 01")
+        fillScenario("Opening width (m)", "2")
+        fillScenario("Sill above floor (m)", ".4")
+        fillScenario("Head above floor (m)", "2.4")
+        fillScenario("Top wall outward bearing from true north (°)", "0")
+        scrollToText("Recorded position of Synthetic plant 01 · 3.7, 1.5 m")
+        fillScenario("Sample height (m)", "1.1")
+        fillScenario("Latitude (°)", "0")
+        fillScenario("Longitude (°)", "0")
+        fillScenario("Date (YYYY-MM-DD)", "2026-03-20")
+        fillScenario("Time zone (e.g. Africa/Cairo)", "UTC")
+        clickText("Simulate this day")
+        scrollToText("Direct sun reaches this point", substring = true)
+        capture("23-room-daylight")
+        clickText("Return to placements")
+        val unchanged = runBlocking { repository.room(id) }
+        assertTrue("Exploring light, history and reconstruction must not write a layout.",
+            unchanged is ApiResult.Success && unchanged.value.revision == 2 &&
+                unchanged.value.plants.single().id == specimenId && unchanged.value.plants.single().x == 3.7)
+        clickText("Open Synthetic plant 01")
+        clickText("Care")
+        clickText("Record care")
+        clickText("Add a note, photo or optional next check", substring = true)
+        clickText("Add a photo of your observation")
+        scrollToText("Allow camera", clickable = true)
+        capture("24-capture-permission")
+        pressBack()
+        assertTrue("Entering and leaving capture creates no private record.",
+            (runBlocking { repository.historyPage(specimenId) } as? ApiResult.Success)?.value?.events?.isEmpty() == true)
+    }
+
+    @Test fun recordedCalendarDayReturnsFromAskToTheSameVisit() {
+        val repository = openSeedAccount("staff")
+        val plantId = fixture.getJSONArray("plant_ids").getString(6)
+        val today = java.time.LocalDate.now()
+        val day = today.withDayOfMonth(1)
+        val marker = "Synthetic calendar navigation visit"
+        val existing = runBlocking { repository.historyPage(plantId, observedOn = day) }
+        assertTrue(existing is ApiResult.Success)
+        if ((existing as ApiResult.Success).value.events.none { it.note == marker }) {
+            val record = JSONObject().put("kind", "observation").put("note", marker)
+                .put("observed_at", day.toString() + "T10:00:00Z")
+            assertTrue(runBlocking { repository.demoPost("plants/$plantId/events/", record) } is ApiResult.Success)
+        }
+        tab("Plants")
+        clickDescription("Open care schedule")
+        clickText("Month")
+        val locale = InstrumentationRegistry.getInstrumentation().targetContext.resources.configuration.locales[0]
+        val dayLabel = day.format(java.time.format.DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", locale))
+        val chooseDate = hasText("Choose date ·", substring = true) and hasClickAction()
+        val compact = compose.onAllNodes(chooseDate).fetchSemanticsNodes().isNotEmpty()
+        val shortDay = day.format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM yyyy", locale))
+        if (compact) {
+            awaitNode(chooseDate).performScrollTo().performClick()
+            clickText(shortDay)
+        } else {
+            awaitNode(hasContentDescription("$dayLabel,", substring = true)).performScrollTo().performClick()
+        }
+        clickText("Observation recorded")
+        awaitText("Records from $day")
+        scrollToText(marker)
+        clickText("Ask about this history")
+        awaitText("Here for Synthetic plant 07")
+        pressBack()
+        scrollToText(marker)
+        clickText("← Back to calendar")
+        awaitText("My care schedule")
+        if (compact) awaitText("Choose date · $shortDay")
+        else awaitNode(hasContentDescription("$dayLabel,", substring = true)).assertIsSelected()
+        scrollToText("Observation recorded")
+        capture("25-calendar-visit-return")
+    }
+
+    private fun fillScenario(label: String, value: String) {
+        val field = scrollToText(label)
+        field.performTextReplacement(value)
+        closeSoftKeyboard()
     }
 
     private fun openSeedAccount(role: String): PlantupiaRepository {

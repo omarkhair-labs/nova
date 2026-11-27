@@ -1,4 +1,8 @@
+from .room_scene_api import RoomPhotoSceneView
+from .species_recognition import SpeciesRecognitionView
+from .living_api import DaylightView, FieldEvidenceView, ProjectedComparisonView, RegionView, RegionSuggestionView, ReviewView, RoomView, VisitRegistrationView
 from django.urls import path
+from .visit_photographs import VisitPhotoView
 from .commerce_storefront_api import CommerceCatalogView, CommerceCatalogPhotoView, CommerceCartView
 from .commerce_public_catalog_api import PublicCommerceCatalogView, PublicCommerceCoverView
 from .commerce_business_real_api import BusinessInquiriesView, BusinessAcceptQuoteView
@@ -18,6 +22,18 @@ from .views import SpaceDetailView, PlantDetailView, PlantCoverPhotoView, PlantE
 from .website_inbox import receive_website_enquiry
 
 urlpatterns = [
+    path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/photos/", VisitPhotoView.as_view(), name="plantupia-visit-photos"),
+    path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/photos/<int:photo_id>/", VisitPhotoView.as_view(), name="plantupia-visit-photo"),
+    path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/regions/", RegionView.as_view(), name="plantupia-trace-region"),
+    path("plants/<uuid:plant_id>/compare-regions/", ProjectedComparisonView.as_view(), name="plantupia-compare-regions"),
+    path("plants/<uuid:plant_id>/align-visits/", VisitRegistrationView.as_view(), name="plantupia-align-visits"),
+    path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/suggest-region/", RegionSuggestionView.as_view(), name="plantupia-suggest-region"),
+    path("spaces/<uuid:space_id>/room/daylight/", DaylightView.as_view(), name="plantupia-daylight"),
+    path("spaces/<uuid:space_id>/room/<int:number>/scene/", RoomPhotoSceneView.as_view(),
+         name="plantupia-room-photo-scene"),
+    path("spaces/<uuid:space_id>/room/", RoomView.as_view(), name="plantupia-room"),
+    path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/", FieldEvidenceView.as_view(), name="plantupia-field-evidence"),
+    path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/reviews/", ReviewView.as_view(), name="plantupia-evidence-review"),
     path("website/enquiries/", receive_website_enquiry, name="plantupia-website-enquiries"),
     # The sole future customer Shop data source; no QA models or active checkout.
     # Curated anonymous web showcase. Never exposes private carts, prices in draft or checkout.
@@ -37,6 +53,9 @@ urlpatterns = [
     path("commerce/orders/<uuid:order_id>/transfer-reference/", CommerceOrderTransferClaimView.as_view(), name="plantupia-real-commerce-transfer-reference"),
     path("commerce/orders/<uuid:order_id>/return/", CommerceOrderReturnView.as_view(), name="plantupia-real-commerce-return"),
     path("care-calendar/history/", PlantCareCalendarHistoryView.as_view(), name="plantupia-care-calendar-history"),
+    path("library/identify/", SpeciesRecognitionView.as_view(), name="plantupia-photo-identification"),
+    path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/identify/",
+         SpeciesRecognitionView.as_view(), name="plantupia-visit-identification"),
     path("library/species/", BotanicalSpeciesLibraryView.as_view(), name="plantupia-library-species"),
     path("library/species/<slug:key>/", BotanicalSpeciesLibraryDetailView.as_view(), name="plantupia-library-species-detail"),
     path("demo/access/", DemoAccessView.as_view(), name="plantupia-demo-access"),
@@ -72,5 +91,6 @@ urlpatterns = [
     path("plants/<uuid:plant_id>/questions/", PlantQuestionsView.as_view(), name="plantupia-questions"),
     path("plants/<uuid:plant_id>/questions/<uuid:discussion_id>/resolve/", PlantQuestionResolveView.as_view(), name="plantupia-resolve"),
     path("circle/", PlantCircleView.as_view(), name="plantupia-circle"),
+    path("assistant/ask-history/", PlantAssistantView.as_view(require_history_day=True), name="plantupia-assistant-history"),
     path("assistant/ask/", PlantAssistantView.as_view(), name="plantupia-assistant-ask"),
 ]

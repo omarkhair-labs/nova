@@ -21,15 +21,22 @@ internal object PlantupiaCareCalendarOpenSignal {
     var returnToToday by mutableStateOf(false)
         private set
 
-    fun open(accountId: Long, fromToday: Boolean = false) {
+    var requestedDay: java.time.LocalDate? = null
+        private set
+
+    fun open(accountId: Long, fromToday: Boolean = false, day: java.time.LocalDate? = null) {
         if (accountId <= 0) return
         targetAccountId = accountId
+        requestedDay = day
         returnToToday = fromToday
         version += 1
         NovaRootNavigationSignal.request(NovaRootTab.Plants)
     }
 
     fun consume(accountId: Long) {
-        if (targetAccountId == accountId) targetAccountId = null
+        if (targetAccountId == accountId) {
+            targetAccountId = null
+            requestedDay = null
+        }
     }
 }

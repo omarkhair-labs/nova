@@ -138,6 +138,13 @@ def order_json(order):
                    if order.shipping_fee is not None else None)
     from .commerce_models import CommerceTransferClaim
     claim = CommerceTransferClaim.objects.filter(order=order).first()
+    delivered = [
+        {"id": str(plant_id), "name": name, "variant": variant}
+        for plant_id, name, variant in order.lines.filter(
+            sku__product__kind="plant", delivered_plants__plant_id__isnull=False
+        ).order_by("pk", "delivered_plants__pk").values_list(
+            "delivered_plants__plant_id", "product_name_snapshot", "option_snapshot")
+    ]
     return {
         "transfer_reference_submitted": bool(claim),
         "transfer_reference": claim.reference if claim else None,
@@ -176,11 +183,8 @@ def order_json(order):
         "return_case": _return_case_json(order),
         "fulfillment": _fulfillment_json(order),
         "lines": lines,
-        "my_plant_ids": [str(plant_id) for plant_id in (
-            order.lines.filter(sku__product__kind="plant")
-            .values_list("delivered_plants__plant_id", flat=True)
-            .exclude(delivered_plants__plant_id__isnull=True)
-        )],
+        "my_plant_ids": [plant["id"] for plant in delivered],
+        "delivered_plants": delivered,
         "notice": _status_notice(order),
     }
 

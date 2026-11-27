@@ -97,6 +97,11 @@ internal fun PlantupiaAiRoute(
                         repository = repository,
                         onDismiss = onToday,
                         fullPage = true,
+                        onOpenHistory = if (selected == null || user == null) null else ({
+                            if (repository.isCurrentSession()) {
+                                PlantupiaPlantOpenSignal.open(user.id, selected.id, PlantupiaDetailChapter.HISTORY)
+                            }
+                        }),
                         onCircle = onCircle,
                     )
                 }

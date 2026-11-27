@@ -5,6 +5,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -47,7 +51,10 @@ internal fun PlantupiaSpaceSwitcher(
                     val isSelected = selected?.id == space.id
                     Surface(
                         onClick = { onSelectSpace(space.id) },
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.widthIn(max = 260.dp).heightIn(min = 48.dp).semantics {
+                            this.selected = isSelected
+                        },
+                        shape = PlantupiaShapes.inset,
                         color = if (isSelected) PlantupiaColors.forest else PlantupiaColors.paper,
                         border = BorderStroke(1.dp, if (isSelected) PlantupiaColors.forest else PlantupiaColors.border),
                     ) {
@@ -56,7 +63,6 @@ internal fun PlantupiaSpaceSwitcher(
                                 space.name,
                                 color = if (isSelected) PlantupiaColors.paper else PlantupiaColors.forest,
                                 style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
-                                maxLines = 1,
                             )
                             Text(
                                 spacePlantCountLabel(activeCount),

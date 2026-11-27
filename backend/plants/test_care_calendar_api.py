@@ -88,6 +88,34 @@ class CalendarHistoryTests(TestCase):
         )
         self.assertFalse(any(row["plant_name"] == "Hidden fern" for row in response.data["results"]))
 
+    def test_open_calendar_day_reads_only_that_plants_records_and_supports_paging(self):
+        self.api.force_authenticate(self.owner)
+        url = reverse("plantupia-events", args=[self.plant.pk])
+        params = {"observed_on": self.today.isoformat()}
+        result = self.api.get(url, params)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(len(result.data["results"]), 3)
+        self.assertEqual(len(self.api.get(url, {**params, "offset": 2}).data["results"]), 1)
+        self.assertEqual(self.api.get(url, {"observed_on": (self.today - timedelta(days=4)).isoformat()}).data["results"], [])
+        self.assertEqual(self.api.get(url, {"observed_on": "bad"}).status_code, 400)
+        self.api.force_authenticate(self.other)
+        self.assertEqual(self.api.get(url, params).status_code, 404)
+
+    def test_previous_photo_is_from_an_earlier_day_and_the_same_plant(self):
+        now = timezone.now()
+        def photo(plant, days, name):
+            return PlantEvent.objects.create(plant=plant, actor=self.owner, kind="observation",
+                                             observed_at=now-timedelta(days=days), photo=name)
+        earlier = photo(self.plant, 3, "care/earlier.jpg")
+        current = photo(self.plant, 0, "care/current.jpg")
+        photo(self.plant, 1, "care/current.jpg")
+        other = photo(self.second, 1, "care/other.jpg")
+        self.api.force_authenticate(self.owner)
+        url = reverse("plantupia-events", args=[self.plant.pk])
+        rows = self.api.get(url, {"previous_photo_for": str(current.pk)}).data["results"]
+        self.assertEqual([r["id"] for r in rows], [str(earlier.pk)])
+        self.assertEqual(self.api.get(url, {"previous_photo_for": str(other.pk)}).status_code, 404)
+
     def test_invalid_dates_cannot_trigger_unbounded_history_scan(self):
         self.api.force_authenticate(self.owner)
         for query in [

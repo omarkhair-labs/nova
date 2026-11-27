@@ -1,0 +1,27 @@
+{% extends "plants/company/base.html" %}
+{% block content %}
+<header class="page-heading compact-workspace-heading"><div><p class="eyebrow">LIVING SYSTEMS / PRIVATE PILOT · الفحص</p><h1>Field evidence.</h1><p class="lead">Photographs, recorded issues and human-traced regions from places where you may record care. This is not an assigned diagnostic queue.</p></div></header>
+<form class="filter-bar" method="get">
+  <label>Find a plant or place<input name="q" value="{{ query }}" maxlength="100" type="search"></label>
+  <label>Review history<select name="status">
+    <option value="unreviewed" {% if state == "unreviewed" %}selected{% endif %}>No recorded review</option>
+    <option value="reviewed" {% if state == "reviewed" %}selected{% endif %}>Has recorded review</option>
+    <option value="all" {% if state == "all" %}selected{% endif %}>All eligible records</option>
+  </select></label>
+  <button type="submit" class="button">Filter</button>
+</form>
+<p class="field-evidence-count">{{ records.paginator.count }} matching private record{{ records.paginator.count|pluralize }}</p>
+<div class="field-evidence-list">
+{% for event in records %}
+<article class="field-evidence-row">
+  <div class="field-evidence-kind">{% if event.photo %}PHOTO{% elif event.has_trace %}TRACE{% else %}ISSUE{% endif %}<span>{{ event.observed_at|date:"d M Y" }}</span></div>
+  <div><h2><a href="{% url 'company:field-evidence-detail' event.pk %}">{{ event.plant.label }}</a></h2><p>{{ event.plant.space.name }} · {{ event.get_kind_display }}</p>{% if event.note %}<p>{{ event.note|truncatechars:150 }}</p>{% endif %}</div>
+  <div class="field-evidence-state"><span>{% if event.has_review %}Review recorded{% else %}No review recorded{% endif %}</span><a class="button" href="{% url 'company:field-evidence-detail' event.pk %}">Inspect ↗</a></div>
+</article>
+{% empty %}
+<section class="panel padded"><h2>No matching evidence</h2><p>There are no eligible records in this filter. Staff permissions alone do not grant access to customer places.</p></section>
+{% endfor %}
+</div>
+{% include "plants/company/pagination.html" %}
+<p class="hub-footnote">Reviews describe evidence. No automatic species verification, disease diagnosis or treatment is issued here.</p>
+{% endblock %}

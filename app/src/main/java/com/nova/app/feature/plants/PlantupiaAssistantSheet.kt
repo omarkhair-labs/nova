@@ -59,6 +59,7 @@ internal data class CareChatBubble(
     val text: String,
     val fromUser: Boolean,
     val scope: String = "",
+    val guideSources: List<String> = emptyList(),
 )
 
 /** General dialogue remains conversational without re-forwarding prior private context. */
@@ -78,6 +79,8 @@ internal fun PlantupiaAssistantSheet(
     plant: PlantupiaPlant?,
     repository: PlantupiaRepository,
     onDismiss: () -> Unit,
+    historyDay: String? = null,
+    onOpenHistory: (() -> Unit)? = null,
     fullPage: Boolean = false,
     onCircle: () -> Unit = {},
 ) {
@@ -87,6 +90,7 @@ internal fun PlantupiaAssistantSheet(
     var error by remember { mutableStateOf<String?>(null) }
     var bubbles by remember(plant?.id) { mutableStateOf(emptyList<CareChatBubble>()) }
     val scope = rememberCoroutineScope()
+    val links = androidx.compose.ui.platform.LocalUriHandler.current
     val chatListState = rememberLazyListState()
     LaunchedEffect(bubbles.size, pending, error) {
         val rows = (if (plant != null) 1 else 0) + (if (bubbles.isEmpty()) 1 else bubbles.size) +
@@ -123,9 +127,13 @@ internal fun PlantupiaAssistantSheet(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Include plant context", style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
                             Text(
-                                "Name, placement and recent notes. No photos or address.",
+                                if (historyDay == null) "Name, placement and recent notes. Includes available plant identity, measured areas, visible colour patches, review findings, care guide and recorded window distance. Photos and delivery addresses stay private."
+                                else "Name, placement and notes for $historyDay. Includes available plant identity, measured areas, visible colour patches, review findings, care guide and recorded window distance. Photos and delivery addresses stay private.",
                                 style = PlantupiaText.supporting,
                             )
+                            if (onOpenHistory != null) TextButton(onClick = onOpenHistory, enabled = !pending) {
+                                Text("View plant history")
+                            }
                         }
                         Switch(
                             checked = includeContext,
@@ -167,6 +175,11 @@ internal fun PlantupiaAssistantSheet(
                             sender = if (message.fromUser) "You" else "Plantupia AI",
                             detail = if (!message.fromUser && message.scope == "plant_context") "Plant context included" else "",
                         )
+                        message.guideSources.forEach { source ->
+                            TextButton(onClick = {
+                                runCatching { links.openUri(source) }.onFailure { error = "The guide source could not be opened." }
+                            }) { Text("Open the care guide source") }
+                        }
                     }
                     if (pending) item {
                         Text("Plantupia is thinking…", style = PlantupiaText.supporting)
@@ -202,11 +215,12 @@ internal fun PlantupiaAssistantSheet(
                                     message = question, plantId = plant?.id,
                                     includeContext = consent && plant != null,
                                     conversation = dialogue,
+                                    historyDay = historyDay,
                                 )) {
                                     is ApiResult.Success -> {
                                         bubbles = bubbles + CareChatBubble(
                                             result.value.answer, fromUser = false,
-                                            scope = result.value.scope,
+                                            scope = result.value.scope, guideSources = result.value.sourceLinks,
                                         )
                                     }
                                     is ApiResult.Failure -> {

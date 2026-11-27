@@ -74,6 +74,7 @@
       <nav class="local-tools" aria-label="Care and support tools">
         {% if can_full_company %}<a href="{% url 'company:care-home' %}" {% if section == 'care_home' %}aria-current="page"{% endif %}>Overview</a>{% endif %}
         {% if can_full_company and can_care %}<a href="{% url 'company:care' %}" {% if section == 'care' %}aria-current="page"{% endif %}>Botanical library</a>{% endif %}
+        {% if can_field_evidence %}<a href="{% url 'company:field-evidence' %}" {% if section == 'field_evidence' %}aria-current="page"{% endif %}>Field evidence · pilot</a>{% endif %}
         {% if can_full_company and ceo_demo_enabled and perms.plants.manage_service_requests %}<a href="{% url 'company:support' %}" {% if section == 'support' %}aria-current="page"{% endif %}>Service requests</a>{% endif %}
       </nav>
       {% if ceo_demo_enabled and can_full_company %}

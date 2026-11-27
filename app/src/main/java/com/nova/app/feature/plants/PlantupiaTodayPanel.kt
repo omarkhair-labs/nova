@@ -1,6 +1,13 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.foundation.BorderStroke
+import java.time.OffsetDateTime
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -33,6 +39,16 @@ internal fun scheduledPlantCheckIns(plants: List<PlantupiaPlant>): List<Plantupi
     plants.filter { plant ->
         plant.active && runCatching { LocalDate.parse(plant.nextFollowUpOn) }.isSuccess
     }.sortedBy { it.nextFollowUpOn }
+
+/** Prefer the latest actual record, then an uploaded portrait, then a stable active plant.
+ * The fallback is simply a collection entry; it is never described as recent activity.
+ */
+internal fun todayCollectionFocus(plants: List<PlantupiaPlant>): PlantupiaPlant? {
+    val active = plants.filter { it.active }
+    return active.sortedWith(compareByDescending<PlantupiaPlant> {
+        runCatching { OffsetDateTime.parse(it.lastEventAt).toInstant() }.getOrNull()
+    }.thenByDescending { it.coverPhoto.isNotBlank() }.thenBy { it.id }).firstOrNull()
+}
 
 /** Incrementally reveal every real due record even in large client spaces. */
 internal fun visibleDueCheckInCount(total: Int, requested: Int): Int =
@@ -59,6 +75,7 @@ internal fun personalCheckInDateLabel(value: String, today: LocalDate = LocalDat
 internal fun PlantupiaTodayPanel(
     plants: List<PlantupiaPlant>,
     onOpenPlant: (PlantupiaPlant) -> Unit,
+    onScheduleDay: (LocalDate) -> Unit,
 ) {
     val planned = scheduledPlantCheckIns(plants)
     if (planned.isEmpty()) return
@@ -69,39 +86,43 @@ internal fun PlantupiaTodayPanel(
     var visible by rememberSaveable { mutableIntStateOf(3) }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(if (due.isNotEmpty()) "Check-ins" else "Upcoming",
-                    style = PlantupiaText.itemTitle)
-            }
-            Surface(
-                color = if (due.isNotEmpty()) PlantupiaColors.forest else PlantupiaColors.softSage,
-                shape = CircleShape,
-            ) {
-                Text(
-                    if (due.isNotEmpty()) {
-                        if (due.size == 1) "1 due" else "${due.size} due"
-                    } else {
-                        upcoming?.let { personalCheckInDateLabel(it.nextFollowUpOn, today) } ?: "Planned"
-                    },
-                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
-                    style = PlantupiaText.sectionLabel.copy(
-                        color = if (due.isNotEmpty()) PlantupiaColors.cream else PlantupiaColors.forest,
-                    ),
-                )
+        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(if (due.isNotEmpty()) "Check-ins" else "Upcoming",
+                style = PlantupiaText.editorialHeading, modifier = Modifier.semantics { heading() })
+            if (due.isNotEmpty()) {
+                Text(if (due.size == 1) "1 due" else "${due.size} due", style = PlantupiaText.supporting)
             }
         }
 
+        val week = (0..6).map { today.plusDays(it.toLong()) }
+        val counts = planned.groupingBy { it.nextFollowUpOn }.eachCount()
+        if (week.any { counts.containsKey(it.toString()) }) {
+            androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(week.size) { index ->
+                    val day = week[index]
+                    val count = counts[day.toString()] ?: 0
+                    Surface(onClick = { onScheduleDay(day) }, shape = PlantupiaShapes.inset,
+                        modifier = Modifier.semantics {
+                            contentDescription = day.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)) +
+                                ", " + count + if (count == 1) " check-in" else " check-ins"
+                        },
+                        color = if (count > 0) PlantupiaColors.softSage else PlantupiaColors.paper) {
+                        Column(Modifier.heightIn(min = 54.dp).padding(horizontal = 11.dp, vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(day.format(DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)), style = PlantupiaText.supporting)
+                            Text(day.dayOfMonth.toString(), style = PlantupiaText.itemTitle)
+                            if (count > 0) Text(if (count == 1) "1 check" else "$count checks", style = PlantupiaText.supporting)
+                        }
+                    }
+                }
+            }
+        }
         if (due.isNotEmpty()) {
             val first = due.first()
             PersonalCheckInHero(
                 plant = first,
                 eyebrow = personalCheckInDateLabel(first.nextFollowUpOn, today).uppercase(Locale.ENGLISH),
-                supporting = "Personal check-in",
+                supporting = first.placement.ifBlank { "Care and observations" },
                 onOpen = { onOpenPlant(first) },
             )
 
@@ -145,10 +166,24 @@ internal fun PlantupiaTodayPanel(
             PersonalCheckInHero(
                 plant = upcoming,
                 eyebrow = "NEXT CHECK-IN \u00B7 ${personalCheckInDateLabel(upcoming.nextFollowUpOn, today).uppercase(Locale.ENGLISH)}",
-                supporting = "Personal check-in",
+                supporting = upcoming.placement.ifBlank { "Care and observations" },
                 onOpen = { onOpenPlant(upcoming) },
             )
         }
+    }
+}
+
+@Composable
+internal fun TodayCollectionPortrait(plant: PlantupiaPlant, onOpen: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Text("From your collection", style = PlantupiaText.editorialHeading,
+            modifier = Modifier.semantics { heading() })
+        val recordedDay = runCatching { OffsetDateTime.parse(plant.lastEventAt).toLocalDate() }.getOrNull()
+        PersonalCheckInHero(plant,
+            eyebrow = recordedDay?.let { "LAST RECORDED · " + it.format(DateTimeFormatter.ofPattern("d MMM yyyy",Locale.ENGLISH)).uppercase(Locale.ENGLISH) }
+                ?: "YOUR PLANT",
+            supporting = listOf(plant.species,plant.placement).filter { it.isNotBlank() }.joinToString(" · "),
+            onOpen = onOpen, action = "Open plant →", collection = true)
     }
 }
 
@@ -158,33 +193,41 @@ private fun PersonalCheckInHero(
     eyebrow: String,
     supporting: String,
     onOpen: () -> Unit,
+    action: String = "Review →",
+    collection: Boolean = false,
 ) {
-    Surface(
-        onClick = onOpen,
-        modifier = Modifier.fillMaxWidth(),
-        color = PlantupiaColors.forest,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-        border = BorderStroke(1.dp, PlantupiaColors.forest),
-    ) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            PlantupiaEvidencePhoto(
-                photoUrl = plant.coverPhoto,
-                photoDescription = "Uploaded photo of ${plant.name}",
-                modifier = Modifier.size(90.dp),
-                compact = true,
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(eyebrow, style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
-                Text(plant.name, style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper))
-                Text(supporting, style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream))
-                Text("Review", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.paper))
+    val ink = if (collection) PlantupiaColors.forest else PlantupiaColors.paper
+    val secondary = if (collection) PlantupiaColors.secondaryText else PlantupiaColors.cream
+    Surface(onClick = onOpen, modifier = Modifier.fillMaxWidth(),
+        shape = PlantupiaShapes.inset,
+        border = if (collection) BorderStroke(1.dp,PlantupiaColors.border) else null,
+        color = if (collection) PlantupiaColors.paper else PlantupiaColors.forest) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(16.dp)) {
+            val sideBySide = maxWidth / LocalDensity.current.fontScale >= 255.dp
+            val identity: @Composable () -> Unit = {
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(eyebrow, style = PlantupiaText.sectionLabel.copy(
+                        color = if (collection) PlantupiaColors.forest else PlantupiaColors.sage))
+                    Text(plant.name, style = PlantupiaText.editorialHeading.copy(color = ink))
+                    if (supporting.isNotBlank()) Text(supporting, style = PlantupiaText.supporting.copy(color = secondary))
+                    Text(action, style = PlantupiaText.itemTitle.copy(color = ink),modifier = Modifier.padding(top=6.dp))
+                }
+            }
+            val photo: @Composable (Modifier) -> Unit = { modifier ->
+                PlantupiaEvidencePhoto(plant.coverPhoto, "Uploaded portrait of " + plant.name,
+                    modifier = modifier, compact = sideBySide, cornerRadius = 6.dp)
+            }
+            if (sideBySide) {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp),verticalAlignment = Alignment.CenterVertically) {
+                    if (plant.coverPhoto.isNotBlank() || collection) photo(Modifier.size(98.dp,136.dp))
+                    Column(Modifier.weight(1f)) { identity() }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    identity()
+                    if (plant.coverPhoto.isNotBlank()) photo(Modifier.fillMaxWidth().height(150.dp))
+                    else if (collection) Text("No uploaded portrait yet",style = PlantupiaText.supporting.copy(color=secondary))
+                }
             }
         }
     }
@@ -196,26 +239,24 @@ private fun PersonalCheckInRow(
     dateLabel: String,
     onOpen: () -> Unit,
 ) {
-    Surface(
-        onClick = onOpen,
-        modifier = Modifier.fillMaxWidth(),
-        color = PlantupiaColors.paper,
-        shape = PlantupiaShapes.inset,
-        border = BorderStroke(1.dp, PlantupiaColors.border),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+    Column {
+        HorizontalDivider(color = PlantupiaColors.border)
+        Surface(
+            onClick = onOpen,
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+            color = PlantupiaColors.cream,
         ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(plant.name, style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-                Text(dateLabel, style = PlantupiaText.supporting)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(dateLabel, style = PlantupiaText.sectionLabel)
+                    Text(plant.name, style = PlantupiaText.itemTitle)
+                }
+                Text("→", style = PlantupiaText.itemTitle)
             }
-            Text("Review \u2192", style = PlantupiaText.sectionLabel)
         }
     }
 }

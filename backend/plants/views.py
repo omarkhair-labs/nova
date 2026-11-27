@@ -1,5 +1,6 @@
 """Account-scoped API; possession of a plant ID never grants access."""
 from datetime import date
+from uuid import UUID
 
 from django.db import transaction
 from django.db.models import Case, DateField, OuterRef, Q, Subquery, Value, When
@@ -11,9 +12,11 @@ from rest_framework.parsers import MultiPartParser, FormParser
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .calendar_time import calendar_zone
 from .handovers import HandoverError, claim_handover, preview_handover
 from .models import CareGuideVersion, PlantDiscussion, PlantEvent, PlantNickname, PlantUnit, Space, SpaceMember
 from .serializers import (PlantCreateSerializer, PlantEventSerializer, PlantSerializer, PlantUpdateSerializer, PlantCoverPhotoUploadSerializer, SpaceCreateSerializer, SpaceSerializer, SpaceUpdateSerializer)
+from .living_capture import capture_quality
 from .media import sanitize_public_plant_photo
 from .submissions import submit, save_submission_photo
 
@@ -293,6 +296,10 @@ class PlantEventsView(APIView):
 
     def get(self, request, plant_id):
         plant = self.get_plant(request, plant_id)
+        with timezone.override(calendar_zone(request.query_params.get("calendar_zone"))):
+            return self.history(request, plant)
+
+    def history(self, request, plant):
         raw_offset = request.query_params.get("offset", "0")
         try:
             offset = int(raw_offset)
@@ -303,6 +310,27 @@ class PlantEventsView(APIView):
         # Years of observed history must not silently end after 100 entries.
         size = 20
         events_qs = plant.events.all()
+        prior_for = request.query_params.get("previous_photo_for")
+        if prior_for is not None:
+            try:
+                reference_id = UUID(prior_for)
+            except ValueError:
+                return Response({"detail": "Invalid photo record."}, status=400)
+            reference = get_object_or_404(plant.events, pk=reference_id)
+            if not reference.photo:
+                events_qs = events_qs.none()
+            else:
+                events_qs = events_qs.filter(
+                    observed_at__date__lt=timezone.localdate(reference.observed_at),
+                    photo__isnull=False,
+                ).exclude(photo="").exclude(photo=reference.photo.name)
+            size = 1
+        if "observed_on" in request.query_params:
+            try:
+                day = date.fromisoformat(request.query_params["observed_on"])
+            except ValueError:
+                return Response({"detail": "Invalid observation date."}, status=400)
+            events_qs = events_qs.filter(observed_at__date=day)
         if request.query_params.get("pending_followups") == "1":
             events_qs = events_qs.filter(
                 follow_up_on__isnull=False, follow_up_completed_at__isnull=True,
@@ -313,6 +341,8 @@ class PlantEventsView(APIView):
         return Response({
             "results": PlantEventSerializer(rows[:size], many=True, context={"request": request}).data,
             "next_offset": offset + size if len(rows) > size else None,
+            "observed_on": request.query_params.get("observed_on"),
+            "previous_photo_for": prior_for,
         })
 
     require_submission_identity = False
@@ -341,8 +371,9 @@ class PlantEventsView(APIView):
                     if updated != 1:
                         return Response({"detail": "This check-in was already completed."}, status=409)
                 photo = s.validated_data.get("photo")
+                quality = capture_quality(photo)
                 saved_photo = save_submission_photo(receipt, PlantEvent._meta.get_field("photo").storage, photo, "plantupia/events") if receipt and photo else photo
-                event = s.save(plant=plant, actor=request.user, **({"photo": saved_photo} if photo else {}))
+                event = s.save(plant=plant, actor=request.user, capture_quality=quality, **({"photo": saved_photo} if photo else {}))
             return Response(PlantEventSerializer(event, context={"request": request}).data, status=status.HTTP_201_CREATED)
         return submit(request, plant, "event", create, required=self.require_submission_identity)
 
@@ -530,6 +561,8 @@ class PlantCircleView(APIView):
         from accounts.serializers import PostSerializer
 
         visible = public_post_queryset(request).filter(plantupia_discussion__isnull=False)
+        if request.query_params.get("open") == "1":
+            visible = visible.filter(plantupia_discussion__resolved_at__isnull=True)
         raw_cursor = request.query_params.get("cursor", "").strip()
         if raw_cursor:
             try:

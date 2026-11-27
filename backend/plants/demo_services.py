@@ -243,8 +243,10 @@ def attach_inspection_photo(user, plant_id, event_id, client_id, normalized_phot
             raise PermissionDenied("Only a genuine completed inspection can receive this photo.")
         if event.photo:
             raise DemoProblem("This inspection already has an evidence photo.")
+        from .living_capture import capture_quality
+        event.capture_quality = capture_quality(normalized_photo)
         event.photo.save(f"inspection-{event.pk}.jpg", normalized_photo, save=False)
-        event.save(update_fields=["photo"])
+        event.save(update_fields=["photo", "capture_quality"])
         return {"event_id": str(event.pk), "photo_attached": True}
 
     return mutate(user, client_id, "inspection-photo:" + str(event_id), payload, create)

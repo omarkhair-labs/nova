@@ -25,6 +25,16 @@ class PlantupiaTodayPanelTest {
         assertEquals(listOf("due", "upcoming"), scheduledPlantCheckIns(entries).map { it.id })
     }
 
+    @Test fun collectionFocusUsesActualRecordBeforePortraitAndNeverArchivedPlant() {
+        val current = plant("current","").copy(lastEventAt="2026-11-26T10:00:00+02:00")
+        val older = plant("older","").copy(lastEventAt="2026-11-24T08:00:00Z",coverPhoto="photo")
+        val retired = plant("retired","",false).copy(lastEventAt="2026-11-27T00:00:00Z")
+        val malformed = plant("malformed","").copy(lastEventAt="unknown",coverPhoto="photo")
+        assertEquals("current",todayCollectionFocus(listOf(retired,older,malformed,current))?.id)
+        assertEquals("malformed",todayCollectionFocus(listOf(retired,malformed,plant("plain","")))?.id)
+        assertEquals(null,todayCollectionFocus(listOf(retired)))
+    }
+
     @Test fun noSyntheticScheduleWhenNoFollowupsExist() {
         assertTrue(scheduledPlantCheckIns(listOf(plant("new", ""))).isEmpty())
     }

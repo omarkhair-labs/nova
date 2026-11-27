@@ -1,5 +1,6 @@
 package com.nova.app.feature.plants
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -67,10 +68,13 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
     LaunchedEffect(repository, accountId, retry) {
         state = PrivateSpacesSummary.Loading
         val spaceResponse = repository.spaces()
+        if (!repository.isCurrentSession()) return@LaunchedEffect
         if (spaceResponse !is ApiResult.Success) {
             state = PrivateSpacesSummary.Unavailable
         } else {
-            when (val plantResponse = repository.plants()) {
+            val plantResponse = repository.plants()
+            if (!repository.isCurrentSession()) return@LaunchedEffect
+            when (plantResponse) {
                 is ApiResult.Success -> {
                     state = PrivateSpacesSummary.Loaded(spaceResponse.value, plantResponse.value)
                 }
@@ -85,7 +89,7 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Private spaces", style = PlantupiaText.itemTitle,
+            Text("Your private places", style = PlantupiaText.editorialHeading,
                 modifier = Modifier.weight(1f))
             if (state is PrivateSpacesSummary.Loaded) {
                 TextButton(onClick = { retry += 1 }) {
@@ -116,13 +120,11 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
             }
             PrivateSpacesSummary.Unavailable -> {
                 Surface(
-                    color = PlantupiaColors.softSage,
-                    shape = PlantupiaShapes.card,
-                    border = BorderStroke(1.dp, PlantupiaColors.border),
+                    color = PlantupiaColors.paper,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Column(
-                        modifier = Modifier.padding(18.dp),
+                        modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Text("Your spaces are unavailable", style = PlantupiaText.editorialHeading)
@@ -140,12 +142,15 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                 val activePlants = current.plants.filter { it.active }
                 // Authorized server media only: no invented installations, client
                 // photography, inferred plant health or public profile publishing.
+                val latest = current.plants.mapNotNull { plant ->
+                    runCatching { java.time.Instant.parse(plant.lastEventAt) }.getOrNull()?.let { stamp -> plant to stamp }
+                }.maxByOrNull { it.second }
+                val next = scheduledPlantCheckIns(activePlants).firstOrNull()
                 val photos = activePlants.filter { it.coverPhoto.isNotBlank() }
                     .distinctBy { it.coverPhoto }
                     .take(3)
 
                 Surface(
-                    onClick = onOpenSpaces,
                     color = PlantupiaColors.softSage,
                     shape = PlantupiaShapes.card,
                     border = BorderStroke(1.dp, PlantupiaColors.border),
@@ -155,10 +160,6 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                         modifier = Modifier.padding(18.dp),
                         verticalArrangement = Arrangement.spacedBy(13.dp),
                     ) {
-                        Text(
-                            "Your private places",
-                            style = PlantupiaText.editorialHeading,
-                        )
                         if (current.spaces.isEmpty()) {
                             Text(
                                 "No spaces yet",
@@ -175,6 +176,9 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                                 LazyRow(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                                     items(photos, key = { it.id }) { plant ->
                                         Surface(
+                                            onClick = {
+                                                if (repository.isCurrentSession()) PlantupiaPlantOpenSignal.open(accountId, plant.id)
+                                            },
                                             shape = PlantupiaShapes.inset,
                                             color = PlantupiaColors.cream,
                                             modifier = Modifier.width(92.dp).height(110.dp),
@@ -234,16 +238,52 @@ fun PlantupiaProfileSpaces(accountId: Long, onOpenSpaces: () -> Unit) {
                                     }
                                 }
                             }
+                            latest?.let { (plant, stamp) ->
+                                val localDay = stamp.atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                                val place = current.spaces.firstOrNull { it.id == plant.spaceId }
+                                Surface(onClick = {
+                                    if (repository.isCurrentSession()) PlantupiaPlantOpenSignal.open(
+                                        accountId, plant.id, PlantupiaDetailChapter.HISTORY, localDay)
+                                }, color = PlantupiaColors.softSage, shape = PlantupiaShapes.inset) {
+                                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                                        Text("Last recorded visit · $localDay", style = PlantupiaText.sectionLabel)
+                                        Text(plant.name, style = PlantupiaText.editorialHeading)
+                                        place?.let { Text(it.name, style = PlantupiaText.supporting) }
+                                    }
+                                }
+                            }
+                            next?.let { plant ->
+                                TextButton(onClick = {
+                                    if (repository.isCurrentSession()) PlantupiaPlantOpenSignal.open(
+                                        accountId, plant.id, PlantupiaDetailChapter.CARE)
+                                }) {
+                                    Text("Check-in · ${plant.name} · " + personalCheckInDateLabel(plant.nextFollowUpOn))
+                                }
+                            }
                             Text(
-                                current.spaces.take(3).joinToString(" · ") { it.name } +
-                                    if (current.spaces.size > 3) " · +${current.spaces.size - 3}" else "",
-                                style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
+                                "Recorded places",
+                                style = PlantupiaText.sectionLabel,
                             )
+                            current.spaces.take(3).forEach { place ->
+                                androidx.compose.material3.HorizontalDivider(color = PlantupiaColors.border)
+                                Row(Modifier.fillMaxWidth().clickable {
+                                    if (repository.isCurrentSession()) {
+                                        PlantupiaHandoverNavigation.connected(accountId, place.id)
+                                        onOpenSpaces()
+                                    }
+                                }.padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    Text(place.name, style = PlantupiaText.itemTitle, modifier = Modifier.weight(1f))
+                                    val count = activePlants.count { it.spaceId == place.id }
+                                    Text(if (count == 1) "1 plant" else "$count plants",
+                                        style = PlantupiaText.supporting)
+                                }
+                            }
+                            if (current.spaces.size > 3) Text("+${current.spaces.size - 3} more",
+                                style = PlantupiaText.supporting)
                         }
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpenSpaces).padding(vertical = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

@@ -2,6 +2,7 @@ package com.nova.app.feature.plants.data
 
 import android.content.Context
 import android.net.Uri
+import com.nova.app.feature.plants.ownedCaptureFile
 import com.nova.app.core.auth.NovaSessionStore
 import com.nova.app.core.auth.authenticatedRequest
 import com.nova.app.core.network.ApiResult
@@ -24,6 +25,8 @@ data class PlantupiaSpace(
     // A missing flag on an older deployed preview is NOT proof of denied access.
     // Creation stays disabled until authority is confirmed by the server.
     val canAddPlantPermissionReported: Boolean = true,
+    val livingSystemsEnabled: Boolean = false,
+    val photoIdentificationEnabled: Boolean = false,
 )
 
 /** A curated reference type; not evidence verifying a customer's physical plant. */
@@ -73,6 +76,7 @@ data class PlantupiaCareEvent(
     val followUpCompletedAt: String,
     // UUID of the original private care/observation event closed by an outcome.
     val followUpFor: String = "",
+    val captureFlags: List<String> = emptyList(),
 )
 
 
@@ -97,6 +101,7 @@ data class PlantupiaQuestion(
     val authorAvatarUrl: String = "",
     val authorAvatarVariant: Int = -1,
     val authorDeleted: Boolean = false,
+    val authorUsername: String = "",
 )
 
 /**
@@ -144,11 +149,16 @@ class PlantupiaRepository(
         plantId: String? = null,
         includeContext: Boolean = false,
         conversation: List<PlantupiaAssistantTurn> = emptyList(),
+        historyDay: String? = null,
     ): ApiResult<PlantupiaAssistantReply> = authorized { token ->
         val payload = JSONObject()
             .put("message", message.trim())
             .put("include_my_plant_context", includeContext)
+            .put("include_recorded_evidence", includeContext)
+            .put("include_guide_and_layout", includeContext)
         if (!plantId.isNullOrBlank()) payload.put("plant_id", plantId)
+        if (includeContext) payload.put("calendar_zone", java.time.ZoneId.systemDefault().id)
+        if (includeContext && historyDay != null) payload.put("observed_on", historyDay)
         if (conversation.isNotEmpty()) {
             payload.put("conversation", JSONArray().apply {
                 conversation.takeLast(8).forEach { turn ->
@@ -159,7 +169,7 @@ class PlantupiaRepository(
             })
         }
         when (val response = api.requestJson(
-            path = "plantupia/assistant/ask/",
+            path = if (includeContext && historyDay != null) "plantupia/assistant/ask-history/" else "plantupia/assistant/ask/",
             method = "POST",
             body = payload,
             bearerToken = token,
@@ -338,12 +348,16 @@ class PlantupiaRepository(
         }
 
     private suspend fun loadPrivatePhoto(uri: Uri): ApiResult<UploadFile> {
-        val mimeType = appContext.contentResolver.getType(uri)
-            ?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }
+        val cameraFile = ownedCaptureFile(appContext.cacheDir, uri)
+        val mimeType = when {
+            uri.scheme == "file" -> if (cameraFile?.isFile == true) "image/jpeg" else null
+            uri.scheme == "content" -> appContext.contentResolver.getType(uri)
+            else -> null
+        }?.takeIf { it == "image/jpeg" || it == "image/png" || it == "image/webp" }
             ?: return ApiResult.Failure("Choose a JPEG, PNG or WebP photo.")
         val bytes = withContext(Dispatchers.IO) {
             runCatching {
-                appContext.contentResolver.openInputStream(uri)?.use { input ->
+                (cameraFile?.inputStream() ?: appContext.contentResolver.openInputStream(uri))?.use { input ->
                     val output = ByteArrayOutputStream()
                     val buffer = ByteArray(8192)
                     while (true) {
@@ -387,6 +401,8 @@ class PlantupiaRepository(
                     location = raw.optString("location_note"),
                     canAddPlant = raw.optBoolean("can_add_plant", false),
                     canAddPlantPermissionReported = raw.has("can_add_plant"),
+                    livingSystemsEnabled = raw.optBoolean("living_systems_enabled"),
+                    photoIdentificationEnabled = raw.optBoolean("photo_identification_enabled"),
                 )
             }
         }
@@ -414,11 +430,65 @@ class PlantupiaRepository(
             }
         }
 
+    internal suspend fun fieldEvidence(plant: String, event: String, action: String = "", data: JSONObject? = null): ApiResult<JSONObject> =
+        authorized { token ->
+            require(action in setOf("", "regions/", "reviews/", "suggest-region/"))
+            api.requestJson(path = "plantupia/plants/$plant/events/$event/evidence/$action",
+                method = if (data == null) "GET" else "POST", body = data, bearerToken = token)
+        }
+
+    internal suspend fun alignVisits(plantId: String, earlier: String, later: String, marks: JSONObject): ApiResult<JSONObject> =
+        authorized { token ->
+            val body = JSONObject(marks.toString()).put("earlier_event_id", earlier).put("later_event_id", later)
+            api.requestJson(path = "plantupia/plants/$plantId/align-visits/", method = "POST",
+                body = body, bearerToken = token)
+        }
+
+    internal suspend fun compareProjectedAreas(plantId: String, earlier: Long, later: Long): ApiResult<JSONObject> =
+        authorized { token ->
+            api.requestJson(path = "plantupia/plants/$plantId/compare-regions/", method = "POST",
+                body = JSONObject().put("earlier_trace_id", earlier).put("later_trace_id", later)
+                    .put("same_part", true).put("comparable_capture", true), bearerToken = token)
+        }
+
+    internal suspend fun room(spaceId: String, revision: Int? = null): ApiResult<PlantupiaRoom> = authorized { token ->
+        val revisionQuery = revision?.let { "?revision=$it" }.orEmpty()
+        when (val response = api.requestJson(path = "plantupia/spaces/$spaceId/room/$revisionQuery", bearerToken = token)) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) { parseRoom(it, spaceId) }
+        }
+    }
+
+    internal suspend fun saveRoom(spaceId: String, body: JSONObject): ApiResult<Int> = authorized { token ->
+        when (val response = api.requestJson(path = "plantupia/spaces/$spaceId/room/", method = "POST", body = body, bearerToken = token)) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) { it.getInt("revision") }
+        }
+    }
+
+    internal suspend fun roomDaylight(
+        spaceId: String,
+        scenario: RoomDaylightScenario,
+    ): ApiResult<List<RoomDaylightSample>> = authorized { token ->
+        when (val response = api.requestJson(
+            path = "plantupia/spaces/$spaceId/room/daylight/",
+            method = "POST",
+            body = scenario.body(),
+            bearerToken = token,
+        )) {
+            is ApiResult.Failure -> response
+            is ApiResult.Success -> parsePlantupiaResponse(response.value) { parseDaylight(it, scenario) }
+        }
+    }
+
+    private fun calendarZoneQuery(): String =
+        "&calendar_zone=" + java.net.URLEncoder.encode(java.time.ZoneId.systemDefault().id, "UTF-8")
+
     /** One bounded, read-only projection of actual Living History events in the visible grid. */
     suspend fun calendarHistory(from: String, through: String): ApiResult<List<JSONObject>> =
         authorized { token ->
             when (val response = api.requestJson(
-                path = "plantupia/care-calendar/history/?from=$from&to=$through",
+                path = "plantupia/care-calendar/history/?from=$from&to=$through" + calendarZoneQuery(),
                 bearerToken = token,
             )) {
                 is ApiResult.Failure -> response
@@ -428,16 +498,21 @@ class PlantupiaRepository(
             }
         }
 
-    suspend fun historyPage(plantId: String, offset: Int = 0, pendingOnly: Boolean = false): ApiResult<PlantupiaHistoryPage> =
+    suspend fun historyPage(plantId: String, offset: Int = 0, pendingOnly: Boolean = false,
+                            observedOn: java.time.LocalDate? = null, previousPhotoFor: java.util.UUID? = null): ApiResult<PlantupiaHistoryPage> =
         authorized { token ->
             val pageOffset = offset.coerceAtLeast(0)
             when (val response = api.requestJson(
-                path = "plantupia/plants/$plantId/events/?offset=$pageOffset" +
-                    if (pendingOnly) "&pending_followups=1" else "",
+                path = "plantupia/plants/$plantId/events/?offset=$pageOffset" + calendarZoneQuery() +
+                    (if (pendingOnly) "&pending_followups=1" else "") +
+                    (observedOn?.let { "&observed_on=$it" } ?: "") +
+                    (previousPhotoFor?.let { "&previous_photo_for=$it" } ?: ""),
                 bearerToken = token,
             )) {
                 is ApiResult.Failure -> response
                 is ApiResult.Success -> parsePlantupiaResponse(response.value) { body ->
+                    if (observedOn != null) require(body.optString("observed_on") == observedOn.toString())
+                    if (previousPhotoFor != null) require(body.optString("previous_photo_for") == previousPhotoFor.toString())
                     val events = plantupiaRows(body).map { raw ->
                         PlantupiaCareEvent(
                             id = requiredPlantupiaId(raw),
@@ -448,6 +523,9 @@ class PlantupiaRepository(
                             photoUrl = api.resolveMediaUrl(raw.optString("photo")),
                             followUpOn = raw.optString("follow_up_on").takeUnless { it == "null" }.orEmpty(),
                             followUpCompletedAt = raw.optString("follow_up_completed_at").takeUnless { it == "null" }.orEmpty(),
+                            captureFlags = raw.optJSONObject("capture_quality")?.optJSONArray("capture_flags")?.let { flags ->
+                                List(flags.length()) { flags.optString(it) }
+                            }.orEmpty(),
                             followUpFor = raw.optString("follow_up_for").takeUnless { it == "null" }.orEmpty(),
                         )
                     }
@@ -587,10 +665,11 @@ class PlantupiaRepository(
         return if (isCurrentSession()) result else changedSession()
     }
 
-    suspend fun circle(cursor: String? = null): ApiResult<PlantupiaCirclePage> =
+    suspend fun circle(cursor: String? = null, openOnly: Boolean = false): ApiResult<PlantupiaCirclePage> =
         authorized { token ->
             val safeCursor = cursor?.toLongOrNull()?.takeIf { it > 0L }?.toString()
-            val suffix = safeCursor?.let { "?cursor=$it" }.orEmpty()
+            val params = listOfNotNull(safeCursor?.let { "cursor=$it" }, "open=1".takeIf { openOnly })
+            val suffix = if (params.isEmpty()) "" else params.joinToString("&", prefix = "?")
             when (val response = api.requestJson(
                 path = "plantupia/circle/$suffix", bearerToken = token,
             )) {
@@ -627,6 +706,7 @@ class PlantupiaRepository(
             authorAvatarUrl = api.resolveMediaUrl(author.optString("avatar_url")),
             authorAvatarVariant = author.optInt("plantupia_avatar_variant", -1).takeIf { it in -1..7 } ?: -1,
             authorDeleted = author.optString("username") == "deleted",
+            authorUsername = author.optString("username"),
             comments = post.optInt("comments_count"),
             resolved = raw.optBoolean("resolved"),
             isMine = post.optBoolean("is_mine"),
@@ -673,6 +753,27 @@ class PlantupiaRepository(
     private fun changedSession() = ApiResult.Failure("Your account changed. Reopen your Plantupia space.", 409)
 
     /** Additive native QA contracts use the same authenticated API and account guards. */
+    internal suspend fun buildPhotoScene(path: String, views: List<Uri>): ApiResult<JSONObject> = authorized { token ->
+        if (views.size !in 5..8) return@authorized ApiResult.Failure("Choose 5 to 8 overlapping views.")
+        val files = mutableMapOf<String, UploadFile>()
+        var total = 0
+        for ((index, uri) in views.withIndex()) {
+            when (val result = loadPrivatePhoto(uri)) {
+                is ApiResult.Failure -> return@authorized result
+                is ApiResult.Success -> {
+                    total += result.value.bytes?.size ?: 0
+                    if (total > 24 * 1024 * 1024) return@authorized ApiResult.Failure("Choose smaller photos, up to 24 MB together.")
+                    files["view_$index"] = result.value
+                }
+            }
+        }
+        api.requestMultipart(path = "plantupia/$path", method = "POST", fields = emptyMap(), files = files, bearerToken = token)
+    }
+
+    internal suspend fun removePhotoScene(path: String): ApiResult<JSONObject> = authorized { token ->
+        api.requestJson(path = "plantupia/$path", method = "DELETE", bearerToken = token)
+    }
+
     internal suspend fun demoGet(path: String): ApiResult<JSONObject> = authorized { token ->
         api.requestJson(path = "plantupia/$path", bearerToken = token)
     }
@@ -710,6 +811,51 @@ class PlantupiaRepository(
                 require(body.optString("event_id") == eventId && body.optBoolean("photo_attached")) {
                     "Inspection evidence was not acknowledged by the server."
                 }
+                body
+            }
+        }
+    }
+
+    internal suspend fun identifyPlantPhotos(whole: Uri, detail: Uri): ApiResult<JSONObject> = authorized { token ->
+        val photos = mutableMapOf<String, UploadFile>()
+        for ((field, uri) in mapOf("whole" to whole, "detail" to detail)) {
+            when (val loaded = loadPrivatePhoto(uri)) {
+                is ApiResult.Success -> photos[field] = loaded.value
+                is ApiResult.Failure -> return@authorized loaded
+            }
+        }
+        api.requestMultipart(path = "plantupia/library/identify/", method = "POST",
+            fields = emptyMap(), files = photos, bearerToken = token)
+    }
+
+    internal suspend fun visitPhoto(plantId: String, eventId: String, photoId: Long): ApiResult<ByteArray> = authorized { token ->
+        require(photoId > 0)
+        when (val result = api.requestJson(path = "plantupia/plants/$plantId/events/$eventId/evidence/photos/$photoId/",
+            bearerToken = token)) {
+            is ApiResult.Failure -> result
+            is ApiResult.Success -> parsePlantupiaResponse(result.value) { body ->
+                require(body.getLong("id") == photoId)
+                val data = body.getString("jpeg")
+                require(data.length in 1..1_400_000)
+                android.util.Base64.decode(data, android.util.Base64.DEFAULT)
+            }
+        }
+    }
+
+    internal suspend fun addVisitPhoto(plantId: String, eventId: String, submission: String, part: String,
+                                       uri: Uri): ApiResult<JSONObject> = authorized { token ->
+        val file = when (val loaded = loadPrivatePhoto(uri)) {
+            is ApiResult.Failure -> return@authorized loaded
+            is ApiResult.Success -> loaded.value
+        }
+        when (val result = api.requestMultipart(
+            path = "plantupia/plants/$plantId/events/$eventId/evidence/photos/", method = "POST",
+            fields = mapOf("submission_id" to submission, "part" to part), fileField = "photo", file = file,
+            bearerToken = token,
+        )) {
+            is ApiResult.Failure -> result
+            is ApiResult.Success -> parsePlantupiaResponse(result.value) { body ->
+                require(body.getString("event_id") == eventId && body.getLong("id") > 0)
                 body
             }
         }

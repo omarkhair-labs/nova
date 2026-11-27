@@ -24,11 +24,12 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
+        android:label="${novaAppLabel}"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Nova">
 
+        <meta-data android:name="com.google.ar.core" android:value="optional" />
         <meta-data
             android:name="firebase_messaging_installation_id_enabled"
             android:value="true" />
@@ -77,6 +78,11 @@
             android:theme="@style/Theme.Nova" />
 
         <activity
+            android:name=".feature.plants.PlantupiaFloorSurveyActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Nova" />
+
+        <activity
             android:name=".SettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.Nova" />
@@ -116,7 +122,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:label="@string/app_name"
+            android:label="${novaAppLabel}"
             android:theme="@style/Theme.Nova"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>

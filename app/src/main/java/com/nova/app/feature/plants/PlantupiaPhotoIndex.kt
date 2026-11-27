@@ -29,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.feature.plants.data.PlantupiaCareEvent
+import com.nova.app.feature.plants.data.PlantupiaRepository
+import androidx.compose.runtime.key
 
 /**
  * Field Notes: an evidence-based index of photos in already-loaded private events.
@@ -39,6 +41,9 @@ internal fun PlantupiaPhotoIndex(
     events: List<PlantupiaCareEvent>,
     hasOlderPages: Boolean,
     onOpenPhoto: (PlantupiaCareEvent) -> Unit,
+    alignmentEnabled: Boolean = false,
+    measurementRepository: PlantupiaRepository? = null,
+    measurementPlantId: String? = null,
 ) {
     val photos = recordedPlantPhotos(events)
     val defaultPair = plantupiaLoadedPhotoPair(events)
@@ -49,14 +54,8 @@ internal fun PlantupiaPhotoIndex(
     val comparison = if (choosing) signatureComparisonPair(events, firstId, secondId) else defaultPair
 
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-        Text("RECORDED PHOTOS", style = PlantupiaText.sectionLabel)
-        Text(
-            if (photos.size == 1)
-                "One real photo so far. New photos will join your plant's living history."
-            else
-                "${photos.size} actual photos in the loaded history. Tap one to examine it.",
-            style = PlantupiaText.supporting,
-        )
+        Text(if (photos.size == 1) "1 saved photograph" else "${photos.size} saved photographs",
+            style = PlantupiaText.itemTitle)
         // Two verified snapshots of the same person's private plant history.
         // The oldest *loaded* photo is not necessarily the first ever recorded.
         if (photos.size > 1) {
@@ -87,7 +86,17 @@ internal fun PlantupiaPhotoIndex(
                 pair = comparison,
                 hasOlderPages = hasOlderPages,
                 onOpenPhoto = onOpenPhoto,
+                alignmentEnabled = alignmentEnabled,
+                automaticAlignment = if (measurementRepository != null && measurementPlantId != null) { marks ->
+                    measurementRepository.alignVisits(measurementPlantId, comparison.earlier.id, comparison.later.id, marks)
+                } else null,
+                isCurrentSession = { measurementRepository?.isCurrentSession() == true },
             )
+            if (alignmentEnabled && measurementRepository != null && measurementPlantId != null) {
+                key(measurementPlantId, comparison.earlier.id, comparison.later.id, measurementRepository) {
+                    PlantupiaMeasuredVisits(measurementRepository, measurementPlantId, comparison)
+                }
+            }
         }
         if (photos.size != 2 || comparison == null) LazyRow(
             modifier = Modifier.fillMaxWidth(),
@@ -120,7 +129,7 @@ internal fun PlantupiaPhotoIndex(
                 }
             }
         }
-        if (hasOlderPages) {
+        if (hasOlderPages && comparison == null) {
             Text(
                 "Older photos may appear when you load earlier history.",
                 style = PlantupiaText.supporting,

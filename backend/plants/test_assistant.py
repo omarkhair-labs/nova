@@ -84,6 +84,92 @@ class PlantAssistantSecurityTests(TestCase):
             self.assertEqual(with_context.json()["source_links"], [])
         self.assertEqual(PlantEvent.objects.filter(plant=self.plant).count(), 1)
 
+    def test_selected_history_day_limits_context_and_still_needs_consent(self):
+        now = timezone.now()
+        for days, note in [(0, "Today"), (3, "Earlier visit")]:
+            PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="care",
+                                      note=note, observed_at=now - timedelta(days=days))
+        self.client.force_authenticate(user=self.owner)
+        day = timezone.localdate(now - timedelta(days=3)).isoformat()
+        data = {"message": "What happened?", "plant_id": str(self.plant.pk), "observed_on": day}
+        with patch.dict(os.environ, {"PLANTUPIA_AI_ENABLED": "1", "PLANTUPIA_AI_API_KEY": "test-only"}), patch(
+            "plants.assistant.call_provider", return_value="Check the record."
+        ) as provider:
+            self.assertEqual(self.client.post(self.url, data, format="json").status_code, 200)
+            self.assertIsNone(provider.call_args.args[1])
+            history_url = reverse("plantupia-assistant-history")
+            self.assertEqual(self.client.post(history_url, data, format="json").status_code, 400)
+            data["include_my_plant_context"] = True
+            self.assertEqual(self.client.post(history_url, data, format="json").status_code, 200)
+            context = provider.call_args.args[1]
+            self.assertEqual(context["selected_history_date"], day)
+            self.assertEqual([e["note"] for e in context["recent_person_observations"]], ["Earlier visit"])
+
+    @override_settings(PLANTUPIA_LIVING_SYSTEMS_ENABLED=True)
+    def test_measured_areas_need_new_consent_and_belong_to_selected_events(self):
+        from uuid import uuid4
+        from .models import BotanicalSpecies, TracedRegion
+        self.plant.selected_species = BotanicalSpecies.objects.create(key="rubber", scientific_name="Ficus elastica")
+        self.plant.save(update_fields=["selected_species"])
+        event = PlantEvent.objects.create(plant=self.plant, actor=self.owner, kind="care", observed_at=timezone.now())
+        for status, area in [("accepted", 2.5), ("rejected", 999)]:
+            TracedRegion.objects.create(event=event, author=self.owner, submission_id=uuid4(),
+                source_sha256="a"*64, annotation={"part": "leaf"}, measurements={"geometry": {
+                    "projected_area_cm2": area, "calibration": {"method": "face-on-two-segment-v1", "status": status}}})
+        self.client.force_authenticate(user=self.owner)
+        data = {"message": "What was measured?", "plant_id": str(self.plant.pk), "include_my_plant_context": True}
+        with patch.dict(os.environ, {"PLANTUPIA_AI_ENABLED": "1", "PLANTUPIA_AI_API_KEY": "test-only"}), patch(
+            "plants.assistant.call_provider", return_value="Look at the measurement."
+        ) as provider:
+            self.assertEqual(self.client.post(self.url, data, format="json").status_code, 200)
+            self.assertNotIn("accepted_projected_areas", provider.call_args.args[1])
+            self.assertEqual(self.client.post(self.url, {**data, "include_recorded_evidence": True}, format="json").status_code, 200)
+            context = provider.call_args.args[1]
+            self.assertEqual(context["current_botanical_identity"]["basis"], "user_selected")
+            self.assertEqual([a["projected_area_cm2"] for a in context["accepted_projected_areas"]], [2.5])
+            self.assertNotIn("source_sha256", str(context))
+
+    @override_settings(PLANTUPIA_LIVING_SYSTEMS_ENABLED=True)
+    def test_historical_layout_is_shared_only_with_consent_and_matches_field_notes(self):
+        from .models import RoomRevision
+        from .living_space import build_room
+        now = timezone.now()
+        def layout(revision, days, plants, windows):
+            value = RoomRevision.objects.create(space=self.space,actor=self.owner,revision=revision,
+                geometry=build_room(str(self.space.pk),4.,3.,plants,windows))
+            RoomRevision.objects.filter(pk=value.pk).update(created_at=now-timedelta(days=days))
+        position = {"plant_id":str(self.plant.pk),"x_m":2.,"y_m":1.}
+        layout(1,5,[position],[{"id":"north","x_m":2.,"y_m":0.}])
+        layout(2,3,[{**position,"x_m":3.}],[{"id":"east","x_m":4.,"y_m":1.}])
+        layout(3,1,[],[])
+        old = PlantEvent.objects.create(plant=self.plant,actor=self.owner,kind="observation",observed_at=now-timedelta(days=4))
+        removed = PlantEvent.objects.create(plant=self.plant,actor=self.owner,kind="observation",observed_at=now)
+        self.client.force_authenticate(self.owner)
+        field = self.client.post(reverse("plantupia-field-evidence",args=[self.plant.pk,old.pk]),
+                                 {"symptom":"uncertain"},format="json").data["placement_at_observation"]
+        self.assertEqual((field["revision"],field["nearest_window_distance_m"]),(1,1.0))
+        self.assertIsNone(self.client.post(reverse("plantupia-field-evidence",args=[self.plant.pk,removed.pk]),
+                             {"symptom":"uncertain"},format="json").data["placement_at_observation"])
+        body = {"message":"What was the recorded placement?", "plant_id":str(self.plant.pk),
+                "observed_on":timezone.localdate(old.observed_at).isoformat(),
+                "include_my_plant_context":True,"include_recorded_evidence":True}
+        history = reverse("plantupia-assistant-history")
+        with patch.dict(os.environ,{"PLANTUPIA_AI_ENABLED":"1","PLANTUPIA_AI_API_KEY":"test-only"}), patch(
+            "plants.assistant.call_provider",return_value="Check the recorded layout."
+        ) as provider:
+            self.assertEqual(self.client.post(history,body,format="json").status_code,200)
+            self.assertNotIn("reported_placement_at_visit",provider.call_args.args[1])
+            self.assertEqual(self.client.post(history,{**body,"include_guide_and_layout":True},format="json").status_code,200)
+            context=provider.call_args.args[1]["reported_placement_at_visit"]
+            self.assertEqual(context["layout_revision"],field["revision"])
+            self.assertEqual(context["nearest_recorded_window_m"],field["nearest_window_distance_m"])
+            self.assertEqual(context["illuminance"],"not_measured")
+            self.assertNotIn("x_m",context)
+            self.assertNotIn("room_id",context)
+            body["observed_on"]=timezone.localdate(removed.observed_at).isoformat()
+            self.assertEqual(self.client.post(history,{**body,"include_guide_and_layout":True},format="json").status_code,200)
+            self.assertNotIn("reported_placement_at_visit",provider.call_args.args[1])
+
     def test_multi_turn_history_is_validated_and_bounded(self):
         self.client.force_authenticate(user=self.owner)
         with patch.dict(

@@ -109,6 +109,7 @@ class PasswordRecoveryStateOwner(
             is ApiResult.Success -> state = state.copy(
                 info = result.value,
                 stage = PasswordRecoveryStage.Done,
+                code = "", newPassword = "", confirmPassword = "",
             )
             is ApiResult.Failure -> state = state.copy(error = result.message)
         }

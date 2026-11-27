@@ -77,6 +77,7 @@ import com.nova.app.ui.theme.NovaSurface
 fun PasswordRecoveryScreen(
     onBack: () -> Unit,
     initialEmail: String = "",
+    onRecovered: (String) -> Unit = { onBack() },
 ) {
     val context = LocalContext.current
     val container = context.applicationContext.appContainer
@@ -97,10 +98,14 @@ fun PasswordRecoveryScreen(
 
     fun recoveryBack() {
         if (!state.loading) {
-            if (state.stage == PasswordRecoveryStage.Code) owner.editEmail() else onBack()
+            when (state.stage) {
+                PasswordRecoveryStage.Code -> owner.editEmail()
+                PasswordRecoveryStage.Done -> onRecovered(state.email.trim())
+                PasswordRecoveryStage.Email -> onBack()
+            }
         }
     }
-    BackHandler(enabled = state.stage == PasswordRecoveryStage.Code || state.loading) { recoveryBack() }
+    BackHandler(enabled = state.stage != PasswordRecoveryStage.Email || state.loading) { recoveryBack() }
 
     SecurityPage(
         title = when (state.stage) {
@@ -227,7 +232,7 @@ fun PasswordRecoveryScreen(
                     }
                 }
                 Spacer(Modifier.height(24.dp))
-                NovaPrimaryButton(text = "Back to log in", onClick = onBack)
+                NovaPrimaryButton(text = "Back to log in", onClick = ::recoveryBack)
             }
         }
     }

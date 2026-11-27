@@ -92,12 +92,13 @@ fun CreateAccountScreen(
     AuthPage(
         eyebrow = if (identityStep) "2 of 2" else "1 of 2",
         title = if (identityStep) "Your profile" else "Create account",
-        subtitle = "",
+        subtitle = if (identityStep) "Choose how you appear in the community. Your plant records stay private."
+            else "One account for your plants, places and care.",
         buttonText = if (identityStep) "Create account" else "Continue",
         busyText = "Creating account…",
         buttonEnabled = !isLoading,
         isLoading = isLoading,
-        errorMessage = if (identityStep) errorMessage else null,
+        errorMessage = errorMessage,
         onBack = ::goBack,
         onSubmit = if (identityStep) ::submit else ::continueAccount,
         footer = {
@@ -196,10 +197,22 @@ fun LoginScreen(
             onLogin(email.trim(), password)
         }
     }
+    val recovery = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            result.data?.getStringExtra(AccountSecurityActivity.EXTRA_RECOVERY_EMAIL)?.let {
+                email = it
+                onEmailChanged(it)
+                password = ""
+                attempted = false
+            }
+        }
+    }
     AuthPage(
         eyebrow = "",
         title = "Welcome back",
-        subtitle = "",
+        subtitle = "Return to your living spaces and records.",
         buttonText = "Log in",
         busyText = "Opening your space…",
         buttonEnabled = !isLoading,
@@ -210,7 +223,7 @@ fun LoginScreen(
         secondaryActionText = "Forgot password?",
         onSecondaryAction = {
             focus.clearFocus()
-            context.startActivity(
+            recovery.launch(
                 Intent(context, AccountSecurityActivity::class.java)
                     .putExtra(AccountSecurityActivity.EXTRA_MODE, AccountSecurityActivity.MODE_RECOVERY)
                     .putExtra(AccountSecurityActivity.EXTRA_RECOVERY_EMAIL, email.trim())
@@ -289,6 +302,15 @@ private fun AuthPage(
                 }
                 Spacer(Modifier.height(20.dp))
                 if (eyebrow.isNotBlank()) {
+                    Row(Modifier.fillMaxWidth(),horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        repeat(2) { step ->
+                            val completed = step == 0 || eyebrow.startsWith("2")
+                            Box(Modifier.weight(1f).height(3.dp).background(
+                                if (completed) PlantupiaColors.forest else PlantupiaColors.border,
+                                PlantupiaShapes.badge))
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
                     Text(eyebrow, style = PlantupiaText.supporting)
                     Spacer(Modifier.height(8.dp))
                 }

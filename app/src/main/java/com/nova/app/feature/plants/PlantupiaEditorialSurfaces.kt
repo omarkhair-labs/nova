@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -190,9 +191,10 @@ internal fun PlantupiaTodayMasthead(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text("Today", style = PlantupiaText.pageHeading)
                 Text(date.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)),
-                    style = PlantupiaText.supporting)
+                    style = PlantupiaText.sectionLabel)
+                Text("Today", style = PlantupiaText.display,
+                    modifier = Modifier.semantics { heading() })
             }
             com.nova.app.ui.components.NovaIconButton(
                 asset = com.nova.app.ui.icons.NovaIconAsset.CareCalendar,

@@ -143,6 +143,8 @@ class SettingsActivity : ComponentActivity() {
 }
 
 
+private data class SettingsAction(val icon: NovaIconAsset, val title: String, val subtitle: String, val onClick: () -> Unit)
+
 @Composable
 private fun SettingsScreen(
     username: String,
@@ -158,6 +160,7 @@ private fun SettingsScreen(
     onAccountDeletion: () -> Unit,
     onLogout: () -> Unit,
 ) {
+    var query by rememberSaveable { mutableStateOf("") }
     var showAbout by rememberSaveable { mutableStateOf(false) }
 
     if (showAbout) {
@@ -193,104 +196,50 @@ private fun SettingsScreen(
                     if (username.isNotBlank()) Text("@$username", style = PlantupiaText.supporting)
                 }
             }
-            Spacer(Modifier.height(24.dp))
-            SettingsSectionLabel("ACCOUNT & PRIVACY")
-            SettingsGroup {
-                SettingsRow(
-                    icon = NovaIconAsset.Security,
-                    title = "Security",
-                    subtitle = "Password, signed-in devices and app lock",
-                    onClick = onSecurity,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Privacy,
-                    title = "Privacy",
-                    subtitle = "Audience and follow requests",
-                    onClick = onPrivacy,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Blocked,
-                    title = "Blocked accounts",
-                    subtitle = "",
-                    onClick = onBlockedAccounts,
-                )
+            Spacer(Modifier.height(16.dp))
+            androidx.compose.material3.OutlinedTextField(
+                value = query, onValueChange = { query = it.take(100) }, singleLine = true,
+                label = { Text("Find a setting") }, modifier = Modifier.fillMaxWidth(),
+            )
+            val sections = listOf(
+                "ACCOUNT & PRIVACY" to listOf(
+                    SettingsAction(icon = NovaIconAsset.Security, title = "Security", subtitle = "Password, signed-in devices and app lock", onClick = onSecurity),
+                    SettingsAction(icon = NovaIconAsset.Privacy, title = "Privacy", subtitle = "Audience and follow requests", onClick = onPrivacy),
+                    SettingsAction(icon = NovaIconAsset.Blocked, title = "Blocked accounts", subtitle = "", onClick = onBlockedAccounts),
+                ),
+                "NOTIFICATIONS & DEVICE" to listOf(
+                    SettingsAction(icon = NovaIconAsset.Notifications, title = "Notifications", subtitle = "Messages and community activity; care reminders stay contextual", onClick = onNotifications),
+                    SettingsAction(icon = NovaIconAsset.Settings, title = "Android app settings", subtitle = "Permissions and storage", onClick = onDataStorage),
+                ),
+                "HELP & PRODUCT" to listOf(
+                    SettingsAction(icon = NovaIconAsset.Inbox, title = "Help & support", subtitle = SUPPORT_EMAIL, onClick = onHelpSupport),
+                    SettingsAction(icon = NovaIconAsset.Policy, title = "Privacy policy", subtitle = "", onClick = onPrivacyPolicy),
+                    SettingsAction(icon = NovaIconAsset.AccountDeletion, title = "Account deletion", subtitle = "Read the deletion process or delete directly from Security", onClick = onAccountDeletion),
+                    SettingsAction(icon = NovaIconAsset.Info, title = "About Plantupia", subtitle = "Version $appVersion", onClick = { showAbout = true }),
+                ),
+                "SESSION" to listOf(
+                    SettingsAction(icon = NovaIconAsset.Logout, title = "Log out", subtitle = "End the session on this device", onClick = onLogout),
+                ),
+            )
+            val words = query.trim().split(" ").filter { it.isNotBlank() }
+            val visible = sections.map { (section, actions) ->
+                section to actions.filter { action ->
+                    words.all { word -> "${action.title} ${action.subtitle} $section".contains(word, ignoreCase = true) }
+                }
+            }.filter { it.second.isNotEmpty() }
+            if (visible.isEmpty()) {
+                Text("No settings match your search.", modifier = Modifier.padding(vertical = 16.dp),
+                    style = PlantupiaText.body)
+                androidx.compose.material3.TextButton(onClick = { query = "" }) { Text("Show all settings") }
             }
-
-            Spacer(Modifier.height(24.dp))
-            SettingsSectionLabel("NOTIFICATIONS & DEVICE")
-            SettingsGroup {
-                SettingsRow(
-                    icon = NovaIconAsset.Notifications,
-                    title = "Notifications",
-                    subtitle = "Messages and community activity; care reminders stay contextual",
-                    onClick = onNotifications,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Settings,
-                    title = "Android app settings",
-                    subtitle = "Permissions and storage",
-                    onClick = onDataStorage,
-                )
-            }
-
-            Spacer(Modifier.height(24.dp))
-            SettingsSectionLabel("HELP & PRODUCT")
-            SettingsGroup {
-                SettingsRow(
-                    icon = NovaIconAsset.Inbox,
-                    title = "Help & support",
-                    subtitle = SUPPORT_EMAIL,
-                    onClick = onHelpSupport,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Policy,
-                    title = "Privacy policy",
-                    subtitle = "",
-                    onClick = onPrivacyPolicy,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.AccountDeletion,
-                    title = "Account deletion",
-                    subtitle = "Read the deletion process or delete directly from Security",
-                    onClick = onAccountDeletion,
-                )
-                SettingsDivider()
-                SettingsRow(
-                    icon = NovaIconAsset.Info,
-                    title = "About Plantupia",
-                    subtitle = "Version $appVersion",
-                    onClick = { showAbout = true },
-                )
-            }
-
-            Spacer(Modifier.height(24.dp))
-            SettingsSectionLabel("SESSION")
-            Surface(
-                onClick = onLogout,
-                modifier = Modifier.fillMaxWidth(),
-                color = PlantupiaColors.paper,
-                shape = PlantupiaShapes.inset,
-                border = androidx.compose.foundation.BorderStroke(1.dp, PlantupiaColors.border),
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 15.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    SettingsIcon(NovaIconAsset.Logout)
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            "Log out",
-                            style = PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
-                        )
-                        Text("Keep this account; end the session on this device.", style = PlantupiaText.supporting)
+            visible.forEach { (section, actions) ->
+                Spacer(Modifier.height(24.dp))
+                SettingsSectionLabel(section)
+                SettingsGroup {
+                    actions.forEachIndexed { index, action ->
+                        if (index > 0) SettingsDivider()
+                        SettingsRow(action.icon, action.title, action.subtitle, action.onClick)
                     }
-                    SettingsForwardIcon()
                 }
             }
             Spacer(Modifier.height(22.dp))

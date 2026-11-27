@@ -44,6 +44,10 @@ class AccountSecurityActivity : ComponentActivity() {
                     MODE_RECOVERY -> PasswordRecoveryScreen(
                         onBack = { finish() },
                         initialEmail = intent.getStringExtra(EXTRA_RECOVERY_EMAIL).orEmpty(),
+                        onRecovered = { email ->
+                            setResult(Activity.RESULT_OK, Intent().putExtra(EXTRA_RECOVERY_EMAIL, email))
+                            finish()
+                        },
                     )
                     MODE_BLOCKED -> BlockedAccountsScreen(
                         onBack = { finish() },

@@ -4,6 +4,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -35,6 +38,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -85,6 +92,7 @@ private enum class CircleFilter(val label: String) {
 }
 
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun OrbitScreen(
     displayName: String,
@@ -149,24 +157,25 @@ fun OrbitScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     com.nova.app.feature.plants.PlantupiaAccountHeader(displayName, username, avatarUrl, userId, avatarVariant, onProfileClick)
                     PlantupiaCircleEditorialIntro()
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CircleDestinationLink("Shared moments", "", onSharedMoments, Modifier.weight(1f))
-                        CircleDestinationLink("People", "", onDiscoveryClick, Modifier.weight(1f))
-                    }
+
                 }
             }
 
             item(key = "circle-content-navigation") {
-                Row(
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(NovaSpacing.sm),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     CircleSection.entries.forEach { section ->
                         val isSelected = selectedSection == section
                         Surface(
                             onClick = { selectedSection = section },
-                            modifier = Modifier.weight(1f),
-                            shape = com.nova.app.feature.plants.PlantupiaShapes.badge,
+                            modifier = Modifier.heightIn(min = 48.dp).semantics {
+                                role = Role.Tab
+                                selected = isSelected
+                            },
+                            shape = CircleShape,
                             color = if (isSelected) PlantupiaColors.forest else PlantupiaColors.paper,
                             border = BorderStroke(
                                 1.dp,
@@ -175,7 +184,7 @@ fun OrbitScreen(
                         ) {
                             Text(
                                 text = section.label,
-                                modifier = Modifier.padding(horizontal = NovaSpacing.sm, vertical = 12.dp),
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                 color = if (isSelected) PlantupiaColors.cream else PlantupiaColors.forest,
                                 style = com.nova.app.feature.plants.PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold),
                             )
@@ -184,6 +193,13 @@ fun OrbitScreen(
                 }
             }
 
+            item(key = "circle-destinations") {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    CircleDestinationLink("Shared moments", "", onSharedMoments)
+                    CircleDestinationLink("People", "", onDiscoveryClick)
+                }
+            }
             if (selectedSection == CircleSection.PlantQuestions) {
                 // Human help starts at a real plant. No source care entry is
                 // shared until the owner previews exact public text and photo.
@@ -216,7 +232,7 @@ fun OrbitScreen(
                     }
                 }
                 item(key = "circle-real-plant-questions") {
-                    PlantupiaCirclePanel(onOpenPost = onPostClick)
+                    PlantupiaCirclePanel(onOpenPost = onPostClick, onOpenAuthor = onPersonClick)
                 }
             } else {
             // Real Nova Stories are rendered through their existing authenticated
@@ -236,6 +252,10 @@ fun OrbitScreen(
                         val selected = filter == selectedFilter
                         Surface(
                             onClick = { selectedFilter = filter },
+                            modifier = Modifier.heightIn(min = 48.dp).semantics {
+                                role = Role.Tab
+                                this.selected = selected
+                            },
                             shape = CircleShape,
                             color = if (selected) PlantupiaColors.forest else PlantupiaColors.paper,
                             border = BorderStroke(
@@ -346,14 +366,20 @@ private fun CircleDestinationLink(
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.heightIn(min = 48.dp),
         color = PlantupiaColors.paper,
         border = BorderStroke(1.dp, PlantupiaColors.border),
         shape = com.nova.app.feature.plants.PlantupiaShapes.inset,
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = com.nova.app.feature.plants.PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
-            if (body.isNotBlank()) Text(body, style = com.nova.app.feature.plants.PlantupiaText.supporting)
+        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            NovaIcon(if (title == "People") NovaIconAsset.Group else NovaIconAsset.Photo,
+                null, modifier = Modifier.size(18.dp), tint = PlantupiaColors.forest)
+            Column {
+                Text(title, style = com.nova.app.feature.plants.PlantupiaText.body.copy(fontWeight = FontWeight.SemiBold))
+                if (body.isNotBlank()) Text(body, style = com.nova.app.feature.plants.PlantupiaText.supporting)
+            }
         }
     }
 }

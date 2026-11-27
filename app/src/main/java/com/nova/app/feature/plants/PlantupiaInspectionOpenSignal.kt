@@ -17,7 +17,7 @@ internal object PlantupiaInspectionOpenSignal {
         if (accountId <= 0L ||
             runCatching { UUID.fromString(plantId); UUID.fromString(planId) }.isFailure) return
         target = Triple(accountId, plantId, planId)
-        PlantupiaPlantOpenSignal.open(accountId, plantId)
+        PlantupiaPlantOpenSignal.open(accountId, plantId, PlantupiaDetailChapter.CARE)
     }
 
     fun consume() { target = null }

@@ -133,23 +133,25 @@ private fun ShopObjectGallery(
             if (photos.isEmpty()) {
                 PlantupiaShopObjectAwaitingPhoto(kind, height = heroHeight)
             } else {
-                Crossfade(targetState = index, animationSpec = tween(180), label = "product-photo") { photoIndex ->
-                    val photo = photos[photoIndex]
+                Crossfade(targetState = photos[index], animationSpec = tween(180), label = "product-photo") { photo ->
                     PlantupiaCatalogPhoto(
                         productId, repository, photoId = photo.id,
                         photoAlt = photo.description, catalogPath = "commerce/catalog",
                         fullObject = true, displayHeight = heroHeight,
                     )
                 }
-                Text(
-                    "PHOTO " + (index + 1) + " / " + photos.size,
-                    modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
-                    style = PlantupiaText.sectionLabel,
-                )
-                TextButton(
-                    onClick = { inspecting = true },
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(7.dp).heightIn(min = 48.dp),
-                ) { Text("Inspect photo  ↗", color = PlantupiaColors.forest) }
+            }
+        }
+        if (photos.isNotEmpty()) {
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Photo ${index + 1} of ${photos.size}", Modifier.weight(1f), style = PlantupiaText.supporting)
+                TextButton(onClick = { inspecting = true }, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text("Inspect photo", color = PlantupiaColors.forest)
+                }
             }
         }
         if (photos.size > 1) {
@@ -189,10 +191,6 @@ private fun ShopObjectGallery(
                     onClick = { chosenPhoto = (index + 1).coerceAtMost(photos.lastIndex) },
                 ) { Text("Next →", color = PlantupiaColors.forest) }
             }
-        }
-        if (photos.size > 1) {
-            Text(photos.size.toString() + " actual catalogue views",
-                style = PlantupiaText.supporting)
         }
     }
 

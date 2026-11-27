@@ -1,0 +1,33 @@
+/* Original architectural exercise; no customer imagery, external calls or animation required. */
+.lp-study{background:#f7f6ed;color:#203d2e;padding:clamp(42px,7vw,104px) var(--pl-gutter);--lp-line:#bac9bb}
+.lp-intro{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr);align-items:end;gap:24px 44px;margin-bottom:clamp(24px,4vw,54px)}
+.lp-intro h2{font:400 clamp(42px,6.5vw,96px)/.99 Georgia,serif;letter-spacing:-.065em;margin:0}
+.lp-intro>p,.lp-close p{font-size:15px;line-height:1.7;color:#4c6452;margin:0;max-width:43ch}
+.lp-workspace{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,.65fr);align-items:start;gap:clamp(24px,5vw,74px)}
+.lp-drawings{display:grid;gap:14px;min-width:0}
+.lp-sheet{min-width:0;margin:0;background:#f0f1e7;border:1px solid var(--lp-line)}
+.lp-sheet figcaption{display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;padding:13px 16px;border-bottom:1px solid var(--lp-line);font:600 11px/1.5 Arial,sans-serif;letter-spacing:.045em;color:#486650}
+.lp-sheet svg{display:block;width:100%;height:auto}
+.lp-controls{position:sticky;top:24px;min-width:0;display:grid;gap:12px}
+.lp-controls>.pc-kicker{margin:0}
+.lp-angle{display:flex;align-items:baseline;gap:15px;flex-wrap:wrap}
+.lp-angle output{font:400 clamp(56px,7vw,96px)/1 Georgia,serif;letter-spacing:-.07em;color:#234d39}
+.lp-angle span,.lp-range-label,.lp-range-ends{font-size:13px;color:#486650}
+.lp-controls input[type=range]{display:block;width:100%;min-width:0;min-height:44px;margin:0;accent-color:#28563e}
+.lp-controls input:focus-visible{outline:2px solid #386848;outline-offset:3px}
+.lp-range-ends{display:flex;justify-content:space-between;margin-top:-8px}
+.lp-controls fieldset{min-width:0;padding:0;border:0;margin:20px 0 4px}
+.lp-controls legend{font:600 10px/1.5 Arial,sans-serif;letter-spacing:.1em;color:#486650;padding:0 0 12px}
+.lp-controls fieldset button{display:grid;grid-template-columns:26px minmax(0,1fr) 20px;align-items:center;gap:8px;min-height:52px;width:100%;text-align:left;background:transparent;border:0;border-top:1px solid var(--lp-line);padding:10px 4px;font-size:14px}
+.lp-controls fieldset button:last-child{border-bottom:1px solid var(--lp-line)}
+.lp-controls fieldset button[aria-pressed=true]{background:#e5eadb;font-weight:600}
+.lp-controls fieldset button span{font-size:11px;color:#446950}
+.lp-result{background:#213f30;color:#f4f6ed;padding:20px;min-width:0}
+.lp-result-label{font:600 10px/1.4 Arial,sans-serif;letter-spacing:.09em;color:#d1e0c3}
+.lp-result h3{font:400 clamp(25px,3vw,40px)/1.12 Georgia,serif;letter-spacing:-.035em;margin:10px 0}
+.lp-result p{font-size:13px;line-height:1.6;margin:0;color:#e0e7db}
+.lp-fine{font-size:12px;line-height:1.65;color:#4c6452;margin:0}
+.lp-close{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;border-top:1px solid var(--lp-line);margin-top:30px;padding-top:20px}
+.lp-close a{border-bottom:1px solid currentColor;padding-block:8px;font-size:14px;color:#254d36}
+@media(max-width:850px){.lp-intro,.lp-workspace{grid-template-columns:1fr}.lp-controls{position:static}.lp-intro>p{max-width:65ch}}
+@media(max-width:450px){.lp-sheet figcaption{padding:10px}.lp-result{padding:16px}}

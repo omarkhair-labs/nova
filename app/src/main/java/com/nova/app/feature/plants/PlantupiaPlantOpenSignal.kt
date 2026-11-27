@@ -6,14 +6,25 @@ import androidx.compose.runtime.setValue
 import com.nova.app.navigation.NovaRootNavigationSignal
 import com.nova.app.navigation.NovaRootTab
 
+internal data class PlantupiaPlantDestination(
+    val accountId: Long,
+    val plantId: String,
+    val chapter: PlantupiaDetailChapter? = null,
+    val recordedDay: java.time.LocalDate? = null,
+)
+
 /** IDs are navigation hints only. Plants resolves them against its authenticated inventory. */
 internal object PlantupiaPlantOpenSignal {
-    var target by mutableStateOf<Pair<Long, String>?>(null)
+    var target by mutableStateOf<PlantupiaPlantDestination?>(null)
         private set
 
-    fun open(accountId: Long, plantId: String) {
+    fun open(
+        accountId: Long, plantId: String,
+        chapter: PlantupiaDetailChapter? = null,
+        recordedDay: java.time.LocalDate? = null,
+    ) {
         if (accountId <= 0 || runCatching { java.util.UUID.fromString(plantId) }.isFailure) return
-        target = accountId to plantId
+        target = PlantupiaPlantDestination(accountId, plantId, chapter, recordedDay)
         NovaRootNavigationSignal.request(NovaRootTab.Plants)
     }
 

@@ -29,6 +29,7 @@ android {
 
     defaultConfig {
         applicationId = "com.omarkhair70.nova"
+        manifestPlaceholders["novaAppLabel"] = "@string/app_name"
         minSdk = 26
         targetSdk = 36
         versionCode = 20113
@@ -36,6 +37,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "PLANTUPIA_QA_API_URL", "\"\"")
+        buildConfigField("boolean", "PLANTUPIA_LIVE_LENS_QA", "false")
     }
 
     signingConfigs {
@@ -57,6 +59,16 @@ android {
             versionNameSuffix = "-qa"
             matchingFallbacks += listOf("debug")
             val localQaUrl = providers.gradleProperty("plantupiaQaApiUrl").orNull
+            if (providers.gradleProperty("plantupiaIsolatedQa").orNull == "true") {
+                val isolatedUri = localQaUrl?.let { URI(it) }
+                require(isolatedUri != null && isolatedUri.host == "127.0.0.1" && isolatedUri.port in 1024..65535) {
+                    "Living QA requires an explicit local USB-loopback API origin and port"
+                }
+                applicationIdSuffix = ".qa.living"
+                versionNameSuffix = "-qa-living"
+                manifestPlaceholders["novaAppLabel"] = "Plantupia Living QA"
+                buildConfigField("boolean", "PLANTUPIA_LIVE_LENS_QA", "true")
+            }
             if (localQaUrl != null) {
                 val uri = URI(localQaUrl)
                 require(uri.scheme == "http" && uri.host in listOf("10.0.2.2", "127.0.0.1", "localhost") &&
@@ -95,6 +107,10 @@ dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(platform(libs.firebase.bom))
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.view)
+    // AR Optional: ordinary app and manual room recording remain available without ARCore.
+    implementation("com.google.ar:core:1.54.0")
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.compose.material3)
     implementation("androidx.compose.material:material-icons-core")

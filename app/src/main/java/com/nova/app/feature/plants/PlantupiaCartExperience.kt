@@ -47,24 +47,13 @@ internal fun PlantupiaCartExperience(
     val isActionBlocked = busy || error != null || incomplete
 
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(
-                    if (incomplete) "Some saved objects need review"
-                    else if (objects.isEmpty()) "Nothing saved yet"
-                    else "${objects.size} ${if (objects.size == 1) "object" else "objects"} · $units ${if (units == 1) "unit" else "units"}",
-                    style = PlantupiaText.body, fontWeight = FontWeight.SemiBold,
-                )
-            }
-            if (objects.isNotEmpty()) {
-                TextButton(onClick = onContinueShopping, enabled = !busy) {
-                    Text("Continue shopping", color = PlantupiaColors.forest)
-                }
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                if (incomplete) "Some saved objects need review"
+                else if (objects.isEmpty()) "Nothing saved yet"
+                else "${objects.size} ${if (objects.size == 1) "object" else "objects"} · $units ${if (units == 1) "unit" else "units"}",
+                style = PlantupiaText.itemTitle,
+            )
         }
 
         if (error != null || incomplete) {
@@ -121,7 +110,7 @@ internal fun PlantupiaCartExperience(
             ) {
                 Text(
                     if (incomplete) "Your saved cart needs a refresh."
-                    else "Your cart is empty",
+                    else "Find something for your space",
                     style = PlantupiaText.editorialHeading,
                 )
                 Text(
@@ -135,11 +124,10 @@ internal fun PlantupiaCartExperience(
                 ) { Text("Browse products") }
             }
         } else {
-            objects.forEachIndexed { position, item ->
+            objects.forEach { item ->
                 key(item.skuId) {
                     PlantupiaCartObjectCard(
                         item = item,
-                        index = position + 1,
                         repository = repository,
                         pending = pendingSku == item.skuId,
                         enabled = !isActionBlocked,
@@ -152,11 +140,11 @@ internal fun PlantupiaCartExperience(
             }
 
             Surface(
-                color = PlantupiaColors.softSage,
-                shape = PlantupiaShapes.inset,
+                color = PlantupiaColors.paper,
+                shape = PlantupiaShapes.card,
                 border = BorderStroke(1.dp, PlantupiaColors.border),
             ) {
-                Column(Modifier.fillMaxWidth().padding(15.dp),
+                Column(Modifier.fillMaxWidth().padding(18.dp),
                     verticalArrangement = Arrangement.spacedBy(11.dp)) {
                     PlantupiaAmountRow(label = "Items subtotal") {
                         Crossfade(
@@ -164,7 +152,7 @@ internal fun PlantupiaCartExperience(
                             animationSpec = tween(190),
                             label = "persisted-cart-subtotal",
                         ) { savedSubtotal ->
-                            Text("EGP " + savedSubtotal, style = PlantupiaText.editorialHeading)
+                            Text("EGP " + savedSubtotal, style = PlantupiaText.display)
                         }
                     }
                     Text(
@@ -184,6 +172,10 @@ internal fun PlantupiaCartExperience(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PlantupiaColors.forest),
                     ) { Text("Continue to delivery details  ↗") }
+                    TextButton(onClick = onContinueShopping, enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text("Continue shopping", color = PlantupiaColors.forest)
+                    }
                 }
             }
         }
@@ -193,7 +185,6 @@ internal fun PlantupiaCartExperience(
 @Composable
 private fun PlantupiaCartObjectCard(
     item: ShopCartObject,
-    index: Int,
     repository: PlantupiaRepository,
     pending: Boolean,
     enabled: Boolean,
@@ -204,11 +195,9 @@ private fun PlantupiaCartObjectCard(
 ) {
     Surface(
         color = PlantupiaColors.paper,
-        shape = PlantupiaShapes.inset,
-        border = BorderStroke(1.dp, PlantupiaColors.border),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.fillMaxWidth().padding(12.dp),
+        Column(Modifier.fillMaxWidth().padding(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -267,11 +256,11 @@ private fun PlantupiaCartObjectCard(
             }
             HorizontalDivider(color = PlantupiaColors.border)
 
-            // Independent, full-width controls survive narrow screens and large text.
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            // Keep controls and persisted amount independent at narrow widths.
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("QUANTITY", style = PlantupiaText.sectionLabel)
+                    Text("Quantity", style = PlantupiaText.itemTitle)
                     if (pending) {
                         Row(verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -325,6 +314,7 @@ private fun PlantupiaCartObjectCard(
                     Text("Remove", color = PlantupiaColors.forest)
                 }
             }
+            HorizontalDivider(color = PlantupiaColors.border)
         }
     }
 }
