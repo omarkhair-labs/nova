@@ -25,3 +25,7 @@ Inspected Pl@ntNet MobileNetV4-Hybrid-M [labels](https://huggingface.co/PlantNet
 ## Acceptance
 
 Keep model default off, verify real authorized device photos and latency, actor/source/method tampering, outline alignment, abstention, throttling and manual fallback. This is a neural still-photo proposal, not a live neural tracker or automatic organ detector.
+
+## Reproduction and direct integration smoke
+
+The comparison source is `scripts/living_research/compare_magic_touch.py`; the 48-image output is `docs/living-neural-flower-benchmark.json`. Invoke with the local photo tarball, trimap tarball, reviewed model path, repository `backend` path and an output JSON path. No images or model binaries are committed. Direct execution of `propose_neural_outline` from b6253dc, using original photograph coordinates and reference-derived points on three selected public photos, produced polygon IoU of 0.9991 (image_0002), 0.9851 (image_0113) and 0.9954 (image_0909). This is a three-image integration smoke, not an independent validation cohort.
