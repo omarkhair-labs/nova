@@ -26,8 +26,8 @@ Connect every actual plant/place/photo/history action through the same authorize
 
 All these groups have existing implementation; their whole-experience design acceptance is OPEN. Use the current whole-experience reinvention document and screen closure ledger for detailed sub-surfaces. For each group capture exact-build native evidence, critique and refine, exercise ordinary/empty/error/loading/permission state, compact and large text/RTL, and retain authentic art direction. No arbitrary screen count or completion percentage.
 
-- Arrival, login/register/recovery/legal and first-run profile: open
-- Today and care schedule: open
+- Arrival, login/register/recovery/legal and first-run profile: arrival/login/register art-direction increment; exact revised render, recovery/legal and physical approval open
+- Today and care schedule: editorial masthead, one-photo care hero and actual collection entry when no scheduled check-ins; exact revised render and device approval open
 - Spaces, collection, creation, plant overview/guide/care/history/inspection/photo/time: open
 - Room plan, AR scan, 3D/photo scene and environment: open
 - Handover and ownership: open
@@ -57,3 +57,10 @@ A separate explicit 6-second local Android TYPE_LIGHT check shows actual sensor-
 ## Increment: one historical placement projection
 
 Field Notes and Ask now derive placement from one authorized plant/current-space helper, selecting the latest room revision recorded on or before the actual visit. A plant absent from that revision is not recovered from older layouts. Field Notes shows the reported coordinates, revision and nearest recorded window centre if present. Ask receives a reduced projection (visit/layout date, revision, distance or null, and not-measured illuminance) only with the existing explicit evidence and guide/layout consent. No room ID, coordinates, other plants, temporary phone readings, or inferred exposure is sent. The existing provider is text-only; unit tests mock transport, and live-provider acceptance remains a separate authorized gate.
+
+
+## Screen closure pass 01 — arrival and Today
+
+Inspected the actual 6709d60 CI artifacts: native craft 15172771401 and core roots 15173047040, both nominal 390dp and 320dp/font scale 2.0. The predecessor suites passed. Visual critique: arrival forms were functional but visually austere; first space had a generic tiny plant mark; the home content sat inside a visibly mismatched beige rectangle, leaving Today sparse when no check-in was due; the due-photo hero rendered the same photograph twice. This increment replaces the decorative arrival composition with an original native architectural botanical plate, provides concise real-product context and account progress, uses the shared page background, gives Today a date-led editorial hierarchy and a single portrait per focus card. When no check-in exists, show one real active plant, preferring a valid latest recorded event then a real portrait, with a direct overview action. No invented schedule, photograph, observation or healthy state. The first-space entry preserves both private creation and delivery claim. No approved font/logo files were supplied; keep existing fallback type/wordmark.
+
+Do not mark the revised surfaces accepted until fresh exact-head screenshots and functional tests at both sizes, including first arrival, large text, keyboard, errors, and plant open/Back. Then proceed to collection/plant detail/care and the remaining existing ledger groups, rather than reopening technology research. This pass does not implement or accept legal/recovery pages, other settings, or all screens.

@@ -87,7 +87,6 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 
 private val deepGreen = Color(0xFF123B2E)
-private val cream = Color(0xFFF3EEDE)
 private val sage = Color(0xFF9FB79A)
 private val forestText = Color(0xFF16302A)
 private val muted = Color(0xFF4A5A50)
@@ -574,8 +573,8 @@ private fun PlantupiaAccountClientSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(cream)
-            .padding(horizontal = 2.dp, vertical = 8.dp),
+            .background(PlantupiaColors.cream)
+            .padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         val firstArrival = !loading && error == null && spaces.isEmpty() && plants.isEmpty()
@@ -721,6 +720,7 @@ private fun PlantupiaAccountClientSection(
                     plants = plants,
                     onScheduleDay = { day -> PlantupiaCareCalendarOpenSignal.open(accountId, fromToday = true, day = day) },
                     onOpenPlant = { plant -> PlantupiaPlantOpenSignal.open(accountId, plant.id, PlantupiaDetailChapter.CARE) },
+                    onOpenCollectionPlant = { plant -> PlantupiaPlantOpenSignal.open(accountId, plant.id, PlantupiaDetailChapter.OVERVIEW) },
                 )
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                     val actionButtons: @Composable (Modifier) -> Unit = { actionModifier ->
@@ -2487,8 +2487,10 @@ private fun PlantupiaAccountClientSection(
 @Composable
 private fun PlantupiaFirstSpaceArrival(onConnectDelivery: () -> Unit, onStartOwnSpace: () -> Unit) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        PlantupiaEmptyPlantArt(Modifier.fillMaxWidth().height(118.dp))
-        Text("Your first space", style = PlantupiaText.editorialHeading)
+        PlantupiaArrivalArtwork(light = true)
+        Text("Your first space", style = PlantupiaText.display)
+        Text("Start with a place you know, or connect the plants delivered to you. Your private collection grows from there.",
+            style = PlantupiaText.body)
         PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Home,
             title = "Start my first space", detail = "Private", onClick = onStartOwnSpace, accent = true)
         PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Plants,

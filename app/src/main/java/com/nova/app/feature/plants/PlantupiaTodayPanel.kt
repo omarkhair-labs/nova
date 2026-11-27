@@ -1,6 +1,13 @@
 package com.nova.app.feature.plants
 
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.BorderStroke
+import java.time.OffsetDateTime
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +40,16 @@ internal fun scheduledPlantCheckIns(plants: List<PlantupiaPlant>): List<Plantupi
         plant.active && runCatching { LocalDate.parse(plant.nextFollowUpOn) }.isSuccess
     }.sortedBy { it.nextFollowUpOn }
 
+/** Prefer the latest actual record, then an uploaded portrait, then a stable active plant.
+ * The fallback is simply a collection entry; it is never described as recent activity.
+ */
+internal fun todayCollectionFocus(plants: List<PlantupiaPlant>): PlantupiaPlant? {
+    val active = plants.filter { it.active }
+    return active.sortedWith(compareByDescending<PlantupiaPlant> {
+        runCatching { OffsetDateTime.parse(it.lastEventAt).toInstant() }.getOrNull()
+    }.thenByDescending { it.coverPhoto.isNotBlank() }.thenBy { it.id }).firstOrNull()
+}
+
 /** Incrementally reveal every real due record even in large client spaces. */
 internal fun visibleDueCheckInCount(total: Int, requested: Int): Int =
     requested.coerceAtLeast(3).coerceAtMost(total.coerceAtLeast(0))
@@ -59,9 +76,15 @@ internal fun PlantupiaTodayPanel(
     plants: List<PlantupiaPlant>,
     onOpenPlant: (PlantupiaPlant) -> Unit,
     onScheduleDay: (LocalDate) -> Unit,
+    onOpenCollectionPlant: (PlantupiaPlant) -> Unit = onOpenPlant,
 ) {
     val planned = scheduledPlantCheckIns(plants)
-    if (planned.isEmpty()) return
+    if (planned.isEmpty()) {
+        todayCollectionFocus(plants)?.let { plant ->
+            TodayCollectionPortrait(plant, onOpen = { onOpenCollectionPlant(plant) })
+        }
+        return
+    }
 
     val today = LocalDate.now()
     val due = planned.filter { !LocalDate.parse(it.nextFollowUpOn).isAfter(today) }
@@ -71,7 +94,7 @@ internal fun PlantupiaTodayPanel(
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(if (due.isNotEmpty()) "Check-ins" else "Upcoming",
-                style = PlantupiaText.editorialHeading)
+                style = PlantupiaText.editorialHeading, modifier = Modifier.semantics { heading() })
             if (due.isNotEmpty()) {
                 Text(if (due.size == 1) "1 due" else "${due.size} due", style = PlantupiaText.supporting)
             }
@@ -85,8 +108,12 @@ internal fun PlantupiaTodayPanel(
                     val day = week[index]
                     val count = counts[day.toString()] ?: 0
                     Surface(onClick = { onScheduleDay(day) }, shape = PlantupiaShapes.inset,
+                        modifier = Modifier.semantics {
+                            contentDescription = day.format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)) +
+                                ", " + count + if (count == 1) " check-in" else " check-ins"
+                        },
                         color = if (count > 0) PlantupiaColors.softSage else PlantupiaColors.paper) {
-                        Column(Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+                        Column(Modifier.heightIn(min = 54.dp).padding(horizontal = 11.dp, vertical = 8.dp),
                             horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(day.format(DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)), style = PlantupiaText.supporting)
                             Text(day.dayOfMonth.toString(), style = PlantupiaText.itemTitle)
@@ -153,39 +180,59 @@ internal fun PlantupiaTodayPanel(
 }
 
 @Composable
+private fun TodayCollectionPortrait(plant: PlantupiaPlant, onOpen: () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Text("From your collection", style = PlantupiaText.editorialHeading,
+            modifier = Modifier.semantics { heading() })
+        val recordedDay = runCatching { OffsetDateTime.parse(plant.lastEventAt).toLocalDate() }.getOrNull()
+        PersonalCheckInHero(plant,
+            eyebrow = recordedDay?.let { "LAST RECORDED · " + it.format(DateTimeFormatter.ofPattern("d MMM yyyy",Locale.ENGLISH)).uppercase(Locale.ENGLISH) }
+                ?: "YOUR PLANT",
+            supporting = listOf(plant.species,plant.placement).filter { it.isNotBlank() }.joinToString(" · "),
+            onOpen = onOpen, action = "Open plant →", collection = true)
+    }
+}
+
+@Composable
 private fun PersonalCheckInHero(
     plant: PlantupiaPlant,
     eyebrow: String,
     supporting: String,
     onOpen: () -> Unit,
+    action: String = "Review →",
+    collection: Boolean = false,
 ) {
-    Surface(onClick = onOpen, modifier = Modifier.fillMaxWidth(), color = PlantupiaColors.forest) {
-        Column {
-            if (plant.coverPhoto.isNotBlank()) {
-                PlantupiaEvidencePhoto(
-                    photoUrl = plant.coverPhoto,
-                    photoDescription = "Uploaded photo of ${plant.name}",
-                    modifier = Modifier.fillMaxWidth().height(136.dp),
-                    cornerRadius = 0.dp,
-                    framing = PlantupiaPhotoFraming.FULL_RECORD,
-                )
-            }
-            Row(
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                if (plant.coverPhoto.isNotBlank()) {
-                    PlantupiaEvidencePhoto(plant.coverPhoto, "Portrait of " + plant.name,
-                        modifier = Modifier.size(84.dp, 108.dp), compact = true)
+    val ink = if (collection) PlantupiaColors.forest else PlantupiaColors.paper
+    val secondary = if (collection) PlantupiaColors.secondaryText else PlantupiaColors.cream
+    Surface(onClick = onOpen, modifier = Modifier.fillMaxWidth(),
+        shape = PlantupiaShapes.inset,
+        border = if (collection) BorderStroke(1.dp,PlantupiaColors.border) else null,
+        color = if (collection) PlantupiaColors.paper else PlantupiaColors.forest) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(16.dp)) {
+            val sideBySide = maxWidth / LocalDensity.current.fontScale >= 255.dp
+            val identity: @Composable () -> Unit = {
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                    Text(eyebrow, style = PlantupiaText.sectionLabel.copy(
+                        color = if (collection) PlantupiaColors.forest else PlantupiaColors.sage))
+                    Text(plant.name, style = PlantupiaText.editorialHeading.copy(color = ink))
+                    if (supporting.isNotBlank()) Text(supporting, style = PlantupiaText.supporting.copy(color = secondary))
+                    Text(action, style = PlantupiaText.itemTitle.copy(color = ink),modifier = Modifier.padding(top=6.dp))
                 }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(eyebrow, style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.sage))
-                    Text(plant.name, style = PlantupiaText.editorialHeading.copy(color = PlantupiaColors.paper))
-                    Text(supporting, style = PlantupiaText.supporting.copy(color = PlantupiaColors.cream))
-                    Text("Review →", style = PlantupiaText.sectionLabel.copy(color = PlantupiaColors.paper))
+            }
+            val photo: @Composable (Modifier) -> Unit = { modifier ->
+                PlantupiaEvidencePhoto(plant.coverPhoto, "Uploaded portrait of " + plant.name,
+                    modifier = modifier, compact = sideBySide, cornerRadius = 6.dp)
+            }
+            if (sideBySide) {
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp),verticalAlignment = Alignment.CenterVertically) {
+                    if (plant.coverPhoto.isNotBlank() || collection) photo(Modifier.size(98.dp,136.dp))
+                    Column(Modifier.weight(1f)) { identity() }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    identity()
+                    if (plant.coverPhoto.isNotBlank()) photo(Modifier.fillMaxWidth().height(150.dp))
+                    else if (collection) Text("No uploaded portrait yet",style = PlantupiaText.supporting.copy(color=secondary))
                 }
             }
         }
