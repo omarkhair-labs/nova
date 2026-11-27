@@ -246,6 +246,30 @@ jobs:
           path: app/build/outputs/apk/qa/app-qa.apk
           if-no-files-found: error
           retention-days: 7
+      - name: Assemble hosted Living QA for existing Oracle preview
+        if: github.head_ref == 'integration/plantupia-unified-living-experience-20261126' || github.head_ref == 'feature/plantupia-unified-experience-20261028'
+        run: |
+          python3 - <<'PY'
+          import copy, json
+          from pathlib import Path
+          path = Path('app/src/qa/google-services.json')
+          config = json.loads(path.read_text())
+          hosted = copy.deepcopy(config['client'][0])
+          hosted['client_info']['android_client_info']['package_name'] = 'com.omarkhair70.nova.qa.oracle'
+          config['client'].append(hosted)
+          path.write_text(json.dumps(config))
+          PY
+          ./gradlew --no-daemon assembleQa -PplantupiaHostedLivingQa=true
+
+      - name: Upload hosted Living QA APK
+        if: github.head_ref == 'integration/plantupia-unified-living-experience-20261126' || github.head_ref == 'feature/plantupia-unified-experience-20261028'
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantupia-living-qa-oracle-253
+          path: app/build/outputs/apk/qa/app-qa.apk
+          if-no-files-found: error
+          retention-days: 7
+
       # Distinct from the normal QA artifact: this APK talks only to the developer
       # machine's disposable local backend through the Android emulator loopback.
       # It is not suitable for a physical phone or an online/customer demo.

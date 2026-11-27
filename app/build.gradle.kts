@@ -59,7 +59,18 @@ android {
             versionNameSuffix = "-qa"
             matchingFallbacks += listOf("debug")
             val localQaUrl = providers.gradleProperty("plantupiaQaApiUrl").orNull
-            if (providers.gradleProperty("plantupiaIsolatedQa").orNull == "true") {
+            val hostedLivingQa = providers.gradleProperty("plantupiaHostedLivingQa").orNull == "true"
+            val isolatedLivingQa = providers.gradleProperty("plantupiaIsolatedQa").orNull == "true"
+            if (hostedLivingQa) {
+                require(!isolatedLivingQa && localQaUrl == null) {
+                    "Hosted Living QA uses only the existing HTTPS #253 preview"
+                }
+                applicationIdSuffix = ".qa.oracle"
+                versionNameSuffix = "-qa-oracle"
+                manifestPlaceholders["novaAppLabel"] = "Plantupia Oracle QA"
+                buildConfigField("boolean", "PLANTUPIA_LIVE_LENS_QA", "true")
+            }
+            if (isolatedLivingQa) {
                 val isolatedUri = localQaUrl?.let { URI(it) }
                 require(isolatedUri != null && isolatedUri.host == "127.0.0.1" && isolatedUri.port in 1024..65535) {
                     "Living QA requires an explicit local USB-loopback API origin and port"

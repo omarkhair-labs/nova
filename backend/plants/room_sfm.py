@@ -1,5 +1,6 @@
 """Private, unscaled multi-view reconstruction with the optional CPU PyCOLMAP engine."""
 import json
+import os
 from hashlib import file_digest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -41,6 +42,7 @@ end_header
 
 
 def reconstruct(images, output, *, single_camera, with_surface=False):
+    threads = max(1, min(4, int(os.environ.get("PLANTUPIA_ROOM_SFM_THREADS", "4"))))
     files = sorted(path for path in images.iterdir() if path.is_file() and path.suffix.lower() in {".jpg", ".jpeg", ".png"})
     if not 5 <= len(files) <= 80:
         raise ValueError("Supply 5 to 80 overlapping photographs.")
@@ -51,9 +53,9 @@ def reconstruct(images, output, *, single_camera, with_surface=False):
         model_dir = work / "models"
         model_dir.mkdir()
         database = work / "matches.db"
-        extraction = colmap.FeatureExtractionOptions(max_image_size=1600, num_threads=4, use_gpu=False)
-        matching = colmap.FeatureMatchingOptions(num_threads=4, use_gpu=False)
-        mapping = colmap.IncrementalPipelineOptions(num_threads=4, random_seed=42)
+        extraction = colmap.FeatureExtractionOptions(max_image_size=1600, num_threads=threads, use_gpu=False)
+        matching = colmap.FeatureMatchingOptions(num_threads=threads, use_gpu=False)
+        mapping = colmap.IncrementalPipelineOptions(num_threads=threads, random_seed=42)
         colmap.extract_features(
             database, images, image_names=[path.name for path in files],
             camera_mode=colmap.CameraMode.SINGLE if single_camera else colmap.CameraMode.AUTO,

@@ -11,8 +11,16 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
+ARG PLANTUPIA_HOSTED_LIVING_QA=0
+COPY hosted_living.py ./
+RUN if [ "$PLANTUPIA_HOSTED_LIVING_QA" = "1" ]; then \
+        apt-get update && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 libgomp1 libportaudio2 && \
+        rm -rf /var/lib/apt/lists/* && \
+        python hosted_living.py prepare; \
+    fi
+
 COPY . .
 
 EXPOSE 8000
 
-CMD ["sh", "-c", "python manage.py migrate --noinput && python manage.py collectstatic --noinput && daphne -b 0.0.0.0 -p ${PORT:-8000} nova_backend.asgi:application"]
+CMD ["python", "hosted_living.py", "start"]
