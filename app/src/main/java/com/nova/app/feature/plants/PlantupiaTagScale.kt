@@ -26,7 +26,8 @@ private val markerBits = intArrayOf(
 )
 
 private fun writeMarkerCard(output: OutputStream, pair: Int) {
-    PdfDocument().use { doc ->
+    val doc = PdfDocument()
+    try {
         val page = doc.startPage(PdfDocument.PageInfo.Builder(595, 842, 1).create())
         val canvas = page.canvas
         val paint = Paint().apply { color = Color.BLACK; textSize = 18f }
@@ -55,6 +56,8 @@ private fun writeMarkerCard(output: OutputStream, pair: Int) {
         }
         doc.finishPage(page)
         doc.writeTo(output)
+    } finally {
+        doc.close()
     }
 }
 

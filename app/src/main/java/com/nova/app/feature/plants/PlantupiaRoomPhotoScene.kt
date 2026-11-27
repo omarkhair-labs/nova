@@ -117,6 +117,8 @@ private fun PhotoSceneBody(subject: String, path: String, manager: Boolean, curr
                 Text("${data.optInt("registered_views")} of ${data.optInt("views")} views aligned · relative scale",
                     style = PlantupiaText.supporting)
                 if (scene.surface != null) {
+                    Text(if (data.optString("surface_method") == "validated_stereo") "Photo surface · stereo depth"
+                         else "Photo surface · tracked patches", style = PlantupiaText.supporting)
                     FilterChip(selected = showPoints, onClick = { showPoints = !showPoints },
                         label = { Text("Show measured points") })
                 }

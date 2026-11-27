@@ -58,6 +58,7 @@ internal fun personalCheckInDateLabel(value: String, today: LocalDate = LocalDat
 internal fun PlantupiaTodayPanel(
     plants: List<PlantupiaPlant>,
     onOpenPlant: (PlantupiaPlant) -> Unit,
+    onScheduleDay: (LocalDate) -> Unit,
 ) {
     val planned = scheduledPlantCheckIns(plants)
     if (planned.isEmpty()) return
@@ -76,6 +77,25 @@ internal fun PlantupiaTodayPanel(
             }
         }
 
+        val week = (0..6).map { today.plusDays(it.toLong()) }
+        val counts = planned.groupingBy { it.nextFollowUpOn }.eachCount()
+        if (week.any { counts.containsKey(it.toString()) }) {
+            androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                items(week.size) { index ->
+                    val day = week[index]
+                    val count = counts[day.toString()] ?: 0
+                    Surface(onClick = { onScheduleDay(day) }, shape = PlantupiaShapes.inset,
+                        color = if (count > 0) PlantupiaColors.softSage else PlantupiaColors.paper) {
+                        Column(Modifier.padding(horizontal = 11.dp, vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(day.format(DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)), style = PlantupiaText.supporting)
+                            Text(day.dayOfMonth.toString(), style = PlantupiaText.itemTitle)
+                            if (count > 0) Text(if (count == 1) "1 check" else "$count checks", style = PlantupiaText.supporting)
+                        }
+                    }
+                }
+            }
+        }
         if (due.isNotEmpty()) {
             val first = due.first()
             PersonalCheckInHero(

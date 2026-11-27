@@ -67,7 +67,8 @@ def reconstruct(images, output, *, single_camera, with_surface=False):
         surface_count = 0
         if with_surface:
             from plants.room_surface import photo_surface
-            surface = photo_surface(best, images)
+            from plants.room_stereo import stereo_surface
+            surface = stereo_surface(best, images) or photo_surface(best, images)
             surface_count = len(surface.get("triangles", []))
             output.with_suffix(".surface.json").write_text(json.dumps(surface), encoding="utf-8")
         eligible, exported = write_scene(best, output)
@@ -75,6 +76,7 @@ def reconstruct(images, output, *, single_camera, with_surface=False):
             sha256 = file_digest(stream, "sha256").hexdigest()
         info = dict(
             algorithm="COLMAP incremental structure from motion", pycolmap=colmap.__version__,
+            surface_method=surface.get("method", "tracked_patches") if with_surface else "none",
             surface_faces=surface_count, supplied_views=len(files), registered_views=best.num_reg_images(), all_sparse_points=best.num_points3D(),
             points_with_three_views_and_error_up_to_two_px=eligible, exported_points=exported,
             mean_reprojection_px=best.compute_mean_reprojection_error(), scene_sha256=sha256, scale="unknown",

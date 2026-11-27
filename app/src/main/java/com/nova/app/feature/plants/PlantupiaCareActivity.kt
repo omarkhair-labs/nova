@@ -35,7 +35,7 @@ import java.time.format.DateTimeFormatter
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = {}) {
+internal fun PlantupiaCareActivity(accountId: Long, initialDay: LocalDate? = null, onViewChanged: () -> Unit = {}) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val repository = remember(accountId) { PlantupiaRepository(context.applicationContext) }
     var plans by remember(accountId) { mutableStateOf(emptyList<JSONObject>()) }
@@ -46,8 +46,8 @@ internal fun PlantupiaCareActivity(accountId: Long, onViewChanged: () -> Unit = 
     var busy by remember { mutableStateOf(true) }
     var historyBusy by remember { mutableStateOf(false) }
     var revision by remember { mutableIntStateOf(0) }
-    var selected by androidx.compose.runtime.saveable.rememberSaveable(accountId) { mutableStateOf(LocalDate.now()) }
-    var month by androidx.compose.runtime.saveable.rememberSaveable(accountId) { mutableStateOf(YearMonth.from(LocalDate.now())) }
+    var selected by androidx.compose.runtime.saveable.rememberSaveable(accountId) { mutableStateOf(initialDay ?: LocalDate.now()) }
+    var month by androidx.compose.runtime.saveable.rememberSaveable(accountId) { mutableStateOf(YearMonth.from(initialDay ?: LocalDate.now())) }
     var weekMode by androidx.compose.runtime.saveable.rememberSaveable(accountId) { mutableStateOf(true) }
     val visible = if (weekMode) careCalendarWeekDays(selected) else careCalendarMonthDays(month)
     val visibleStart = visible.first()

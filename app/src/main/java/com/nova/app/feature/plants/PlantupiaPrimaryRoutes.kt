@@ -49,6 +49,7 @@ fun PlantupiaPlantsRoute(
     var showingCareCalendar by rememberSaveable(accountId) {
         androidx.compose.runtime.mutableStateOf(false)
     }
+    var calendarDay by rememberSaveable(accountId) { androidx.compose.runtime.mutableStateOf<java.time.LocalDate?>(null) }
     var calendarReturnToToday by rememberSaveable(accountId) {
         androidx.compose.runtime.mutableStateOf(false)
     }
@@ -70,6 +71,8 @@ fun PlantupiaPlantsRoute(
     val calendarVersion = PlantupiaCareCalendarOpenSignal.version
     LaunchedEffect(accountId, calendarTarget, calendarVersion) {
         if (calendarTarget == accountId && accountId > 0) {
+            calendarDay = PlantupiaCareCalendarOpenSignal.requestedDay
+            if (calendarDay != null) calendarState.removeState(accountId)
             calendarReturnToToday = PlantupiaCareCalendarOpenSignal.returnToToday
             showingCareCalendar = true
             calendarScroll.scrollTo(0)
@@ -121,7 +124,7 @@ fun PlantupiaPlantsRoute(
                 ) {
                     calendarState.SaveableStateProvider(accountId) {
                         PlantupiaCareActivity(
-                            accountId = accountId,
+                            accountId = accountId, initialDay = calendarDay,
                             onViewChanged = { scope.launch { calendarScroll.animateScrollTo(0) } },
                         )
                     }

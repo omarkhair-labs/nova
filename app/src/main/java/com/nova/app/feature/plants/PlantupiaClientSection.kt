@@ -719,6 +719,7 @@ private fun PlantupiaAccountClientSection(
                 )
                 PlantupiaTodayPanel(
                     plants = plants,
+                    onScheduleDay = { day -> PlantupiaCareCalendarOpenSignal.open(accountId, fromToday = true, day = day) },
                     onOpenPlant = { plant -> PlantupiaPlantOpenSignal.open(accountId, plant.id, PlantupiaDetailChapter.CARE) },
                 )
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
