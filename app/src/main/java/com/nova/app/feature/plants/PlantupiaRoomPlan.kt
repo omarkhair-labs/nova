@@ -14,6 +14,9 @@ import androidx.compose.ui.unit.dp
 import com.nova.app.core.network.ApiResult
 import com.nova.app.feature.plants.data.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 
 private enum class PlaceTask { EXPLORE, EDIT, LIGHT, SOURCE }
 
@@ -46,6 +49,27 @@ internal fun PlantupiaRoomPlan(
                 is ApiResult.Success -> if (repository.isCurrentSession()) {
                     room = response.value
                     if (response.value.plants.none { it.id == focusedId }) focusedId = null
+                }
+            }
+        }
+        val lifecycle = androidx.compose.ui.platform.LocalLifecycleOwner.current.lifecycle
+        val watching = revision == null && task == PlaceTask.EXPLORE && room != null
+        LaunchedEffect(space.id, repository, lifecycle, watching, generation) {
+            if (!watching) return@LaunchedEffect
+            lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                while (repository.isCurrentSession()) {
+                    delay(30_000)
+                    when (val updated = repository.room(space.id, null)) {
+                        is ApiResult.Success -> {
+                            room = updated.value
+                            message = ""
+                            if (updated.value.plants.none { it.id == focusedId }) focusedId = null
+                        }
+                        is ApiResult.Failure -> {
+                            message = updated.message
+                            if (updated.statusCode in listOf(401, 403, 404) || !repository.isCurrentSession()) room = null
+                        }
+                    }
                 }
             }
         }

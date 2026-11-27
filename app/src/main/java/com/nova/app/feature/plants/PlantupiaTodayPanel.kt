@@ -81,7 +81,7 @@ internal fun PlantupiaTodayPanel(
             PersonalCheckInHero(
                 plant = first,
                 eyebrow = personalCheckInDateLabel(first.nextFollowUpOn, today).uppercase(Locale.ENGLISH),
-                supporting = plant.placement.ifBlank { "Care and observations" },
+                supporting = first.placement.ifBlank { "Care and observations" },
                 onOpen = { onOpenPlant(first) },
             )
 
@@ -125,7 +125,7 @@ internal fun PlantupiaTodayPanel(
             PersonalCheckInHero(
                 plant = upcoming,
                 eyebrow = "NEXT CHECK-IN \u00B7 ${personalCheckInDateLabel(upcoming.nextFollowUpOn, today).uppercase(Locale.ENGLISH)}",
-                supporting = plant.placement.ifBlank { "Care and observations" },
+                supporting = upcoming.placement.ifBlank { "Care and observations" },
                 onOpen = { onOpenPlant(upcoming) },
             )
         }
