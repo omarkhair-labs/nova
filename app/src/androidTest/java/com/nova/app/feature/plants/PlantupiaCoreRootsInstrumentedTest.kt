@@ -235,12 +235,18 @@ class PlantupiaCoreRootsInstrumentedTest {
         scrollToText("CARE & OBSERVATIONS")
         capture("19-owner-plant-care")
 
-        clickText("History")
+        clickText("Overview")
+        // The overview's record entry must reach the same empty private history.
+        clickText("History →")
         compose.onNode(hasText("History") and chapterRole).assertIsSelected()
         scrollToText("No field notes yet")
         capture("20-owner-plant-history")
 
-        clickText("Care")
+        // The empty field book leads to the existing editor without saving a record.
+        clickText("Record care")
+        compose.onNode(hasText("Care") and chapterRole).assertIsSelected()
+        scrollToText("What would you like to record?")
+        clickText("Close care actions ↑")
         clickText("Care guide")
         awaitText("Reviewed care")
         clickText("Read complete care notes")
