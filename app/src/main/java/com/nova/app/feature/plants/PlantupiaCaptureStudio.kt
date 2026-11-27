@@ -423,7 +423,7 @@ private fun PlantupiaCameraPreview(
     Surface(
         enabled = ready && !writing,
         modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),
-        color = if (ready && !writing) PlantupiaColors.forest else PlantupiaColors.softSage,
+        color = if (immersiveHeight != null) Color.Transparent else if (ready && !writing) PlantupiaColors.forest else PlantupiaColors.softSage,
         shape = PlantupiaShapes.card,
         onClick = {
             val file = runCatching {
@@ -471,8 +471,14 @@ private fun PlantupiaCameraPreview(
             }
         },
     ) {
-        val shutterInk = if (ready && !writing) PlantupiaColors.paper else PlantupiaColors.secondaryText
-        Row(Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+        val shutterInk = if (immersiveHeight != null) Color.White.copy(alpha = if (ready && !writing) 1f else .42f) else if (ready && !writing) PlantupiaColors.paper else PlantupiaColors.secondaryText
+        if (immersiveHeight != null) Column(Modifier.fillMaxWidth().padding(4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            Canvas(Modifier.size(62.dp)) {
+                drawCircle(shutterInk, radius = size.minDimension/2f-2.dp.toPx(), style = Stroke(2.dp.toPx()))
+                drawCircle(shutterInk, radius = size.minDimension/2f-8.dp.toPx())
+            }
+            Text(if (writing) "Keeping photograph…" else "Take photograph", color = shutterInk, style = PlantupiaText.supporting)
+        } else Row(Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Canvas(Modifier.size(42.dp)) {
@@ -499,6 +505,8 @@ internal fun PlantupiaAtlasCapture(
     action: String,
     disclosure: String,
     leaf: Boolean = true,
+    reference: com.nova.app.feature.plants.data.PlantupiaCareEvent? = null,
+    onCaptureWithNote: ((Uri, String) -> Boolean)? = null,
     onClose: () -> Unit,
     onCapture: (Uri) -> Boolean,
 ) {
@@ -511,6 +519,9 @@ internal fun PlantupiaAtlasCapture(
     var writing by remember { mutableStateOf(false) }
     val owned = remember { AtomicReference<Uri?>(null) }
     var error by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
+    var showNote by remember { mutableStateOf(false) }
+    var compare by remember(reference?.id) { mutableStateOf(reference != null) }
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         if (uri != null) { candidate = uri; error = "" }
     }
@@ -544,11 +555,21 @@ internal fun PlantupiaAtlasCapture(
                         AsyncImage(model = photo, contentDescription = "Your photograph",
                             contentScale = ContentScale.Fit, onSuccess = { loaded = true }, onError = { loaded = false; error = "This photograph cannot be opened." },
                             modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(18.dp)))
+                        if (onCaptureWithNote != null) {
+                            TextButton(onClick = { showNote = !showNote }) {
+                                Text(if (showNote) "Hide note" else if (note.isBlank()) "Add a note" else "Edit note", color = Color(0xFFDCEDC8))
+                            }
+                            if (showNote) androidx.compose.material3.OutlinedTextField(
+                                value = note, onValueChange = { note = it.take(500) },
+                                label = { Text("What did you notice?", color = Color(0xFFDCEDC8)) },
+                                modifier = Modifier.fillMaxWidth(), maxLines = 2,
+                                colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(focusedTextColor = Color.White, unfocusedTextColor = Color.White))
+                        }
                         Text(disclosure, color = Color(0xFFDCEDC8), style = PlantupiaText.supporting)
                         if (error.isNotBlank()) Text(error, color = Color.White, style = PlantupiaText.supporting)
                         Button(enabled = loaded, onClick = {
                             val fromCamera = owned.get() == photo
-                            if ((!fromCamera || ownedCaptureFile(context.cacheDir, photo)?.isFile == true) && onCapture(photo)) {
+                            if ((!fromCamera || ownedCaptureFile(context.cacheDir, photo)?.isFile == true) && (onCaptureWithNote?.invoke(photo, note.trim()) ?: onCapture(photo))) {
                                 owned.compareAndSet(photo, null)
                                 candidate = null
                             } else error = "This session changed. Close and try again."
@@ -564,8 +585,11 @@ internal fun PlantupiaAtlasCapture(
                     } else {
                         Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()),
                             verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            PlantupiaCameraPreview(if (leaf) CaptureView.LEAF else CaptureView.WHOLE, null, writing,
-                                { writing = it }, leaf, immersiveHeight = viewport) { uri ->
+                            if (reference != null && reference.photoUrl.isNotBlank()) TextButton(onClick = { compare = !compare }, enabled = !writing) {
+                                Text(if (compare) "Hide earlier view · " + reference.observedAt.take(10) else "Match earlier view", color = Color(0xFFDCEDC8))
+                            }
+                            PlantupiaCameraPreview(if (leaf) CaptureView.LEAF else CaptureView.WHOLE, reference?.photoUrl.takeIf { compare }, writing,
+                                { writing = it }, leaf, immersiveHeight = (viewport - if (reference != null) 48.dp else 0.dp).coerceAtLeast(150.dp)) { uri ->
                                 if (ownedCaptureFile(context.cacheDir, uri)?.isFile != true) false
                                 else {
                                     owned.getAndSet(uri)?.takeIf { it != uri }?.let { ownedCaptureFile(context.cacheDir, it)?.delete() }

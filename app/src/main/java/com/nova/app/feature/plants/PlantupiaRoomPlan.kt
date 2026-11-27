@@ -33,13 +33,11 @@ internal fun PlantupiaRoomPlan(
     fun enter(task: PlaceTask, spatial: Boolean = false, survey: Boolean = false) {
         entryTask = task; entrySpatial = spatial; entrySurvey = survey; expanded = true
     }
-    Text("Living Place", style = PlantupiaText.editorialHeading)
-    Text("Understand your room, its light and the plants inside it.", style = PlantupiaText.supporting)
-    PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Home, title = "Explore this place", detail = "Interactive plan and recorded plant positions", onClick = { enter(PlaceTask.EXPLORE) })
-    if (space.canAddPlant) PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Photo, title = "Measure my room", detail = "Use the AR camera or enter measured dimensions", onClick = { enter(PlaceTask.EDIT, survey = true) })
-    PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Home, title = "Explore sunlight", detail = "See where direct sunlight falls", onClick = { enter(PlaceTask.LIGHT) })
-    PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Home, title = "View in 3D", detail = "Recorded geometry and plant placements", onClick = { enter(PlaceTask.EXPLORE, spatial = true) })
-    PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Photo, title = "Build from photographs", detail = "Reconstruct overlapping views when available", onClick = { enter(PlaceTask.SOURCE) })
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Text("Map of your place", style = PlantupiaText.editorialHeading)
+        Text("Recorded layout and plant locations", style = PlantupiaText.supporting)
+        OutlinedButton(onClick = { enter(PlaceTask.EXPLORE) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Explore this place") }
+    }
     if (expanded) {
         var room by remember { mutableStateOf<PlantupiaRoom?>(null) }
         var generation by remember { mutableIntStateOf(0) }
@@ -50,6 +48,7 @@ internal fun PlantupiaRoomPlan(
         var spatialPlan by remember { mutableStateOf(entrySpatial) }
         var launchSurvey by remember { mutableStateOf(entrySurvey) }
         var focusedId by remember { mutableStateOf<String?>(null) }
+        var specialist by remember { mutableStateOf(false) }
         val scope = rememberCoroutineScope()
         fun returnToPlan() {
             task = PlaceTask.EXPLORE
@@ -177,9 +176,9 @@ internal fun PlantupiaRoomPlan(
                             else -> "Tracked features"
                         }
                         Text("$surveyLabel · layout ${current.revision}", style = PlantupiaText.supporting)
-                    } else PlantupiaRecordedSpatialPlan(current, width, length, focusedId) { focusedId = it }
+                    } else PlantupiaRecordedSpatialPlan(current, width, length, focusedId, immersive = true) { focusedId = it }
                 } else if (spatialPlan) {
-                    PlantupiaRecordedSpatialPlan(current, width, length, focusedId) { focusedId = it }
+                    PlantupiaRecordedSpatialPlan(current, width, length, focusedId, immersive = true) { focusedId = it }
                 } else {
                     PlantupiaRoomDrawing(width, length, current.plants, current.windows,
                         selectedPlant = focusedId, onSelectPlant = { focusedId = it })
@@ -228,6 +227,12 @@ internal fun PlantupiaRoomPlan(
                 }
             } else {
                 Text("This space has no recorded room dimensions.", style = PlantupiaText.editorialHeading)
+                Text("You can still explore its plant records. A scan is not required.", style = PlantupiaText.supporting)
+                var count by remember(space.id) { mutableIntStateOf(8) }
+                plants.take(count).forEach { plant ->
+                    PlantupiaPlacePlantRow(plant) { expanded = false; openPlant(plant) }
+                }
+                if (plants.size > count) TextButton(onClick = { count += 8 }) { Text("More plants") }
             }
             HorizontalDivider(color = PlantupiaColors.border)
             Text("Layout", style = PlantupiaText.itemTitle)
@@ -241,8 +246,12 @@ internal fun PlantupiaRoomPlan(
                     Text("Record dimensions or placement")
                 }
             }
-            if (!current.historical && (spatialPlan || width == null || length == null)) {
-                TextButton(enabled = !saving, onClick = { task = PlaceTask.SOURCE }) { Text("Explore photographic reconstruction") }
+            if (!current.historical) {
+                TextButton(enabled = !saving, onClick = { specialist = !specialist }) { Text(if (specialist) "Hide survey tools" else "Specialist survey tools") }
+                if (specialist) {
+                    if (space.canAddPlant) TextButton(enabled = !saving, onClick = { launchSurvey = true; task = PlaceTask.EDIT }) { Text("AR floor survey") }
+                    TextButton(enabled = !saving, onClick = { task = PlaceTask.SOURCE }) { Text("Explore photographic reconstruction") }
+                }
             }
         }
     }

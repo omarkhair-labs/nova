@@ -158,7 +158,14 @@ private fun PlantupiaAccountClientSection(
     var showTeam by remember { mutableStateOf(false) }
     var supportTicketId by remember { mutableStateOf<String?>(null) }
     var photoToView by remember { mutableStateOf<Pair<String, String>?>(null) }
-    var focusedSpaceId by rememberSaveable { mutableStateOf<String?>(null) }
+    var focusedSpaceId by rememberSaveable(accountId) { mutableStateOf<String?>(null) }
+    var spaceDetailOpen by rememberSaveable(accountId) { mutableStateOf(false) }
+    val showSpaceDetail = spaceDetailOpen || spaces.size == 1
+    fun selectSpace(id: String) {
+        if (spaces.none { it.id == id } || !lifetime.isCurrent()) return
+        focusedSpaceId = id
+        spaceDetailOpen = true
+    }
     var plantSearch by rememberSaveable { mutableStateOf("") }
     var collectionFilter by rememberSaveable(accountId, focusedSpaceId) { mutableStateOf("all") }
     var preferGallery by rememberSaveable(accountId) { mutableStateOf(true) }
@@ -300,6 +307,7 @@ private fun PlantupiaAccountClientSection(
         creationAccessNotice = null
         detailRequestGeneration += 1
         val requestGeneration = detailRequestGeneration
+        selectSpace(plant.spaceId)
         openDetailMode = PlantupiaCreateIntent.pending.takeIf { plant.active }
         showNameEditor = false
         showSharedDetailsEditor = false
@@ -483,6 +491,11 @@ private fun PlantupiaAccountClientSection(
         }) { Text("Discard draft") } },
         dismissButton = { TextButton(onClick = { confirmDiscard = false; pendingPlantAfterDiscard = null; pendingTicketAfterDiscard = null }) { Text("Keep editing") } })
 
+    BackHandler(enabled = section == PlantupiaPrimarySection.PLANTS && selectedPlant == null && showSpaceDetail && spaces.size > 1 && PlantupiaCreateIntent.pending == null) {
+        spaceDetailOpen = false
+        plantSearch = ""
+        onClosePlant()
+    }
     BackHandler(enabled = selectedPlant != null) {
         if (!returnToCalendar && openDetailMode != PlantupiaCreateMode.QUESTION &&
             selectedDetailChapter != PlantupiaDetailChapter.OVERVIEW.name
@@ -508,6 +521,17 @@ private fun PlantupiaAccountClientSection(
     val handoverTarget = PlantupiaHandoverNavigation.target
     LaunchedEffect(handoverTarget, refreshVersion) {
         refresh()
+    }
+    val spaceOpen = PlantupiaPlaceOpenSignal.target
+    LaunchedEffect(spaceOpen, loading, error, spaces) {
+        val destination = spaceOpen ?: return@LaunchedEffect
+        if (section != PlantupiaPrimarySection.PLANTS || loading || error != null) return@LaunchedEffect
+        PlantupiaPlaceOpenSignal.consume()
+        if (destination.first == accountId && spaces.any { it.id == destination.second } && selectedPlant == null) {
+            selectSpace(destination.second)
+            plantSearch = ""
+            onOpenPlant()
+        }
     }
     val supportPush = PlantupiaSupportPushSignal.target
     val plantOpen = PlantupiaPlantOpenSignal.target
@@ -556,7 +580,7 @@ private fun PlantupiaAccountClientSection(
         // authenticated server response.
         if (loading || error != null) return@LaunchedEffect
         if (handoverTarget?.first == accountId && spaces.any { it.id == handoverTarget.second }) {
-            focusedSpaceId = handoverTarget.second
+            selectSpace(handoverTarget.second)
             plantSearch = ""
             PlantupiaHandoverNavigation.consume()
             return@LaunchedEffect
@@ -564,6 +588,7 @@ private fun PlantupiaAccountClientSection(
         val allowed = resolveFocusedSpace(spaces, focusedSpaceId)
         if (focusedSpaceId != allowed?.id) {
             focusedSpaceId = allowed?.id
+            spaceDetailOpen = false
             plantSearch = ""
         }
     }
@@ -581,7 +606,6 @@ private fun PlantupiaAccountClientSection(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         val firstArrival = !loading && error == null && spaces.isEmpty() && plants.isEmpty()
-        val atlasPlants = plants.filter { plant -> plant.active && spaces.any { it.id == plant.spaceId && it.livingSystemsEnabled } }
         if (selectedPlant == null) {
             if (section == PlantupiaPrimarySection.PLANTS) {
                 // The schedule belongs to the My Plants heading, not a floating fourth
@@ -636,16 +660,12 @@ private fun PlantupiaAccountClientSection(
                     val dueCount = scheduledPlantCheckIns(plants).count {
                         !LocalDate.parse(it.nextFollowUpOn).isAfter(LocalDate.now())
                     }
-                    if (atlasPlants.isNotEmpty()) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text("Today", style = PlantupiaText.pageHeading, modifier = Modifier.weight(1f))
                         TextButton(onClick = { PlantupiaCareCalendarOpenSignal.open(accountId, fromToday = true) }) {
                             Text(if (dueCount == 0) "No check-ins due" else "$dueCount due", color = deepGreen)
                         }
-                    } else PlantupiaTodayMasthead(
-                        activeCount = plants.count { it.active },
-                        dueCount = dueCount,
-                        onOpenCalendar = { PlantupiaCareCalendarOpenSignal.open(accountId, fromToday = true) },
-                    )
+                    }
                 } else {
                     Text("Today", style = PlantupiaText.pageHeading)
                 }
@@ -719,14 +739,11 @@ private fun PlantupiaAccountClientSection(
             }
             // Quiet Care: real persisted inspections and check-ins before optional help.
             if (!loading && error == null && section == PlantupiaPrimarySection.TODAY && !firstArrival) {
-                if (atlasPlants.isNotEmpty()) PlantupiaAtlasHome(atlasPlants, spaces, repository,
-                    refreshVersion = refreshVersion,
-                    onRecordChanged = { scope.launch { refresh() } },
-                    onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
-                    onOpenPlace = { space -> focusedSpaceId = space.id; NovaRootNavigationSignal.request(NovaRootTab.Plants) },
+                PlantupiaPlaceIndex(
+                    spaces = spaces, plants = plants, featured = true,
+                    openSpace = { space -> PlantupiaPlaceOpenSignal.open(accountId, space.id) },
+                    openPlant = { plant -> scope.launch { openPlant(plant) } },
                 )
-                // Actual company-approved inspections take priority over a
-                // duplicated empty personal check-in message on the first fold.
                 PlantupiaDemoHome(
                     repository, plants, refreshVersion = refreshVersion,
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },
@@ -770,15 +787,7 @@ private fun PlantupiaAccountClientSection(
                         }
                     }
                 }
-                // The empty schedule does not mean an empty living collection.
-                // Keep immediate care and add actions above this optional portrait.
-                if (scheduledPlantCheckIns(plants).isEmpty()) {
-                    todayCollectionFocus(plants)?.let { focusPlant ->
-                        TodayCollectionPortrait(focusPlant) {
-                            PlantupiaPlantOpenSignal.open(accountId, focusPlant.id, PlantupiaDetailChapter.OVERVIEW)
-                        }
-                    }
-                }
+                // The place index already presents the actual collection.
                 // Community is a contextual relationship, no longer a permanent bottom tab.
                 // Nothing from My Plants is shared without the separate public composer.
                 Surface(
@@ -802,53 +811,30 @@ private fun PlantupiaAccountClientSection(
                 }
             }
             if (section == PlantupiaPrimarySection.PLANTS) {
-            // Pass 07: show the authentic place before AI and creation controls.
-            // An empty or failed API must never display stock customer imagery.
-            if (!loading && error == null && spaces.isNotEmpty()) {
-                PlantupiaSpaceSwitcher(
-                    spaces = spaces,
-                    plants = plants,
-                    focusedSpaceId = focusedSpaceId,
-                    onSelectSpace = { id ->
-                        focusedSpaceId = id
-                        plantSearch = ""
-                    },
-                )
+            if (!loading && error == null && spaces.isNotEmpty() && !showSpaceDetail) {
+                PlantupiaPlaceIndex(spaces, plants, featured = false,
+                    openSpace = { space -> selectSpace(space.id); plantSearch = ""; onOpenPlant() },
+                    openPlant = { plant -> scope.launch { openPlant(plant) } })
+            }
+            if (!loading && error == null && spaces.isNotEmpty() && showSpaceDetail) {
                 val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
                 val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
-                // Separate authentic plant media from the identity of its private place.
-                val heroPlant = focusedPlants.firstOrNull { it.coverPhoto.isNotBlank() }
-                val heroPhoto = heroPlant?.coverPhoto.orEmpty()
-                var heroPhotoLoaded by remember(featured.id, heroPhoto) { mutableStateOf(false) }
-                val photoHero = heroPhoto.isNotBlank() && heroPhotoLoaded
-                Surface(color = PlantupiaColors.paper, shape = PlantupiaShapes.inset,
-                    modifier = Modifier.fillMaxWidth(), border = BorderStroke(1.dp, PlantupiaColors.border)) {
-                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("YOUR PLACE",style = PlantupiaText.sectionLabel)
-                        Text(featured.name, style = PlantupiaText.display.copy(fontSize = 30.sp,lineHeight = 36.sp),
-                            modifier = Modifier.semantics { heading() })
-                        if (featured.location.isNotBlank()) Text(featured.location, style = PlantupiaText.body)
-                        Text(if (focusedPlants.size == 1) "1 active plant" else "${focusedPlants.size} active plants",
-                            style = PlantupiaText.supporting)
-                        if (heroPhoto.isNotBlank()) {
-                            PlantupiaEvidencePhoto(
-                                photoUrl = heroPhoto, photoDescription = "Uploaded photo of " + heroPlant?.name.orEmpty(),
-                                modifier = Modifier.fillMaxWidth().height(136.dp), cornerRadius = 6.dp,
-                                onPhotoLoadChanged = { heroPhotoLoaded = it })
-                            if (photoHero) Text(spaceHeroMediaEyebrow(true), style = PlantupiaText.supporting)
-                        }
-                    }
+                if (spaces.size > 1) TextButton(onClick = { spaceDetailOpen = false; plantSearch = ""; onClosePlant() }) {
+                    Text("← All spaces", color = deepGreen)
                 }
-                // Editing site context belongs with its actual chosen space,
-                // not beneath unrelated AI/Create controls and the social feed.
+                PlantupiaPlaceHeading(featured, focusedPlants,
+                    onOpenPhoto = { url, name -> photoToView = url to name })
                 if (featured.livingSystemsEnabled) {
-                    PlantupiaRoomPlan(featured, plants.filter { it.spaceId == featured.id && it.active }, repository) { plant ->
+                    PlantupiaRoomPlan(featured, focusedPlants, repository) { plant ->
                         scope.launch { openPlant(plant) }
                     }
                 }
-                PlantupiaSpaceDetailsEditor(
-                    space = featured,
-                    repository = repository,
+                var manageSpace by remember(featured.id) { mutableStateOf(false) }
+                TextButton(onClick = { manageSpace = !manageSpace }) {
+                    Text(if (manageSpace) "Close space settings" else "Space settings", color = deepGreen)
+                }
+                if (manageSpace) PlantupiaSpaceDetailsEditor(
+                    space = featured, repository = repository,
                     onSaved = { scope.launch { refresh() } },
                 )
             }
@@ -858,7 +844,7 @@ private fun PlantupiaAccountClientSection(
                 if (spaces.isNotEmpty()) {
                     // Collection controls below own the inventory heading.
                 }
-                val focused = resolveFocusedSpace(spaces, focusedSpaceId)
+                val focused = resolveFocusedSpace(spaces, focusedSpaceId).takeIf { showSpaceDetail && error == null }
                 if (focused != null) {
                     val sitePlants = plants.filter { it.spaceId == focused.id && it.active }
                     if (sitePlants.isEmpty()) {
@@ -977,7 +963,7 @@ private fun PlantupiaAccountClientSection(
                     }
                 }
             }
-            val archiveSpace = resolveFocusedSpace(spaces, focusedSpaceId)
+            val archiveSpace = resolveFocusedSpace(spaces, focusedSpaceId).takeIf { showSpaceDetail && error == null }
             val archivedUnits = plants.filter { !it.active && it.spaceId == archiveSpace?.id }
             if (archivedUnits.isNotEmpty() && archiveSpace != null) {
                 TextButton(onClick = {
@@ -1040,6 +1026,7 @@ private fun PlantupiaAccountClientSection(
                     val generation = detailRequestGeneration
                     val current = { lifetime.isCurrent() && generation == detailRequestGeneration && currentPlantId == null }
                     focusedSpaceId = spaceId
+                    spaceDetailOpen = true
                     plantSearch = ""
                     scope.launch {
                         refresh(current)
@@ -1124,6 +1111,23 @@ private fun PlantupiaAccountClientSection(
                         }
                     })
             }
+            val livingEnabled = spaces.any { it.id == selectedPlant.spaceId && it.livingSystemsEnabled }
+            var observePlant by remember(selectedPlant.id, repository) { mutableStateOf(false) }
+            var repeatReference by remember(selectedPlant.id, repository) { mutableStateOf<PlantupiaCareEvent?>(null) }
+            fun beginObservation(reference: PlantupiaCareEvent? = null) {
+                if (!saving && selectedPlant.active && selectedPlant.canRecord && lifetime.isCurrent()) {
+                    repeatReference = reference
+                    observePlant = true
+                }
+            }
+            if (observePlant && lifetime.isCurrent() && selectedPlant.active && selectedPlant.canRecord) {
+                PlantupiaObservationRoute(selectedPlant, repository, repeatReference,
+                    close = { changed ->
+                        observePlant = false; repeatReference = null
+                        if (changed && lifetime.isCurrent() && currentPlantId == selectedPlant.id)
+                            scope.launch { reloadPlantRecords(selectedPlant.id) }
+                    })
+            }
             val activeChapter = runCatching {
                 PlantupiaDetailChapter.valueOf(selectedDetailChapter)
             }.getOrDefault(PlantupiaDetailChapter.OVERVIEW)
@@ -1201,35 +1205,17 @@ private fun PlantupiaAccountClientSection(
                     color = muted, fontSize = 12.sp,
                 )
             }
-            // Genuine specimen identity and photo lead the care experience.
             val meta = listOf(selectedPlant.placement, selectedPlant.species).filter(String::isNotBlank).joinToString(" · ")
             PlantupiaSignatureIdentity(
                 name = selectedPlant.name, context = meta, identity = selectedPlant.identityState,
                 qa = BuildConfig.BUILD_TYPE == "qa",
             )
-            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
-                if (spaces.any { it.id == selectedPlant.spaceId && it.livingSystemsEnabled } && selectedPlant.active) {
-                    PlantupiaLensEntry(listOf(selectedPlant), repository) {
-                        scope.launch { if (currentPlantId == selectedPlant.id && lifetime.isCurrent()) reloadPlantRecords(selectedPlant.id) }
-                    }
-                }
-                if (selectedPlant.canRecord) {
-                    Button(
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
-                        onClick = { openCareComposer() },
-                    ) { Text("Record care", color = white) }
-                } else {
-                    Text("View-only plant · you can read the guide and history.",
-                        style = PlantupiaText.supporting)
-                }
-            }
             if (selectedPlant.coverPhoto.isNotBlank()) {
                 PlantupiaEvidencePhoto(
                     photoUrl = selectedPlant.coverPhoto,
                     photoDescription = "Uploaded photograph of " + selectedPlant.name,
-                    modifier = Modifier.fillMaxWidth().height(244.dp),
-                    cornerRadius = 18.dp,
+                    modifier = Modifier.fillMaxWidth().height(308.dp),
+                    cornerRadius = 3.dp,
                     onOpenPhoto = { photoToView = selectedPlant.coverPhoto to selectedPlant.name },
                 )
                 if (selectedPlant.active && selectedPlant.canRecord) {
@@ -1286,6 +1272,28 @@ private fun PlantupiaAccountClientSection(
                                 style = PlantupiaText.supporting,
                             )
                         }
+                    }
+                }
+            }
+            if (openDetailMode != PlantupiaCreateMode.QUESTION) {
+                if (selectedPlant.active && selectedPlant.canRecord) {
+                    if (livingEnabled) Button(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = deepGreen),
+                        onClick = { beginObservation() }, enabled = !saving,
+                    ) { Text("Observe this plant", color = white) }
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        onClick = { openCareComposer() },
+                    ) { Text("Record care", color = deepGreen) }
+                } else Text("View-only plant · you can read the guide and history.", style = PlantupiaText.supporting)
+                if (livingEnabled && selectedPlant.active) {
+                    var advanced by remember(selectedPlant.id) { mutableStateOf(false) }
+                    TextButton(onClick = { advanced = !advanced }) {
+                        Text(if (advanced) "Close visual tools" else "More visual tools", color = deepGreen)
+                    }
+                    if (advanced) PlantupiaLensEntry(listOf(selectedPlant), repository) {
+                        scope.launch { if (currentPlantId == selectedPlant.id && lifetime.isCurrent()) reloadPlantRecords(selectedPlant.id) }
                     }
                 }
             }
@@ -2347,6 +2355,11 @@ private fun PlantupiaAccountClientSection(
                 }
             }
             PlantupiaHistoryDisplayState.RECORDED -> {
+                if (showFullHistory && livingEnabled) {
+                    val reference = recordedPlantPhotos(events).firstOrNull()
+                    PlantupiaChronologyHeader(events, onOpenPhoto = { event -> photoToView = event.photoUrl to selectedPlant.name },
+                        onRepeat = if (selectedPlant.active && selectedPlant.canRecord && reference != null) ({ beginObservation(reference) }) else null)
+                }
                 if (showFullHistory) key(selectedPlant.id, repository) {
                     PlantupiaPhotoIndex(
                         events = events,

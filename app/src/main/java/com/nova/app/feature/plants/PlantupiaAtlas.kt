@@ -258,7 +258,8 @@ private fun atlasPoints(points: List<IntOffset>) = JSONArray().apply { points.fo
 
 /** In-place evidence reveal on the actual retained image. Existing signed server contract is preserved. */
 @Composable
-private fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: PlantupiaRepository, close: (Boolean) -> Unit) {
+internal fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: PlantupiaRepository,
+    note: String = "", autoAnalyse: Boolean = true, close: (Boolean) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var eventId by remember { mutableStateOf<String?>(null) }
@@ -274,6 +275,7 @@ private fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plantu
     var foreground by remember { mutableStateOf<IntOffset?>(null) }
     var background by remember { mutableStateOf<IntOffset?>(null) }
     var refining by remember { mutableStateOf(false) }
+    var showOutline by remember { mutableStateOf(true) }
     var tryNeural by remember { mutableStateOf(true) }
     var part by remember { mutableStateOf("leaf") }
     val submission = remember(proposal?.token, part) { UUID.randomUUID().toString() }
@@ -301,7 +303,7 @@ private fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plantu
         message = ""
         try {
             if (eventId == null) {
-                when (val result = repository.recordWithPhoto(plant.id, "observation", "", uri)) {
+                when (val result = repository.recordWithPhoto(plant.id, "observation", note, uri)) {
                     is ApiResult.Failure -> { message = result.message; return@LaunchedEffect }
                     is ApiResult.Success -> {
                         if (!repository.isCurrentSession()) return@LaunchedEffect
@@ -323,7 +325,7 @@ private fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plantu
                     val quality = result.value.optJSONObject("quality")
                     val w = quality?.optInt("width") ?: 0
                     val h = quality?.optInt("height") ?: 0
-                    if (w > 0 && h > 0 && result.value.optBoolean("can_suggest_region")) {
+                    if (autoAnalyse && w > 0 && h > 0 && result.value.optBoolean("can_suggest_region")) {
                         phase = "Finding the visible boundary"
                         when (val answer = repository.fieldEvidence(plant.id, id, "suggest-region/", JSONObject().put("mode", "automatic"))) {
                             is ApiResult.Failure -> message = answer.message
@@ -332,7 +334,7 @@ private fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plantu
                                 if (proposal == null) { message = "Tap the part, then its background."; refining = true }
                             }
                         }
-                    } else message = "Photo saved. Outline analysis is unavailable for this photograph."
+                    } else if (w <= 0 || h <= 0 || !result.value.optBoolean("can_suggest_region")) message = "Photo saved. Outline analysis is unavailable for this photograph."
                 }
             }
         } finally { busy = false }
@@ -376,7 +378,7 @@ private fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plantu
                         val scale = minOf(size.width/width,size.height/height)
                         val origin = Offset((size.width-width*scale)/2,(size.height-height*scale)/2)
                         fun project(p: IntOffset) = origin + Offset(p.x*scale,p.y*scale)
-                        if (outline.size >= 3) {
+                        if (showOutline && outline.size >= 3) {
                             val path = Path().apply { val first=project(outline.first()); moveTo(first.x,first.y)
                                 outline.drop(1).forEach { val p=project(it);lineTo(p.x,p.y) };close() }
                             drawPath(path, atlasLime.copy(alpha = .22f*reveal.value))
@@ -394,6 +396,12 @@ private fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plantu
                             LinearProgressIndicator(Modifier.fillMaxWidth(), color = atlasLime)
                             Text(phase, color = Color.White, style = PlantupiaText.itemTitle)
                         }
+                    }
+                }
+                if (!busy && eventId != null) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("Private observation saved", color = atlasMint, style = PlantupiaText.supporting, modifier = Modifier.weight(1f))
+                    if (outline.isNotEmpty() && !refining) TextButton(onClick = { showOutline = !showOutline }) {
+                        Text(if (showOutline) "Original" else "Boundary", color = atlasMint)
                     }
                 }
                 // Actions live immediately beside the result, never below a history form.
@@ -463,9 +471,10 @@ private fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plantu
                         }
                         !busy -> {
                             if (message.isNotBlank()) Text(message,color=Color.White,style=PlantupiaText.supporting)
-                            if (evidence?.optBoolean("can_suggest_region")==true && width>0 && height>0)
-                                TextButton(onClick={refining=true;foreground=null;background=null}) {Text("Choose a visible part",color=atlasMint)}
-                            else TextButton(onClick={attempt++}) {Text("Retry",color=atlasMint)}
+                            if (evidence?.optBoolean("can_suggest_region")==true && width>0 && height>0) {
+                                Button(enabled = loaded, onClick={refining=true;foreground=null;background=null;showOutline=true}, modifier = Modifier.fillMaxWidth()) {Text("Select a detail")}
+                                TextButton(enabled = loaded, onClick = { busy=true;showOutline=true;scope.launch { try { suggest(JSONObject().put("mode","automatic")); refining=proposal==null } finally {busy=false} } }) { Text("Find the visible outline", color=atlasMint) }
+                            } else if (eventId == null || evidence == null) TextButton(onClick={attempt++}) {Text("Retry",color=atlasMint)}
                         }
                     }
                     if (message.isNotBlank() && (candidate!=null || refining || saved!=null)) Text(message,color=atlasMint,style=PlantupiaText.supporting)
