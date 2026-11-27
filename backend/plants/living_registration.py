@@ -122,13 +122,10 @@ def align_retained_photos(before, after, before_box, after_box):
     ratios = [im.width/im.height for im in (before, after)]
     if not .45 <= ratios[0] <= 2.25 or abs(ratios[1]/ratios[0]-1) > .005:
         return abstain("different_frame_geometry")
-    scale = min(1., MAX_SIDE / max(before.size), MAX_SIDE / max(after.size))
+    # Use the largest common bounded frame without upsampling either original.
+    scale = min(1., MAX_SIDE / max(before.size),
+                after.width / before.width, after.height / before.height)
     w, h = round(before.width*scale), round(before.height*scale)
-    # Match the earlier image geometry without unnecessarily upsampling a
-    # lower-resolution second photo.
-    if w > after.width or h > after.height:
-        factor = min(after.width/w, after.height/h)
-        w, h = round(w*factor), round(h*factor)
     if min(w,h) < 240:
         return abstain("insufficient_image_resolution")
 
