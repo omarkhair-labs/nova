@@ -261,6 +261,12 @@ internal fun InspectionEvidence(result: JSONObject, symptom: String) {
         Text("Room position at this visit · " + place.optString("x_m") + ", " +
             place.optString("y_m") + " m · layout " + place.optInt("revision"),
             style = PlantupiaText.supporting)
+        val distance = place.optDouble("nearest_window_distance_m")
+        if (distance.isFinite() && distance >= 0) {
+            Text(java.lang.String.format(java.util.Locale.ROOT,"Nearest recorded window centre · %.2f m",distance),
+                style = PlantupiaText.supporting)
+        } else Text("No window distance recorded in this layout.",style = PlantupiaText.supporting)
+        Text("Reported geometry · light not measured.",style = PlantupiaText.supporting)
     }
     if (result.optString("species_basis") == "unknown") {
         Text("Plant type is unknown.", style = PlantupiaText.supporting)

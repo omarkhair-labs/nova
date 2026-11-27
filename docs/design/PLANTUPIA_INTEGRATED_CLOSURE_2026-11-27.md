@@ -15,8 +15,8 @@ Scope: one native Android app plus required isolated Django APIs, on PR #333. No
 | ARCore | Floor corners and bounded raw-depth surface observations | Tape comparison, tracking loss, physical supported phone |
 | 3D | Private 5–8-view reconstruction, textured/stereo evidence, layout revision | Real room and plant capture; thin foliage, reconstruction gaps, metric/visual distinction |
 | Environment | Direct-ray solar scenario, opaque screen shadow, two-position sampled comparison; optional local phone ambient-light sensor | Physical room/obstruction comparison and reference light meter; device availability, glazing and indirect light unmodelled; no simulated lux or plant suitability |
-| Twin | Versioned room, plant identity, placement and history in connected views | Historical consistency and live updates on real scenario |
-| Ask | Explicit sharing of recorded evidence, reviewed guide and layout, provider/consent fallback | Isolated authorized provider and multimodal evidence boundary; no unsupported claims |
+| Twin | Versioned room, plant identity, placement and history in connected views; common as-of placement projection in Field Notes and Ask | Physical historical consistency and live updates on real scenario |
+| Ask | Explicit sharing of recorded evidence, reviewed guide and same as-of room projection as Field Notes; provider/consent fallback | Isolated authorized provider and multimodal evidence boundary; no unsupported claims |
 
 ## B — one experience
 
@@ -52,3 +52,8 @@ A selected saved plant outline can request the existing inspection service using
 Keep the original solar position/one-aperture model and saved revision. In the same daylight workspace, keep a reference point (the recorded plant placement when interior) and tap a hypothetical alternative. Both share the selected date, plane height, opening, orientation, and optional reported screen. Counts and paired timelines use the same actual half-hour sample instants; they are not exposure hours, predicted lux or a recommendation. Alternative positions never write room placements. The backend verifies ceiling constraints when a room height is recorded and uses ray intersection at the opaque screen for point answers, independently of grazing polygon drawing. This is a bounded one-window geometric scenario, not a complete radiometric model.
 
 A separate explicit 6-second local Android TYPE_LIGHT check shows actual sensor-reported values and range, with event count and low-accuracy/saturation warnings. No camera-derived lux, no sensor fallback estimate, no location request, no network or retained reading. Stale/out-of-range events are discarded; stop on exit/pause; a device with no compatible sensor or no fresh event is reported. This is uncalibrated phone illuminance, not canopy light/PAR/DLI or a historical reading. Actual A26 availability and comparison with a reference meter remain unverified. No automatic placement or diagnosis.
+
+
+## Increment: one historical placement projection
+
+Field Notes and Ask now derive placement from one authorized plant/current-space helper, selecting the latest room revision recorded on or before the actual visit. A plant absent from that revision is not recovered from older layouts. Field Notes shows the reported coordinates, revision and nearest recorded window centre if present. Ask receives a reduced projection (visit/layout date, revision, distance or null, and not-measured illuminance) only with the existing explicit evidence and guide/layout consent. No room ID, coordinates, other plants, temporary phone readings, or inferred exposure is sent. The existing provider is text-only; unit tests mock transport, and live-provider acceptance remains a separate authorized gate.

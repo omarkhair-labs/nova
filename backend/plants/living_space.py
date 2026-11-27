@@ -95,3 +95,36 @@ def living_snapshot(room, observations):
         ],
         "live_sync": False,
     }
+
+
+def placement_at_visit(plant, observed_at):
+    """One shared projection of the reported layout known at a saved visit.
+
+    The caller must first authorize the plant. Only its current accessible
+    space is queried; no older room is searched, and absence from the latest
+    applicable revision is not filled in using an obsolete placement.
+    """
+    layout = plant.space.room_revisions.filter(created_at__lte=observed_at).order_by("-revision").first()
+    if layout is None:
+        return None
+    geometry = layout.geometry
+    if geometry.get("room_id") != str(plant.space_id):
+        return None
+    points = [p for p in geometry.get("plants", []) if p.get("plant_id") == str(plant.pk)]
+    if len(points) != 1:
+        return None
+    point = points[0]
+    try:
+        x, y = _number(point["x_m"]), _number(point["y_m"])
+        if not 0 <= x <= _number(geometry["width_m"]) or not 0 <= y <= _number(geometry["length_m"]):
+            return None
+        distance = point.get("nearest_window_distance_m")
+        if distance is not None:
+            distance = _number(distance)
+            if distance < 0:
+                distance = None
+    except (KeyError, TypeError, ValueError):
+        return None
+    return {"source": "reported_layout", "revision": layout.revision,
+            "recorded_at": layout.created_at, "x_m": x, "y_m": y,
+            "nearest_window_distance_m": distance, "illuminance": "not_measured"}

@@ -129,6 +129,47 @@ class PlantAssistantSecurityTests(TestCase):
             self.assertEqual([a["projected_area_cm2"] for a in context["accepted_projected_areas"]], [2.5])
             self.assertNotIn("source_sha256", str(context))
 
+    @override_settings(PLANTUPIA_LIVING_SYSTEMS_ENABLED=True)
+    def test_historical_layout_is_shared_only_with_consent_and_matches_field_notes(self):
+        from .models import RoomRevision
+        from .living_space import build_room
+        now = timezone.now()
+        def layout(revision, days, plants, windows):
+            value = RoomRevision.objects.create(space=self.space,actor=self.owner,revision=revision,
+                geometry=build_room(str(self.space.pk),4.,3.,plants,windows))
+            RoomRevision.objects.filter(pk=value.pk).update(created_at=now-timedelta(days=days))
+        position = {"plant_id":str(self.plant.pk),"x_m":2.,"y_m":1.}
+        layout(1,5,[position],[{"id":"north","x_m":2.,"y_m":0.}])
+        layout(2,3,[{**position,"x_m":3.}],[{"id":"east","x_m":4.,"y_m":1.}])
+        layout(3,1,[],[])
+        old = PlantEvent.objects.create(plant=self.plant,actor=self.owner,kind="observation",observed_at=now-timedelta(days=4))
+        removed = PlantEvent.objects.create(plant=self.plant,actor=self.owner,kind="observation",observed_at=now)
+        self.client.force_authenticate(self.owner)
+        field = self.client.post(reverse("plantupia-field-evidence",args=[self.plant.pk,old.pk]),
+                                 {"symptom":"uncertain"},format="json").data["placement_at_observation"]
+        self.assertEqual((field["revision"],field["nearest_window_distance_m"]),(1,1.0))
+        self.assertIsNone(self.client.post(reverse("plantupia-field-evidence",args=[self.plant.pk,removed.pk]),
+                             {"symptom":"uncertain"},format="json").data["placement_at_observation"])
+        body = {"message":"What was the recorded placement?", "plant_id":str(self.plant.pk),
+                "observed_on":timezone.localdate(old.observed_at).isoformat(),
+                "include_my_plant_context":True,"include_recorded_evidence":True}
+        history = reverse("plantupia-assistant-history")
+        with patch.dict(os.environ,{"PLANTUPIA_AI_ENABLED":"1","PLANTUPIA_AI_API_KEY":"test-only"}), patch(
+            "plants.assistant.call_provider",return_value="Check the recorded layout."
+        ) as provider:
+            self.assertEqual(self.client.post(history,body,format="json").status_code,200)
+            self.assertNotIn("reported_placement_at_visit",provider.call_args.args[1])
+            self.assertEqual(self.client.post(history,{**body,"include_guide_and_layout":True},format="json").status_code,200)
+            context=provider.call_args.args[1]["reported_placement_at_visit"]
+            self.assertEqual(context["layout_revision"],field["revision"])
+            self.assertEqual(context["nearest_recorded_window_m"],field["nearest_window_distance_m"])
+            self.assertEqual(context["illuminance"],"not_measured")
+            self.assertNotIn("x_m",context)
+            self.assertNotIn("room_id",context)
+            body["observed_on"]=timezone.localdate(removed.observed_at).isoformat()
+            self.assertEqual(self.client.post(history,{**body,"include_guide_and_layout":True},format="json").status_code,200)
+            self.assertNotIn("reported_placement_at_visit",provider.call_args.args[1])
+
     def test_multi_turn_history_is_validated_and_bounded(self):
         self.client.force_authenticate(user=self.owner)
         with patch.dict(

@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
-from .living_space import build_room
+from .living_space import build_room, placement_at_visit
 from .living_regions import measure_trace, polygon
 from .living_segmentation import (
     AUTO_METHOD, METHOD as OUTLINE_METHOD, NoOutline, VisionUnavailable,
@@ -261,14 +261,7 @@ class FieldEvidenceView(ResearchView):
         species_id = plant.verified_species_id or plant.selected_species_id
         guide = CareGuideVersion.objects.filter(species_id=species_id, published=True).order_by("-version").first()
         maintenance = plant.events.filter(kind=PlantEvent.Kind.CARE, observed_at__lte=event.observed_at)
-        layout = plant.space.room_revisions.filter(created_at__lte=event.observed_at).order_by("-revision").first()
-        placement = None
-        if layout:
-            # Only this plant in the layout recorded by the date of the visit.
-            point = next((p for p in layout.geometry["plants"] if p["plant_id"] == str(plant.pk)), None)
-            if point:
-                placement = {"source": "reported_layout", "revision": layout.revision,
-                             "recorded_at": layout.created_at, "x_m": point["x_m"], "y_m": point["y_m"]}
+        placement = placement_at_visit(plant, event.observed_at)
 
         return Response({"event_id": event.pk, "observed_at": event.observed_at, "input_source": "saved_outline" if outline_evidence is not None else "user_report",
                          "photo_evidence": outline_evidence,
