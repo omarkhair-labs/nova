@@ -1,6 +1,9 @@
 package com.nova.app.feature.plants
 
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -720,7 +723,6 @@ private fun PlantupiaAccountClientSection(
                     plants = plants,
                     onScheduleDay = { day -> PlantupiaCareCalendarOpenSignal.open(accountId, fromToday = true, day = day) },
                     onOpenPlant = { plant -> PlantupiaPlantOpenSignal.open(accountId, plant.id, PlantupiaDetailChapter.CARE) },
-                    onOpenCollectionPlant = { plant -> PlantupiaPlantOpenSignal.open(accountId, plant.id, PlantupiaDetailChapter.OVERVIEW) },
                 )
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                     val actionButtons: @Composable (Modifier) -> Unit = { actionModifier ->
@@ -753,6 +755,15 @@ private fun PlantupiaAccountClientSection(
                     } else {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                             actionButtons(Modifier.weight(1f))
+                        }
+                    }
+                }
+                // The empty schedule does not mean an empty living collection.
+                // Keep immediate care and add actions above this optional portrait.
+                if (scheduledPlantCheckIns(plants).isEmpty()) {
+                    todayCollectionFocus(plants)?.let { focusPlant ->
+                        TodayCollectionPortrait(focusPlant) {
+                            PlantupiaPlantOpenSignal.open(accountId, focusPlant.id, PlantupiaDetailChapter.OVERVIEW)
                         }
                     }
                 }
@@ -798,37 +809,22 @@ private fun PlantupiaAccountClientSection(
                 val heroPhoto = heroPlant?.coverPhoto.orEmpty()
                 var heroPhotoLoaded by remember(featured.id, heroPhoto) { mutableStateOf(false) }
                 val photoHero = heroPhoto.isNotBlank() && heroPhotoLoaded
-                Surface(color = PlantupiaColors.paper, shape = RoundedCornerShape(8.dp),
+                Surface(color = PlantupiaColors.paper, shape = PlantupiaShapes.inset,
                     modifier = Modifier.fillMaxWidth(), border = BorderStroke(1.dp, PlantupiaColors.border)) {
-                    Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (photoHero) Text(spaceHeroMediaEyebrow(true), style = PlantupiaText.supporting)
-                        BoxWithConstraints(Modifier.fillMaxWidth()) {
-                            val wide = maxWidth / LocalDensity.current.fontScale >= 245.dp
-                            val identity: @Composable () -> Unit = {
-                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Text(featured.name, style = PlantupiaText.editorialHeading)
-                                    if (featured.location.isNotBlank()) Text(featured.location, style = PlantupiaText.supporting)
-                                    Text(if (focusedPlants.size == 1) "1 active plant" else "${focusedPlants.size} active plants",
-                                        style = PlantupiaText.body)
-                                }
-                            }
-                            val portrait: @Composable (Modifier) -> Unit = { m ->
-                                if (heroPhoto.isNotBlank()) PlantupiaEvidencePhoto(
-                                    photoUrl = heroPhoto, photoDescription = "Uploaded photo of " + heroPlant?.name.orEmpty(),
-                                    modifier = m, compact = true, cornerRadius = 6.dp,
-                                    onPhotoLoadChanged = { heroPhotoLoaded = it })
-                                else PlantupiaEditionArt("identity", m)
-                            }
-                            if (wide) Row(verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Box(Modifier.weight(1f)) { identity() }
-                                portrait(Modifier.size(84.dp))
-                            } else {
-                                identity()
-                                if (heroPhoto.isNotBlank()) portrait(Modifier.fillMaxWidth().height(108.dp))
-                            }
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text("YOUR PLACE",style = PlantupiaText.sectionLabel)
+                        Text(featured.name, style = PlantupiaText.display.copy(fontSize = 30.sp,lineHeight = 36.sp),
+                            modifier = Modifier.semantics { heading() })
+                        if (featured.location.isNotBlank()) Text(featured.location, style = PlantupiaText.body)
+                        Text(if (focusedPlants.size == 1) "1 active plant" else "${focusedPlants.size} active plants",
+                            style = PlantupiaText.supporting)
+                        if (heroPhoto.isNotBlank()) {
+                            PlantupiaEvidencePhoto(
+                                photoUrl = heroPhoto, photoDescription = "Uploaded photo of " + heroPlant?.name.orEmpty(),
+                                modifier = Modifier.fillMaxWidth().height(136.dp), cornerRadius = 6.dp,
+                                onPhotoLoadChanged = { heroPhotoLoaded = it })
+                            if (photoHero) Text(spaceHeroMediaEyebrow(true), style = PlantupiaText.supporting)
                         }
-                        // No duplicate private-space label.
                     }
                 }
                 // Editing site context belongs with its actual chosen space,
@@ -878,7 +874,8 @@ private fun PlantupiaAccountClientSection(
                     } else {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Plants · ${sitePlants.size}", style = PlantupiaText.itemTitle, modifier = Modifier.weight(1f))
+                            Text("Plants · ${sitePlants.size}", style = PlantupiaText.editorialHeading,
+                                modifier = Modifier.weight(1f).semantics { heading() })
                             TextButton(onClick = {
                                 collectionSearchOpen = !collectionSearchOpen
                                 if (!collectionSearchOpen) plantSearch = ""
@@ -903,6 +900,11 @@ private fun PlantupiaAccountClientSection(
                                 val count = sitePlants.count { plantupiaCollectionIncludes(filter, it.nextFollowUpOn, it.coverPhoto, today) }
                                 FilterChip(selected = collectionFilter == filter,
                                     onClick = { collectionFilter = filter; visiblePlantCount = 8 },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        containerColor = PlantupiaColors.paper,
+                                        labelColor = PlantupiaColors.forest,
+                                        selectedContainerColor = PlantupiaColors.forest,
+                                        selectedLabelColor = PlantupiaColors.paper),
                                     label = { Text("$label · $count") })
                             }
                         }

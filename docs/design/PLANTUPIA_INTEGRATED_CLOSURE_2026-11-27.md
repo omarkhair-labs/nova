@@ -28,7 +28,7 @@ All these groups have existing implementation; their whole-experience design acc
 
 - Arrival, login/register/recovery/legal and first-run profile: arrival/login/register art-direction increment; exact revised render, recovery/legal and physical approval open
 - Today and care schedule: editorial masthead, one-photo care hero and actual collection entry when no scheduled check-ins; exact revised render and device approval open
-- Spaces, collection, creation, plant overview/guide/care/history/inspection/photo/time: open
+- Spaces, collection, creation, plant overview/guide/care/history/inspection/photo/time: collection hierarchy and adaptive inventory pass; detail/care/history creative and device review open
 - Room plan, AR scan, 3D/photo scene and environment: open
 - Handover and ownership: open
 - Shop, object study, variants/cart/checkout/delivery/order/history/inquiry: open
@@ -64,3 +64,10 @@ Field Notes and Ask now derive placement from one authorized plant/current-space
 Inspected the actual 6709d60 CI artifacts: native craft 15172771401 and core roots 15173047040, both nominal 390dp and 320dp/font scale 2.0. The predecessor suites passed. Visual critique: arrival forms were functional but visually austere; first space had a generic tiny plant mark; the home content sat inside a visibly mismatched beige rectangle, leaving Today sparse when no check-in was due; the due-photo hero rendered the same photograph twice. This increment replaces the decorative arrival composition with an original native architectural botanical plate, provides concise real-product context and account progress, uses the shared page background, gives Today a date-led editorial hierarchy and a single portrait per focus card. When no check-in exists, show one real active plant, preferring a valid latest recorded event then a real portrait, with a direct overview action. No invented schedule, photograph, observation or healthy state. The first-space entry preserves both private creation and delivery claim. No approved font/logo files were supplied; keep existing fallback type/wordmark.
 
 Do not mark the revised surfaces accepted until fresh exact-head screenshots and functional tests at both sizes, including first arrival, large text, keyboard, errors, and plant open/Back. Then proceed to collection/plant detail/care and the remaining existing ledger groups, rather than reopening technology research. This pass does not implement or accept legal/recovery pages, other settings, or all screens.
+
+
+### Collection continuation
+
+Keep primary Record care/Add plant actions above the no-schedule collection portrait. The real owner core-roots journey now checks the chosen active specimen opens in Overview and returns to its space without altering history or inventory. The space header is a full readable name/count, with authentic uploaded plant imagery only when a URL exists; no artwork substitutes for a customer's space. The selector exposes its chosen state, labels wrap, collection filters use the native forest/paper palette, and narrow or high-font inventory cards use a vertical identity/evidence composition without truncating record context. This replaces small stacked repeated summaries, not the underlying authorized collection logic.
+
+7c8d751 initially failed CI's pre-build whitespace check on an extra trailing blank line in WelcomeScreen; this continuation removes that line. Exact revised emulator evidence is required before marking any design group verified.

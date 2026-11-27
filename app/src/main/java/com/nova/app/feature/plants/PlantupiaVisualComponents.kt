@@ -8,6 +8,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -226,45 +228,41 @@ internal fun PlantupiaPlantInventoryCard(
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Open plant: " + plant.name },
-        shape = RoundedCornerShape(18.dp),
+        shape = PlantupiaShapes.inset,
         border = BorderStroke(1.dp, border),
         color = paper,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(9.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            PlantupiaEvidencePhoto(
-                photoUrl = plant.coverPhoto,
-                photoDescription = "Uploaded photo of " + plant.name,
-                modifier = Modifier.size(width = 108.dp, height = 120.dp),
-                cornerRadius = 13.dp,
-                compact = true,
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    plant.name, color = ink, fontWeight = FontWeight.SemiBold, fontSize = 17.sp,
-                    // Keep distinct inventory identities readable at 360dp and large text.
-                    softWrap = true,
-                )
-                val context = listOf(plant.placement, plant.species).filter(String::isNotBlank).joinToString(" · ")
-                if (context.isNotBlank()) {
-                    Text(context, color = muted, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                }
-                Text(
-                    if (plant.lastEventAt.isNotBlank()) eventLabel + " · " + plant.lastEventAt.take(10)
-                    else "No moments recorded",
-                    color = muted, fontSize = 11.sp, maxLines = 1,
-                )
-                if (plant.nextFollowUpOn.isNotBlank()) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(12.dp)) {
+            val sideBySide = maxWidth / LocalDensity.current.fontScale >= 245.dp
+            val identity: @Composable () -> Unit = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(plant.name, style = PlantupiaText.editorialHeading.copy(fontSize = 21.sp,lineHeight = 26.sp))
+                    val context = listOf(plant.placement, plant.species).filter(String::isNotBlank).joinToString(" · ")
+                    if (context.isNotBlank()) Text(context, style = PlantupiaText.supporting)
                     Text(
-                        "Next check · " + plant.nextFollowUpOn,
-                        color = ink, fontWeight = FontWeight.Medium, fontSize = 11.sp,
+                        if (plant.lastEventAt.isNotBlank()) eventLabel + " · " + plant.lastEventAt.take(10)
+                        else "No moments recorded",
+                        style = PlantupiaText.supporting,
                     )
+                    if (plant.nextFollowUpOn.isNotBlank())
+                        Text("Next check · " + plant.nextFollowUpOn, style = PlantupiaText.sectionLabel)
+                }
+            }
+            val photo: @Composable (Modifier,Boolean) -> Unit = { modifier,compact ->
+                PlantupiaEvidencePhoto(photoUrl = plant.coverPhoto,
+                    photoDescription = "Uploaded photo of " + plant.name,
+                    modifier = modifier, cornerRadius = 6.dp, compact = compact)
+            }
+            if (sideBySide) {
+                Row(horizontalArrangement = Arrangement.spacedBy(13.dp), verticalAlignment = Alignment.CenterVertically) {
+                    photo(Modifier.size(width = 90.dp,height = 110.dp),true)
+                    Column(Modifier.weight(1f)) { identity() }
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    identity()
+                    if (plant.coverPhoto.isNotBlank()) photo(Modifier.fillMaxWidth().height(142.dp),false)
+                    else Text("No photo added",style = PlantupiaText.supporting)
                 }
             }
         }

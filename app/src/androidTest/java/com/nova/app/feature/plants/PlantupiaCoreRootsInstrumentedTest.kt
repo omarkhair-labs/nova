@@ -183,6 +183,13 @@ class PlantupiaCoreRootsInstrumentedTest {
 
         awaitText("No check-ins due")
         capture("15-owner-today")
+        val todayFocus = requireNotNull(todayCollectionFocus(plants))
+        scrollToText("From your collection")
+        capture("15a-owner-today-collection")
+        clickText("Open plant →")
+        awaitText(todayFocus.name)
+        awaitNode(hasText("Overview") and SemanticsMatcher.expectValue(SemanticsProperties.Role,Role.Tab)).assertIsSelected()
+        clickText("← Back to space")
         tab("Plants")
         awaitText("My plants")
         awaitText(requireNotNull(ownSpace).name)

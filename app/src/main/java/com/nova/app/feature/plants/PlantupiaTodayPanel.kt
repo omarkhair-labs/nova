@@ -76,15 +76,9 @@ internal fun PlantupiaTodayPanel(
     plants: List<PlantupiaPlant>,
     onOpenPlant: (PlantupiaPlant) -> Unit,
     onScheduleDay: (LocalDate) -> Unit,
-    onOpenCollectionPlant: (PlantupiaPlant) -> Unit = onOpenPlant,
 ) {
     val planned = scheduledPlantCheckIns(plants)
-    if (planned.isEmpty()) {
-        todayCollectionFocus(plants)?.let { plant ->
-            TodayCollectionPortrait(plant, onOpen = { onOpenCollectionPlant(plant) })
-        }
-        return
-    }
+    if (planned.isEmpty()) return
 
     val today = LocalDate.now()
     val due = planned.filter { !LocalDate.parse(it.nextFollowUpOn).isAfter(today) }
@@ -180,7 +174,7 @@ internal fun PlantupiaTodayPanel(
 }
 
 @Composable
-private fun TodayCollectionPortrait(plant: PlantupiaPlant, onOpen: () -> Unit) {
+internal fun TodayCollectionPortrait(plant: PlantupiaPlant, onOpen: () -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Text("From your collection", style = PlantupiaText.editorialHeading,
             modifier = Modifier.semantics { heading() })
