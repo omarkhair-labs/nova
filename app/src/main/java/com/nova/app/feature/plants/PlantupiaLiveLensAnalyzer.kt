@@ -77,17 +77,31 @@ internal class PlantupiaLiveLensAnalyzer(
             }
             val viewport = target.get()
             val transform = sensorToView.get()
-            if (!viewport.enabled || transform == null) {
+            if (!viewport.enabled) {
                 tracker.reset()
                 previousTarget = null
+                previousTransform = null
+                return
+            }
+            if (viewport !== previousTarget) {
+                // Explicit selection (or a newly started preview) may acquire.
+                // Resizing an existing preview must not silently change subject.
+                if (previousTarget == null || previousTarget?.selection != viewport.selection) tracker.reset()
+                else tracker.interrupt()
+                previousTarget = viewport
+                previousTransform = transform
+                previousAt = now
+            } else if (transform !== previousTransform || now - previousAt > 450L) {
+                tracker.interrupt()
+            }
+            if (transform == null) {
+                tracker.interrupt()
                 previousTransform = null
                 return
             }
             // At most ~7 proposals/s; CameraX keeps only the latest frame.
             if (now - lastLensAt < 140L) return
             lastLensAt = now
-            if (viewport !== previousTarget) tracker.reset()
-            else if (transform !== previousTransform || now - previousAt > 450L) tracker.interrupt()
             val frame = runCatching { analyseLens(image, viewport, transform) }.getOrNull()
             val update = tracker.update(frame)
             previousAt = now

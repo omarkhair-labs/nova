@@ -288,7 +288,10 @@ private fun PlantupiaCameraPreview(
         }
     }
     if (canPreviewOutline) {
-        FilterChip(selected = outlineEnabled, onClick = { outlineEnabled = !outlineEnabled },
+        FilterChip(selected = outlineEnabled, onClick = {
+            outlineEnabled = !outlineEnabled
+            if (outlineEnabled) { liveReading = null; selection++ }
+        },
             label = { Text("Live outline preview") }, enabled = !writing)
         if (outlineEnabled) {
             Text("Centre one leaf against a contrasting background, then move slowly. Local tracking guide only.",
