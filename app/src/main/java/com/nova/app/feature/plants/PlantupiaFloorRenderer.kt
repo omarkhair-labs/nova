@@ -10,6 +10,7 @@ import com.google.ar.core.Coordinates2d
 import com.google.ar.core.Plane
 import com.google.ar.core.Session
 import com.google.ar.core.TrackingState
+import com.google.ar.core.TrackingFailureReason
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
@@ -203,7 +204,15 @@ internal class PlantupiaFloorRenderer(
                 }
             } else emptyList()
             val instruction=when {
-                !allTracking -> "Tracking paused. Move slowly toward textured surfaces; do not add or accept measurements yet."
+                !tracking -> when (frame.camera.trackingFailureReason) {
+                    TrackingFailureReason.INSUFFICIENT_LIGHT -> "Not enough light. Brighten the room and point at the floor."
+                    TrackingFailureReason.EXCESSIVE_MOTION -> "Hold the phone steady, then move it slowly."
+                    TrackingFailureReason.INSUFFICIENT_FEATURES -> "Aim at a rug, floor pattern or wall-floor edge so the camera has details to track."
+                    TrackingFailureReason.CAMERA_UNAVAILABLE -> "Camera is unavailable. Restart standard tracking."
+                    TrackingFailureReason.BAD_STATE -> "Motion tracking is unavailable. Restart standard tracking or enter dimensions manually."
+                    else -> "Finding the floor. Hold steady and slowly move sideways across a textured area."
+                }
+                !allTracking -> "A marked corner lost tracking. Move back toward that corner or restart the survey."
                 anchors.size==4 && estimate==null -> "The four marks do not agree with one rectangle. Undo or start again."
                 estimate!=null -> "Four tracked corners agree within the consistency limits."
                 hit==null -> "Aim at the same tracked floor. Move slowly until the reticle is ready."

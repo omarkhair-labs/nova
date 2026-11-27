@@ -52,6 +52,7 @@ class PlantupiaFloorSurveyActivity : ComponentActivity() {
     private var glRunning = false
     private var checking by mutableStateOf(false)
     private var started by mutableStateOf(false)
+    private var preferDepth by mutableStateOf(false)
     private var error by mutableStateOf("")
     private var state by mutableStateOf(FloorFrame())
     private val permission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -105,6 +106,11 @@ class PlantupiaFloorSurveyActivity : ComponentActivity() {
                             }) { Text("Google Privacy Policy") }
                             Text("The survey returns estimated dimensions and a 3D preview to your room draft. You can include the tracked points when saving a private layout. Camera frames stay on this device.",
                                 style=PlantupiaText.supporting)
+                            FilterChip(selected=preferDepth, enabled=!checking,
+                                onClick={preferDepth=!preferDepth},
+                                label={Text("Optional depth capture")})
+                            Text("Start with standard AR tracking. Turn on depth only if tracking is stable on this device.",
+                                style=PlantupiaText.supporting)
                             Button(enabled=!checking,onClick={requestStart()},modifier=Modifier.fillMaxWidth().heightIn(min=48.dp)) {
                                 Text(if(checking) "Checking AR support…" else "Start floor survey")
                             }
@@ -150,6 +156,10 @@ class PlantupiaFloorSurveyActivity : ComponentActivity() {
                             Row(horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                                 TextButton(enabled=state.count>0,onClick={renderer.command(FloorCommand.UNDO)}) { Text("Undo corner") }
                                 TextButton(enabled=state.count>0,onClick={renderer.command(FloorCommand.RESET)}) { Text("Start again") }
+                            }
+                            if (!state.tracking) {
+                                TextButton(onClick={restartBasicSurvey()}) { Text("Restart with standard tracking") }
+                                TextButton(onClick={finish()}) { Text("Enter room measurements instead") }
                             }
                             val estimate=state.estimate
                             if(estimate!=null) {
@@ -201,12 +211,12 @@ class PlantupiaFloorSurveyActivity : ComponentActivity() {
                 Session(this).also { s ->
                     session=s
                     s.configure(Config(s).apply {
-                        val supported = s.isDepthModeSupported(Config.DepthMode.RAW_DEPTH_ONLY)
+                        val supported = preferDepth && s.isDepthModeSupported(Config.DepthMode.RAW_DEPTH_ONLY)
                         depthMode = if (supported) Config.DepthMode.RAW_DEPTH_ONLY else Config.DepthMode.DISABLED
                         renderer.depthEnabled = supported
                         planeFindingMode=Config.PlaneFindingMode.HORIZONTAL
                         focusMode=Config.FocusMode.AUTO
-                        updateMode=Config.UpdateMode.LATEST_CAMERA_IMAGE
+                        updateMode=Config.UpdateMode.BLOCKING
                     })
                 }
             }
@@ -220,6 +230,12 @@ class PlantupiaFloorSurveyActivity : ComponentActivity() {
             stopSession()
             error="AR services, permission or camera could not start. Retry or measure manually."
         }
+    }
+    private fun restartBasicSurvey() {
+        // Starting over discards only the unsaved AR draft, not any saved layout.
+        stopSession()
+        preferDepth=false
+        requestStart()
     }
     override fun onResume() {
         super.onResume()
