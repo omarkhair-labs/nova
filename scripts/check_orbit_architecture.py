@@ -109,7 +109,7 @@ for required in (
     "NovaBottomBar(",
     "NovaTab.Orbit",
     "PlantupiaCircleEditorialIntro()",
-    "PlantupiaCirclePanel(onOpenPost = onPostClick)",
+    "PlantupiaCirclePanel(onOpenPost = onPostClick, onOpenAuthor = onPersonClick)",
     "CircleActivityRow(",
     "onPostClick: (Long) -> Unit",
     "onActorClick = { onPersonClick(event.actor.username) }",
