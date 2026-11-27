@@ -121,3 +121,31 @@ class RegionProposalTests(TestCase):
         self.assertEqual(TracedRegion.objects.count(), 0)
         with self.settings(PLANTUPIA_LIVING_SYSTEMS_ENABLED=False):
             self.assertEqual(self.api.post(self.suggest, self.prompts, format="json").status_code, 404)
+
+    def test_neural_outline_is_opt_in_and_preserves_signed_evidence(self):
+        from unittest.mock import patch
+        from .living_neural_outline import METHOD as NEURAL_METHOD
+        payload = {**self.prompts, "mode": "neural"}
+        with self.settings(PLANTUPIA_NEURAL_OUTLINE_MODEL=""):
+            self.assertFalse(self.api.get(self.evidence).data["can_neural_suggest_region"])
+            self.assertEqual(self.api.post(self.suggest, payload, format="json").status_code, 503)
+        with self.settings(PLANTUPIA_NEURAL_OUTLINE_MODEL="isolated-model"), \
+                patch("plants.living_api.neural_outline_available", return_value=True), \
+                patch("plants.living_api.propose_neural_outline", return_value=[[50,72],[96,29],[138,72],[96,111]]) as engine:
+            self.assertTrue(self.api.get(self.evidence).data["can_neural_suggest_region"])
+            data = self.api.post(self.suggest, payload, format="json").data
+            self.assertEqual(data["status"], "candidate", data)
+            self.assertEqual(data["method"], NEURAL_METHOD)
+            self.assertEqual(data["health"], "not_assessed")
+            self.assertEqual(engine.call_args.kwargs["model_path"], "isolated-model")
+            self.assertEqual(TracedRegion.objects.count(), 0)
+            saved = {"submission_id": str(uuid4()), "part": "leaf", "vertices": data["vertices"],
+                     "suggestion_token": data["suggestion_token"], "outline_method": NEURAL_METHOD}
+            self.assertEqual(self.api.post(self.save, {**saved, "outline_method": METHOD}, format="json").status_code, 409)
+            result = self.api.post(self.save, saved, format="json")
+            self.assertEqual(result.status_code, 201, result.data)
+            self.assertEqual(result.data["measurements"]["method"], NEURAL_METHOD)
+            self.assertEqual(result.data["measurements"]["assistance"]["prompts"], self.prompts)
+            self.api.force_authenticate(self.other)
+            self.assertEqual(self.api.post(self.suggest, payload, format="json").status_code, 404)
+        self.assertEqual(TracedRegion.objects.count(), 1)

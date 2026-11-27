@@ -12,6 +12,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
 from .living_space import build_room
@@ -20,6 +21,7 @@ from .living_segmentation import (
     AUTO_METHOD, METHOD as OUTLINE_METHOD, NoOutline, VisionUnavailable,
     propose_frame_outline, propose_outline, vision_available,
 )
+from .living_neural_outline import METHOD as NEURAL_METHOD, neural_outline_available, propose_neural_outline
 from .living_vision import _open
 from .living_daylight import window_scenario
 from .living_temporal import compare_projected_areas
@@ -221,6 +223,9 @@ class FieldEvidenceView(ResearchView):
                                               "user_selected" if species else "unknown"},
                          "can_suggest_region": bool(event.photo and event.plant.is_active and
                              can_record(request.user, event.plant) and vision_available()),
+                         "can_neural_suggest_region": bool(event.photo and event.plant.is_active and
+                             can_record(request.user, event.plant) and
+                             neural_outline_available(settings.PLANTUPIA_NEURAL_OUTLINE_MODEL)),
                          "can_review": event.plant.is_active and request.user.has_perm("plants.review_visual_evidence") and can_record(request.user, event.plant),
                          "reviews": list(reviews.values("id", "finding", "rationale", "created_at")[:20]),
                          "regions": list(event.traced_regions.order_by("-pk").values(
@@ -316,8 +321,20 @@ class OutlineInput(serializers.Serializer):
         min_length=2, max_length=2, child=serializers.IntegerField(min_value=0, max_value=20000000)))
 
 
+class NeuralOutlineThrottle(UserRateThrottle):
+    scope = "plant_neural_outline"
+    rate = "12/min"
+
+
 class RegionSuggestionView(FieldEvidenceView):
     http_method_names = ["post", "options"]
+
+    def get_throttles(self):
+        throttles = super().get_throttles()
+        data = self.request.data
+        if hasattr(data, "get") and data.get("mode") == "neural":
+            throttles.append(NeuralOutlineThrottle())
+        return throttles
 
     def post(self, request, plant_id, event_id):
         event = self.event(request, plant_id, event_id)
@@ -326,17 +343,23 @@ class RegionSuggestionView(FieldEvidenceView):
         if not event.plant.is_active or not event.photo:
             return Response({"detail": "An active plant and a recorded photo are required."}, status=409)
         automatic = request.data == {"mode": "automatic"}
+        neural = hasattr(request.data, "get") and request.data.get("mode") == "neural"
+        if neural and not neural_outline_available(settings.PLANTUPIA_NEURAL_OUTLINE_MODEL):
+            return Response({"detail": "The experimental neural outline is unavailable."}, status=503)
         prompts = {}
         if not automatic:
             data = OutlineInput(data=request.data)
             data.is_valid(raise_exception=True)
             prompts = dict(data.validated_data)
-        method = AUTO_METHOD if automatic else OUTLINE_METHOD
+        method = NEURAL_METHOD if neural else AUTO_METHOD if automatic else OUTLINE_METHOD
         try:
             with event.photo.open("rb") as source:
                 raw = source.read(MAX_BYTES + 1)
             image = _open(raw, {"JPEG", "PNG", "WEBP"})
-            points = propose_frame_outline(image) if automatic else propose_outline(image, **prompts)
+            if neural:
+                points = propose_neural_outline(image, **prompts, model_path=settings.PLANTUPIA_NEURAL_OUTLINE_MODEL)
+            else:
+                points = propose_frame_outline(image) if automatic else propose_outline(image, **prompts)
             try:
                 polygon(points, image.width, image.height)
             except ValueError as exc:
@@ -373,7 +396,7 @@ class RegionInput(serializers.Serializer):
     marker_edge_cm = serializers.FloatField(required=False, min_value=.1, max_value=25)
     reference = ScaleReference(required=False)
     point_reference = PointScaleReference(required=False)
-    outline_method = serializers.ChoiceField(choices=[AUTO_METHOD, OUTLINE_METHOD], required=False)
+    outline_method = serializers.ChoiceField(choices=[AUTO_METHOD, OUTLINE_METHOD, NEURAL_METHOD], required=False)
     suggestion_token = serializers.CharField(required=False, max_length=8192)
 
     def validate(self, attrs):

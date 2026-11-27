@@ -98,6 +98,7 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                                 totalRegions = data.optInt("region_count"),
                                 canTrace = plant.canRecord && plant.active,
                                 canSuggest = data.optBoolean("can_suggest_region"),
+                                canNeuralSuggest = data.optBoolean("can_neural_suggest_region"),
                                 busy = busy,
                                 revision = generation,
                                 suggest = { body, result -> submit("suggest-region/", body, result) },

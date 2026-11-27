@@ -117,7 +117,7 @@ internal fun fieldRegions(rows: JSONArray?, width: Int, height: Int): List<Field
             FieldPatch(appearance, first, last, fraction)
         }
         FieldRegion(id, part, area, outline, length, colors, patches = parsed, tagged = tagged,
-            reviewedProposal = measurements.optString("method") in setOf("reviewed-grabcut-points-v1", "reviewed-grabcut-frame-v1") &&
+            reviewedProposal = measurements.optString("method") in setOf("reviewed-grabcut-points-v1", "reviewed-grabcut-frame-v1", "reviewed-magic-touch-point-v1") &&
                 measurements.optJSONObject("assistance")?.optBoolean("operator_accepted") == true,
             planarAreaCm2 = cm2, calibrationError = scaleError,
             calibrationReason = calibration?.takeIf { calibrated && !accepted }?.optString("reason"))
@@ -140,6 +140,7 @@ internal fun PlantupiaRegionStudy(
     totalRegions: Int,
     canTrace: Boolean,
     canSuggest: Boolean,
+    canNeuralSuggest: Boolean = false,
     busy: Boolean,
     revision: Int,
     suggest: (JSONObject, (JSONObject) -> Unit) -> Unit,
@@ -147,6 +148,7 @@ internal fun PlantupiaRegionStudy(
 ) {
     var tracing by remember(revision, url) { mutableStateOf(false) }
     var assisting by remember(revision, url) { mutableStateOf(false) }
+    var neural by remember(revision, url, assisting, canNeuralSuggest) { mutableStateOf(false) }
     var selected by remember(revision, url) { mutableStateOf<Long?>(null) }
     var points by remember(revision, tracing, url) { mutableStateOf(emptyList<IntOffset>()) }
     var part by remember(revision, tracing, assisting, url) { mutableStateOf("leaf") }
@@ -331,7 +333,15 @@ internal fun PlantupiaRegionStudy(
         }
     } else if (assisting) {
         Text("Find the edge", style = PlantupiaText.editorialHeading)
-        Text(if (foreground.isEmpty()) "Try the foreground outline, or tap inside the part to guide it."
+        if (canNeuralSuggest) {
+            FilterChip(selected = neural, enabled = assistingEnabled && !calibrating,
+                onClick = { neural = !neural; resetProposal() },
+                label = { Text(if (neural) "Neural point outline" else "Try neural outline") })
+            if (neural) Text("The first included point guides the model. Other marks check its result.",
+                style = PlantupiaText.supporting)
+        }
+        Text(if (neural && foreground.isEmpty()) "Tap inside one visible part to select it."
+            else if (foreground.isEmpty()) "Try the foreground outline, or tap inside the part to guide it."
             else if (background.isEmpty()) "Tap outside that part to exclude the background."
             else "Add points to correct the selection, then find its outline.",
             style = PlantupiaText.body)
@@ -358,22 +368,29 @@ internal fun PlantupiaRegionStudy(
                     resetProposal()
                 }) { Text("Clear points") }
         }
-        Button(enabled = assistingEnabled && !calibrating && (foreground.isEmpty() == background.isEmpty()),
+        Button(enabled = assistingEnabled && !calibrating &&
+            (if (neural) foreground.isNotEmpty() && background.isNotEmpty()
+                else foreground.isEmpty() == background.isEmpty()),
             onClick = {
                 resetProposal()
                 val request = if (foreground.isEmpty()) JSONObject().put("mode", "automatic")
                     else JSONObject().put("foreground", pointArray(foreground))
                     .put("background", pointArray(background))
+                if (neural) request.put("mode", "neural")
                 suggest(request) { response ->
                     proposal = parseOutlineProposal(response, width, height)
-                    feedback = if (proposal != null) "Inspect the proposed boundary on the photo."
+                    feedback = if (proposal != null) {
+                        if (proposal?.method == "reviewed-magic-touch-point-v1") "Inspect the neural proposal. It is not a verified plant part."
+                        else "Inspect the proposed boundary on the photo."
+                    }
                         else response.optString("reason").take(240).ifBlank {
                             "No usable outline was returned. Change the points or trace manually."
                         }
                     scope.launch { photoAnchor.bringIntoView() }
                 }
             }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-            Text(if (busy) "Looking at the photograph…" else if (foreground.isEmpty()) "Find foreground outline" else "Find outline")
+            Text(if (busy) "Looking at the photograph…" else if (neural) "Find neural outline"
+                else if (foreground.isEmpty()) "Find foreground outline" else "Find outline")
         }
         if (feedback.isNotBlank()) Text(feedback, style = PlantupiaText.supporting)
         proposal?.let { candidate ->
@@ -521,7 +538,7 @@ private fun pointArray(points: List<IntOffset>): JSONArray = JSONArray().apply {
 /** Only the server-signed original-grid proposal can be accepted. */
 internal fun parseOutlineProposal(raw: JSONObject, width: Int, height: Int): OutlineProposal? {
     if (width <= 0 || height <= 0 || raw.optString("status") != "candidate" ||
-        raw.optString("method") !in setOf("reviewed-grabcut-points-v1", "reviewed-grabcut-frame-v1")) return null
+        raw.optString("method") !in setOf("reviewed-grabcut-points-v1", "reviewed-grabcut-frame-v1", "reviewed-magic-touch-point-v1")) return null
     val token = raw.optString("suggestion_token")
     if (token.isBlank() || token.length > 8192 || token == "null") return null
     val array = raw.optJSONArray("vertices") ?: return null
