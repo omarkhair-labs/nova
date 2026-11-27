@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.SystemClock
+import com.nova.app.BuildConfig
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.ImageAnalysis
@@ -35,6 +36,8 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,13 +48,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
@@ -62,6 +70,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.delay
 
 private enum class CaptureView(val title: String, val guidance: String, val frameWidth: Float, val frameHeight: Float) {
     WHOLE("Whole plant", "Include the whole plant and pot. For a future comparison, repeat this view at the same height.", .72f, .80f),
@@ -221,38 +230,37 @@ private fun PlantupiaCameraPreview(
     var quality by remember { mutableStateOf<PlantupiaCaptureQuality?>(null) }
     var error by remember { mutableStateOf("") }
     val active = remember(owner, controller) { AtomicBoolean(false) }
-    DisposableEffect(owner, controller, preview) {
+    val canPreviewOutline = BuildConfig.PLANTUPIA_LIVE_LENS_QA && view == CaptureView.LEAF && referenceUrl == null
+    var outlineEnabled by remember(view, referenceUrl) { mutableStateOf(false) }
+    var previewSize by remember { mutableStateOf(IntSize.Zero) }
+    var liveReading by remember { mutableStateOf<LiveLensReading?>(null) }
+    val lensAnalyzer = remember(active, main) {
+        PlantupiaLiveLensAnalyzer(BuildConfig.PLANTUPIA_LIVE_LENS_QA, active, main,
+            onQuality = { quality = it }, onLens = { liveReading = it })
+    }
+    val liveEnabled = canPreviewOutline && outlineEnabled && ready && !writing
+    SideEffect { lensAnalyzer.configure(liveEnabled, previewSize.width, previewSize.height) }
+    LaunchedEffect(liveReading) {
+        val reading = liveReading ?: return@LaunchedEffect
+        delay((550L - (SystemClock.elapsedRealtime() - reading.timestamp)).coerceAtLeast(0L))
+        if (liveReading === reading) liveReading = null
+    }
+    DisposableEffect(owner, controller, preview, lensAnalyzer) {
         active.set(true)
         val analysis = Executors.newSingleThreadExecutor()
-        var lastReading = 0L
         val stream = Observer<PreviewView.StreamState> {
             ready = it == PreviewView.StreamState.STREAMING
+            if (!ready) {
+                lensAnalyzer.configure(false, 0, 0)
+                liveReading = null
+                quality = null
+            }
         }
         preview.previewStreamState.observe(owner, stream)
         try {
             controller.setEnabledUseCases(CameraController.IMAGE_CAPTURE or CameraController.IMAGE_ANALYSIS)
             controller.setImageAnalysisBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            controller.setImageAnalysisAnalyzer(analysis) { image ->
-                try {
-                    val now = SystemClock.elapsedRealtime()
-                    if (now - lastReading >= 300L && active.get()) {
-                        lastReading = now
-                        val plane = image.planes.first()
-                        val luma = plane.buffer
-                        val start = luma.position()
-                        val crop = image.cropRect
-                        val reading = captureQuality(crop.width(), crop.height()) { x, y ->
-                            val index = start + (y + crop.top) * plane.rowStride + (x + crop.left) * plane.pixelStride
-                            luma.get(index).toInt() and 0xff
-                        }
-                        main.execute { if (active.get()) quality = reading }
-                    }
-                } catch (_: IndexOutOfBoundsException) {
-                    // Some devices pad/limit Y buffers. Skip incomplete readings.
-                } finally {
-                    image.close()
-                }
-            }
+            controller.setImageAnalysisAnalyzer(analysis, lensAnalyzer)
             preview.controller = controller
             controller.bindToLifecycle(owner)
             val initialized = controller.initializationFuture
@@ -270,6 +278,7 @@ private fun PlantupiaCameraPreview(
         }
         onDispose {
             active.set(false)
+            lensAnalyzer.configure(false, 0, 0)
             preview.previewStreamState.removeObserver(stream)
             preview.controller = null
             controller.clearImageAnalysisAnalyzer()
@@ -277,9 +286,15 @@ private fun PlantupiaCameraPreview(
             analysis.shutdown()
         }
     }
+    if (canPreviewOutline) {
+        FilterChip(selected = outlineEnabled, onClick = { outlineEnabled = !outlineEnabled },
+            label = { Text("Live outline preview") }, enabled = !writing)
+        if (outlineEnabled) Text("Centre one leaf against a contrasting background. Contrast guide only · not plant identification.",
+            style = PlantupiaText.supporting)
+    }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         Box(Modifier.fillMaxWidth().height((maxWidth * 1.02f).coerceIn(230.dp, 420.dp))
-            .clip(PlantupiaShapes.card).background(Color(0xFF192820))) {
+            .clip(PlantupiaShapes.card).background(Color(0xFF192820)).onSizeChanged { previewSize = it }) {
             AndroidView(factory = { preview }, modifier = Modifier.fillMaxSize())
             if (referenceUrl != null) AsyncImage(
                 model = referenceUrl, contentDescription = "Earlier plant photograph over live preview",
@@ -302,6 +317,46 @@ private fun PlantupiaCameraPreview(
                 drawLine(PlantupiaColors.cream, Offset(mid - tick, start.y), Offset(mid + tick, start.y), 2.dp.toPx())
                 drawLine(PlantupiaColors.cream, Offset(mid - tick, start.y + height),
                     Offset(mid + tick, start.y + height), 2.dp.toPx())
+                if (liveEnabled) {
+                    val region = liveReading?.region
+                    if (region == null) {
+                        drawCircle(PlantupiaColors.cream, 5.dp.toPx(), center = center,
+                            style = Stroke(1.5.dp.toPx()))
+                    } else if (previewSize.width == size.width.toInt() && previewSize.height == size.height.toInt()) {
+                        val dx = size.width / region.width
+                        val dy = size.height / region.height
+                        val fill = Path()
+                        val edge = Path()
+                        fun segment(x1: Float, y1: Float, x2: Float, y2: Float) {
+                            edge.moveTo(x1, y1)
+                            edge.lineTo(x2, y2)
+                        }
+                        for (y in 0 until region.height) {
+                            var run = -1
+                            for (x in 0..region.width) {
+                                val present = region.contains(x, y)
+                                if (present && run == -1) run = x
+                                if (!present && run != -1) {
+                                    fill.addRect(Rect(run * dx, y * dy, x * dx, (y + 1) * dy))
+                                    run = -1
+                                }
+                                if (!present) continue
+                                val left = x * dx
+                                val top = y * dy
+                                val right = left + dx
+                                val bottom = top + dy
+                                if (!region.contains(x - 1, y)) segment(left, top, left, bottom)
+                                if (!region.contains(x + 1, y)) segment(right, top, right, bottom)
+                                if (!region.contains(x, y - 1)) segment(left, top, right, top)
+                                if (!region.contains(x, y + 1)) segment(left, bottom, right, bottom)
+                            }
+                        }
+                        val ink = Color(0xFFCDF2A4)
+                        drawPath(fill, ink.copy(alpha = .12f))
+                        drawPath(edge, Color(0xAA14281C), style = Stroke(4.dp.toPx(), cap = StrokeCap.Round))
+                        drawPath(edge, ink, style = Stroke(1.7.dp.toPx(), cap = StrokeCap.Round))
+                    }
+                }
             }
         }
     }
@@ -314,6 +369,8 @@ private fun PlantupiaCameraPreview(
         else -> "Keep the subject inside the guide."
     }
     Text(guidance, style = PlantupiaText.itemTitle)
+    if (liveEnabled) Text(if (liveReading != null) "Outline visible · preview only"
+        else "Finding a distinct centred region…", style = PlantupiaText.supporting)
     Surface(
         enabled = ready && !writing,
         modifier = Modifier.fillMaxWidth().heightIn(min = 72.dp),

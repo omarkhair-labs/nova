@@ -37,6 +37,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField("String", "PLANTUPIA_QA_API_URL", "\"\"")
+        buildConfigField("boolean", "PLANTUPIA_LIVE_LENS_QA", "false")
     }
 
     signingConfigs {
@@ -66,6 +67,7 @@ android {
                 applicationIdSuffix = ".qa.living"
                 versionNameSuffix = "-qa-living"
                 manifestPlaceholders["novaAppLabel"] = "Plantupia Living QA"
+                buildConfigField("boolean", "PLANTUPIA_LIVE_LENS_QA", "true")
             }
             if (localQaUrl != null) {
                 val uri = URI(localQaUrl)
