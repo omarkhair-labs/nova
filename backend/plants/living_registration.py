@@ -139,7 +139,7 @@ def align_retained_photos(before, after, before_box, after_box):
     if not ALIGNMENT_LOCK.acquire(blocking=False):
         raise VisionUnavailable("The alignment engine is busy; try again or use reference marks.")
     try:
-        frames = [cv2.cvtColor(np.asarray(im.resize((w,h), Image.Resampling.BILINEAR).convert("RGB")),
+        frames = [cv2.cvtColor(np.asarray(im.resize((w,h), Image.Resampling.BOX).convert("RGB")),
                                cv2.COLOR_RGB2BGR) for im in (before, after)]
         moving = [exclusion(box) for box in boxes]
         result = register(*frames, 255-moving[0], 255-moving[1], moving[0])

@@ -49,6 +49,17 @@ class VisitRegistrationGeometryTests(SimpleTestCase):
         self.assertEqual((result["frame_width"],result["frame_height"]),(640,480))
         self.assertAlmostEqual(result["transform"]["x"], -8/640, delta=.002)
 
+    def test_changed_background_lighting_is_not_accepted(self):
+        import cv2
+        import numpy as np
+        image = np.random.default_rng(1729).integers(0,180,(480,640,3),dtype=np.uint8)
+        later = cv2.warpAffine(image,np.float32([[1,0,8],[0,1,-5]]),(640,480))
+        later = (later.astype(np.int16)+60).clip(0,255).astype(np.uint8)
+        box = [.36,.30,.64,.70]
+        result = align_retained_photos(Image.fromarray(image), Image.fromarray(later),box,box)
+        self.assertEqual(result["status"], "not_comparable", result)
+        self.assertEqual(result["growth"], "not_inferred")
+
     def test_textureless_and_incompatible_photos_abstain(self):
         box = [.2,.2,.8,.8]
         before = Image.new("RGB",(640,480),"green")
