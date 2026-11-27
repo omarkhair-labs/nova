@@ -104,6 +104,7 @@ internal fun PlantupiaCaptureStudio(
     captureActionLabel: String? = null,
     captureDescription: String? = null,
     startLiveOutline: Boolean = false,
+    basicOnly: Boolean = false,
 ) {
     val context = LocalContext.current
     var permission by remember {
@@ -149,7 +150,7 @@ internal fun PlantupiaCaptureStudio(
                     .clip(PlantupiaShapes.card).background(PlantupiaColors.softSage),
                 contentScale = ContentScale.Fit)
             Text("Keep this photograph?", style = PlantupiaText.editorialHeading)
-            if (fromCamera) Text(view.title + " · " + view.guidance, style = PlantupiaText.supporting)
+            if (fromCamera && !basicOnly) Text(view.title + " · " + view.guidance, style = PlantupiaText.supporting)
             if (previewError) Text("This photo could not be opened. Choose another photograph.")
             if (rejected) Text("The draft is no longer available. Return and try again.",
                 color = PlantupiaColors.forestText)
@@ -185,13 +186,13 @@ internal fun PlantupiaCaptureStudio(
                 onClick = { requestPermission.launch(Manifest.permission.CAMERA) }) { Text("Allow camera") }
         } else {
             var compare by remember(reference?.id) { mutableStateOf(false) }
-            if (reference != null && reference.photoUrl.isNotBlank()) {
+            if (!basicOnly && reference != null && reference.photoUrl.isNotBlank()) {
                 TextButton(onClick = { compare = !compare }) {
                     Text(if (compare) "Hide earlier view" else "Match the view from " + reference.observedAt.take(10))
                 }
             }
             var showFraming by remember { mutableStateOf(false) }
-            Box {
+            if (!basicOnly) Box {
                 OutlinedButton(enabled = !writing, onClick = { showFraming = true }) {
                     Text("Framing · " + view.title)
                 }
@@ -204,7 +205,8 @@ internal fun PlantupiaCaptureStudio(
                     }
                 }
             }
-            PlantupiaCameraPreview(view, reference?.photoUrl.takeIf { compare }, writing, { writing = it }, startLiveOutline) { photo ->
+            PlantupiaCameraPreview(view, reference?.photoUrl.takeIf { compare && !basicOnly }, writing, { writing = it },
+                startLiveOutline && !basicOnly, basicOnly = basicOnly) { photo ->
                 if (ownedCaptureFile(context.cacheDir, photo)?.isFile != true) false
                 else {
                     owned.getAndSet(photo)?.let { previous ->
@@ -230,6 +232,7 @@ private fun PlantupiaCameraPreview(
     immersiveHeight: Dp? = null,
     dock: Boolean = false,
     modifier: Modifier = Modifier,
+    basicOnly: Boolean = false,
     onCapture: (Uri) -> Boolean,
 ) {
     val context = LocalContext.current
@@ -252,7 +255,7 @@ private fun PlantupiaCameraPreview(
     var quality by remember { mutableStateOf<PlantupiaCaptureQuality?>(null) }
     var error by remember { mutableStateOf("") }
     val active = remember(owner, controller) { AtomicBoolean(false) }
-    val canPreviewOutline = BuildConfig.PLANTUPIA_LIVE_LENS_QA && view == CaptureView.LEAF && referenceUrl == null
+    val canPreviewOutline = !basicOnly && BuildConfig.PLANTUPIA_LIVE_LENS_QA && view == CaptureView.LEAF && referenceUrl == null
     var outlineEnabled by remember(view, referenceUrl) { mutableStateOf(startLiveOutline && canPreviewOutline) }
     var previewSize by remember { mutableStateOf(IntSize.Zero) }
     var liveReading by remember { mutableStateOf<LiveLensReading?>(null) }
@@ -268,9 +271,9 @@ private fun PlantupiaCameraPreview(
         delay((550L - (SystemClock.elapsedRealtime() - reading.timestamp)).coerceAtLeast(0L))
         if (liveReading === reading) liveReading = reading.copy(phase = LiveLensPhase.LOST, region = null)
     }
-    DisposableEffect(owner, controller, preview, lensAnalyzer) {
+    DisposableEffect(owner, controller, preview, lensAnalyzer, basicOnly) {
         active.set(true)
-        val analysis = Executors.newSingleThreadExecutor()
+        val analysis = if (basicOnly) null else Executors.newSingleThreadExecutor()
         val stream = Observer<PreviewView.StreamState> {
             ready = it == PreviewView.StreamState.STREAMING
             if (!ready) {
@@ -285,9 +288,11 @@ private fun PlantupiaCameraPreview(
         controller.zoomState.observe(owner, zoomObserver)
         controller.torchState.observe(owner, torchObserver)
         try {
-            controller.setEnabledUseCases(CameraController.IMAGE_CAPTURE or CameraController.IMAGE_ANALYSIS)
-            controller.setImageAnalysisBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            controller.setImageAnalysisAnalyzer(analysis, lensAnalyzer)
+            controller.setEnabledUseCases(if (basicOnly) CameraController.IMAGE_CAPTURE else CameraController.IMAGE_CAPTURE or CameraController.IMAGE_ANALYSIS)
+            if (analysis != null) {
+                controller.setImageAnalysisBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                controller.setImageAnalysisAnalyzer(analysis, lensAnalyzer)
+            }
             preview.controller = controller
             controller.bindToLifecycle(owner)
             val initialized = controller.initializationFuture
@@ -299,7 +304,7 @@ private fun PlantupiaCameraPreview(
         } catch (_: IllegalStateException) {
             error = "Camera preview could not start. Choose an existing photo."
         } catch (_: IllegalArgumentException) {
-            error = "This camera cannot run the preview and inspection together. Choose an existing photo."
+            error = "The camera is unavailable. Choose an existing photo."
         } catch (_: SecurityException) {
             error = "Camera permission is unavailable. Choose an existing photo."
         }
@@ -313,7 +318,7 @@ private fun PlantupiaCameraPreview(
             preview.controller = null
             controller.clearImageAnalysisAnalyzer()
             controller.unbind()
-            analysis.shutdown()
+            analysis?.shutdown()
         }
     }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(if (dock) 4.dp else 0.dp)) {
@@ -338,7 +343,7 @@ private fun PlantupiaCameraPreview(
                 model = referenceUrl, contentDescription = "Earlier plant photograph over live preview",
                 contentScale = ContentScale.Fit, alpha = .38f, modifier = Modifier.fillMaxSize(),
             )
-            Canvas(Modifier.fillMaxSize()) {
+            if (!basicOnly) Canvas(Modifier.fillMaxSize()) {
                 val width = size.width * view.frameWidth
                 val height = size.height * view.frameHeight
                 val corner = CornerRadius(18.dp.toPx())
@@ -436,6 +441,7 @@ private fun PlantupiaCameraPreview(
     val guidance = when {
         error.isNotBlank() -> error
         !ready -> "Opening camera…"
+        basicOnly -> "Frame your photograph."
         quality == PlantupiaCaptureQuality.DARK -> "Try brighter, even light."
         quality == PlantupiaCaptureQuality.GLARE -> "Change your angle to reduce glare."
         quality == PlantupiaCaptureQuality.LOW_DETAIL -> "Hold still and tap the subject to focus."
@@ -549,7 +555,7 @@ private fun PlantupiaCameraPreview(
         }
     }
     if (immersiveHeight == null) {
-        Text(view.guidance, style = PlantupiaText.supporting)
+        if (!basicOnly) Text(view.guidance, style = PlantupiaText.supporting)
         Text("Review the photograph before keeping it.", style = PlantupiaText.supporting)
     } else if (canPreviewOutline && outlineEnabled && liveReading?.phase == LiveLensPhase.LOST) TextButton(enabled = liveEnabled, onClick = { liveReading = null; selection++ }) {
         Text("Find another region", color = Color(0xFFDCEDC8))

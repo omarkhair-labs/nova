@@ -68,7 +68,6 @@ android {
                 applicationIdSuffix = ".qa.oracle"
                 versionNameSuffix = "-qa-oracle"
                 manifestPlaceholders["novaAppLabel"] = "Plantupia Oracle QA"
-                buildConfigField("boolean", "PLANTUPIA_LIVE_LENS_QA", "true")
             }
             if (isolatedLivingQa) {
                 val isolatedUri = localQaUrl?.let { URI(it) }
@@ -78,7 +77,6 @@ android {
                 applicationIdSuffix = ".qa.living"
                 versionNameSuffix = "-qa-living"
                 manifestPlaceholders["novaAppLabel"] = "Plantupia Living QA"
-                buildConfigField("boolean", "PLANTUPIA_LIVE_LENS_QA", "true")
             }
             if (localQaUrl != null) {
                 val uri = URI(localQaUrl)

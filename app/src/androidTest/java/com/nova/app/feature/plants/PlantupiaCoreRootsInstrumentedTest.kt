@@ -189,12 +189,8 @@ class PlantupiaCoreRootsInstrumentedTest {
         awaitText("My plants")
         scrollToText(requireNotNull(ownSpace).name).assertIsDisplayed()
         capture("15c-place-detail")
-        if (ownSpace.livingSystemsEnabled) {
-            clickText("Explore this place")
-            scrollToText("Layout").assertIsDisplayed()
-            capture("15d-place-plan")
-            clickText("Back")
-        }
+        compose.onNodeWithText("Explore this place").assertDoesNotExist()
+        compose.onNodeWithText("Map of your place").assertDoesNotExist()
         tab("Today")
 
         val todayFocus = requireNotNull(todayCollectionFocus(plants))
@@ -281,7 +277,7 @@ class PlantupiaCoreRootsInstrumentedTest {
                 after.value.associate { it.id to it.active } == plants.associate { it.id to it.active })
     }
 
-    @Test fun livingRoomDaylightAndCaptureReachCurrentPlant() {
+    @Test fun retiredVisualToolsStayAbsentAndOrdinaryCaptureStillWorks() {
         val repository = openSeedAccount("staff")
         val id = fixture.getString("space_id")
         val specimenId = fixture.getJSONArray("plant_ids").getString(0)
@@ -302,52 +298,33 @@ class PlantupiaCoreRootsInstrumentedTest {
         } else {
             assertTrue("Only both expected layouts may exist on this repeat pass.", initialRevision == 2)
         }
+        // An existing reported layout is retained on the server, but cannot be
+        // opened from the customer app even with the older QA capability flags.
         tab("Plants")
-        clickText("Explore this place")
-        scrollToText("Reported room", substring = true)
-        compose.onNodeWithContentDescription("Floor plan with 1 recorded plants and 1 windows").assertExists()
-        capture("22-room-placements")
-        clickText("Choose a plant in this room")
-        clickText("Synthetic plant 01 ·", substring = true)
-        clickText("Perspective")
-        compose.onNodeWithContentDescription("3D view of recorded room geometry").assertExists()
-        scrollToText("Open Synthetic plant 01", clickable = true)
-        clickText("Floor plan")
-        clickText("Browse layout history")
-        clickText("Revision 1", substring = true)
-        scrollToText("Earlier layout", substring = true)
-        clickText("Return to current layout")
-        clickText("Perspective")
-        clickText("Specialist survey tools")
-        clickText("Explore photographic reconstruction")
-        scrollToText("Photographic reconstruction")
-        scrollToText("Open PLY scene", clickable = true)
-        clickText("Return to room")
-        clickText("Study sunlight at Synthetic plant 01")
-        fillScenario("Opening width (m)", "2")
-        fillScenario("Sill above floor (m)", ".4")
-        fillScenario("Head above floor (m)", "2.4")
-        fillScenario("Top wall outward bearing from true north (°)", "0")
-        scrollToText("Recorded position of Synthetic plant 01 · 3.7, 1.5 m")
-        fillScenario("Sample height (m)", "1.1")
-        fillScenario("Latitude (°)", "0")
-        fillScenario("Longitude (°)", "0")
-        fillScenario("Date (YYYY-MM-DD)", "2026-03-20")
-        fillScenario("Time zone (e.g. Africa/Cairo)", "UTC")
-        clickText("Simulate this day")
-        scrollToText("Direct sun reaches this point", substring = true)
-        capture("23-room-daylight")
-        clickText("Return to placements")
+        awaitText("My plants")
+        compose.onNodeWithText("Explore this place").assertDoesNotExist()
+        compose.onNodeWithText("Map of your place").assertDoesNotExist()
+        capture("22-place-without-survey")
+        clickDescription("Open plant: Synthetic plant 01")
+        awaitText("Synthetic plant 01")
+        compose.onNodeWithText("More visual tools").assertDoesNotExist()
+        compose.onNodeWithText("Observe this plant").assertDoesNotExist()
+        compose.onNodeWithText("Living Lens", substring = true).assertDoesNotExist()
+        clickText("History")
+        scrollToText("No field notes yet")
+        compose.onNodeWithText("Choose two recorded photos").assertDoesNotExist()
+        capture("23-plain-private-history")
         val unchanged = runBlocking { repository.room(id) }
-        assertTrue("Exploring light, history and reconstruction must not write a layout.",
+        assertTrue("Retirement must not delete prior layout records.",
             unchanged is ApiResult.Success && unchanged.value.revision == 2 &&
                 unchanged.value.plants.single().id == specimenId && unchanged.value.plants.single().x == 3.7)
-        clickText("Open Synthetic plant 01")
         clickText("Care")
         clickText("Record care")
         clickText("Add a note, photo or optional next check", substring = true)
         clickText("Add a photo of your observation")
         scrollToText("Allow camera", clickable = true)
+        compose.onNodeWithText("Match earlier view", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Live outline", substring = true).assertDoesNotExist()
         capture("24-capture-permission")
         pressBack()
         assertTrue("Entering and leaving capture creates no private record.",

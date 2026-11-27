@@ -321,7 +321,7 @@ names = [
     "09-settings", "10-settings-about", "11-shop-empty", "12-shop-cart",
     "13-ask", "14-today-return", "15-owner-today", "16-owner-plants", "17-owner-profile",
     "18-owner-plant-detail", "19-owner-plant-care", "20-owner-plant-history", "21-owner-plant-guide",
-    "22-room-placements", "23-room-daylight", "24-capture-permission", "25-calendar-visit-return",
+    "22-place-without-survey", "23-plain-private-history", "24-capture-permission", "25-calendar-visit-return",
 ]
 captures = []
 for name in names:
