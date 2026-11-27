@@ -224,8 +224,9 @@ def reconstruct_models(images, work, files, *, single_camera, threads):
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     def option(command, *names):
-        help_text = subprocess.run(["colmap", command, "-h"], env=env, timeout=10,
-                                   text=True, capture_output=True, check=True).stdout
+        response = subprocess.run(["colmap", command, "-h"], env=env, timeout=10,
+                                  text=True, capture_output=True, check=True)
+        help_text = response.stdout + "\n" + response.stderr
         for name in names:
             if name in help_text:
                 return name

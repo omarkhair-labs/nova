@@ -183,6 +183,18 @@ class PlantupiaCoreRootsInstrumentedTest {
 
         awaitText("No check-ins due")
         capture("15-owner-today")
+        if (ownSpace?.livingSystemsEnabled == true) {
+            scrollToText("PLANTUPIA / LIVING ATLAS").assertIsDisplayed()
+            capture("15b-atlas-now")
+            clickText("Through time")
+            scrollToText("Record another visit to begin a visual history.").assertIsDisplayed()
+            capture("15c-atlas-time")
+            clickText("In space")
+            scrollToText("Explore this place", clickable = true).assertIsDisplayed()
+            capture("15d-atlas-space")
+            clickText("Now")
+        }
+
         val todayFocus = requireNotNull(todayCollectionFocus(plants))
         scrollToText("From your collection")
         capture("15a-owner-today-collection")

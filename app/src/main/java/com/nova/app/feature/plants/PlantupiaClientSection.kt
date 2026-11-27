@@ -581,6 +581,7 @@ private fun PlantupiaAccountClientSection(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         val firstArrival = !loading && error == null && spaces.isEmpty() && plants.isEmpty()
+        val atlasPlants = plants.filter { plant -> plant.active && spaces.any { it.id == plant.spaceId && it.livingSystemsEnabled } }
         if (selectedPlant == null) {
             if (section == PlantupiaPrimarySection.PLANTS) {
                 // The schedule belongs to the My Plants heading, not a floating fourth
@@ -635,7 +636,12 @@ private fun PlantupiaAccountClientSection(
                     val dueCount = scheduledPlantCheckIns(plants).count {
                         !LocalDate.parse(it.nextFollowUpOn).isAfter(LocalDate.now())
                     }
-                    PlantupiaTodayMasthead(
+                    if (atlasPlants.isNotEmpty()) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Today", style = PlantupiaText.pageHeading, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { PlantupiaCareCalendarOpenSignal.open(accountId, fromToday = true) }) {
+                            Text(if (dueCount == 0) "No check-ins due" else "$dueCount due", color = deepGreen)
+                        }
+                    } else PlantupiaTodayMasthead(
                         activeCount = plants.count { it.active },
                         dueCount = dueCount,
                         onOpenCalendar = { PlantupiaCareCalendarOpenSignal.open(accountId, fromToday = true) },
@@ -713,8 +719,7 @@ private fun PlantupiaAccountClientSection(
             }
             // Quiet Care: real persisted inspections and check-ins before optional help.
             if (!loading && error == null && section == PlantupiaPrimarySection.TODAY && !firstArrival) {
-                val lensPlants = plants.filter { plant -> plant.active && spaces.any { it.id == plant.spaceId && it.livingSystemsEnabled } }
-                if (lensPlants.isNotEmpty()) PlantupiaAtlasHome(lensPlants, spaces, repository,
+                if (atlasPlants.isNotEmpty()) PlantupiaAtlasHome(atlasPlants, spaces, repository,
                     refreshVersion = refreshVersion,
                     onRecordChanged = { scope.launch { refresh() } },
                     onOpenPlant = { plant -> scope.launch { openPlant(plant) } },

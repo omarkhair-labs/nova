@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,7 +58,7 @@ internal fun PlantupiaAtlasHome(
     onOpenPlant: (PlantupiaPlant) -> Unit, onOpenPlace: (PlantupiaSpace) -> Unit,
 ) {
     if (plants.isEmpty()) return
-    var selected by remember(repository) { mutableStateOf(todayCollectionFocus(plants)?.id ?: plants.first().id) }
+    var selected by rememberSaveable { mutableStateOf(todayCollectionFocus(plants)?.id ?: plants.first().id) }
     val plant = plants.firstOrNull { it.id == selected } ?: plants.first()
     val place = spaces.firstOrNull { it.id == plant.spaceId }
     var mode by remember(repository) { mutableStateOf(AtlasMode.NOW) }
@@ -72,7 +73,7 @@ internal fun PlantupiaAtlasHome(
     var roomRetry by remember(repository, place?.id) { mutableIntStateOf(0) }
     var capture by remember(repository) { mutableStateOf(false) }
     var observe by remember(repository) { mutableStateOf<Pair<PlantupiaPlant,Uri>?>(null) }
-    var original by remember(repository) { mutableStateOf<String?>(null) }
+    var original by remember(repository, plant.id) { mutableStateOf<String?>(null) }
     var comparison by remember(repository, plant.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(repository, plant.id, refreshVersion, retry) {
@@ -100,6 +101,7 @@ internal fun PlantupiaAtlasHome(
     val latest = photos.firstOrNull()
     val visible = if (mode == AtlasMode.TIME) photos.getOrNull(dateIndex.coerceIn(0, (photos.size-1).coerceAtLeast(0))) else latest
     val source = visible?.photoUrl ?: plant.coverPhoto
+    var sourceLoaded by remember(source, plant.id) { mutableStateOf(false) }
     Surface(color = atlasNight, shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -109,13 +111,24 @@ internal fun PlantupiaAtlasHome(
                 }
                 Text("${plants.indexOf(plant)+1} / ${plants.size}", color = atlasMint, style = PlantupiaText.supporting)
             }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                AtlasMode.entries.forEach { m ->
+                    Surface(onClick = { mode = m }, color = if (mode == m) atlasMint else Color(0xFF284236),
+                        shape = RoundedCornerShape(20.dp), modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                        Box(Modifier.padding(horizontal = 5.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
+                            Text(m.label, color = if (mode == m) atlasNight else Color.White, style = PlantupiaText.supporting,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        }
+                    }
+                }
+            }
             // A photograph is the anchor. Date, identity and place refer to the same selected subject.
             if (mode != AtlasMode.PLACE) {
                 Box(Modifier.fillMaxWidth().height(354.dp).clip(RoundedCornerShape(16.dp))) {
                     Crossfade(targetState = source, animationSpec = tween(240), label = "recorded photograph") { url ->
                         PlantupiaEvidencePhoto(url, "Photograph of ${plant.name}", Modifier.fillMaxSize(),
                             cornerRadius = 0.dp, framing = PlantupiaPhotoFraming.COVER,
-                            onOpenPhoto = { original = url })
+                            onOpenPhoto = { original = url }, onPhotoLoadChanged = { ok -> if (url == source) sourceLoaded = ok })
                     }
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent, Color(0xE610241D)))))
                     Column(Modifier.align(Alignment.BottomStart).fillMaxWidth().padding(18.dp),
@@ -127,8 +140,11 @@ internal fun PlantupiaAtlasHome(
                         if (plant.species.isNotBlank() && plant.identityState != "unknown") Text(plant.species, color = atlasMint, style = PlantupiaText.supporting)
                         if (mode == AtlasMode.TIME && visible != null && visible.note.isNotBlank())
                             Text(visible.note, color = Color.White, style = PlantupiaText.supporting, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        if (plant.canRecord && mode == AtlasMode.NOW) Button(onClick = { capture = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = atlasMint, contentColor = atlasNight),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) { Text("Observe your plant") }
                     }
-                    if (source.isNotBlank()) Surface(color = Color(0xD010241D), shape = CircleShape, modifier = Modifier.align(Alignment.TopEnd).padding(10.dp)) {
+                    if (sourceLoaded && source.isNotBlank()) Surface(color = Color(0xD010241D), shape = CircleShape, modifier = Modifier.align(Alignment.TopEnd).padding(10.dp)) {
                         TextButton(onClick = { original = source }) { Text("View photo", color = Color.White) }
                     }
                 }
@@ -153,17 +169,6 @@ internal fun PlantupiaAtlasHome(
                             color = atlasMint, style = PlantupiaText.supporting)
                         if (roomError.isNotBlank()) TextButton(onClick = { roomRetry++ }) { Text("Retry", color = atlasMint) }
                         if (layout != null && place != null) TextButton(onClick = { onOpenPlace(place) }) { Text("Open place", color = atlasMint) }
-                    }
-                }
-            }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                AtlasMode.entries.forEach { m ->
-                    Surface(onClick = { mode = m }, color = if (mode == m) atlasMint else Color(0xFF284236),
-                        shape = RoundedCornerShape(20.dp), modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                        Box(Modifier.padding(horizontal = 5.dp, vertical = 10.dp), contentAlignment = Alignment.Center) {
-                            Text(m.label, color = if (mode == m) atlasNight else Color.White, style = PlantupiaText.supporting,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                        }
                     }
                 }
             }
@@ -216,7 +221,7 @@ internal fun PlantupiaAtlasHome(
             }
             if (mode == AtlasMode.PLACE && place != null) {
                 Button(onClick = { onOpenPlace(place) }, modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp)) { Text("Explore this place") }
-            } else if (plant.canRecord) {
+            } else if (plant.canRecord && mode == AtlasMode.TIME) {
                 Button(onClick = { capture = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = atlasMint, contentColor = atlasNight)) { Text("Observe your plant") }
             }
@@ -269,6 +274,7 @@ private fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plantu
     var foreground by remember { mutableStateOf<IntOffset?>(null) }
     var background by remember { mutableStateOf<IntOffset?>(null) }
     var refining by remember { mutableStateOf(false) }
+    var tryNeural by remember { mutableStateOf(true) }
     var part by remember { mutableStateOf("leaf") }
     val submission = remember(proposal?.token, part) { UUID.randomUUID().toString() }
     val width = evidence?.optJSONObject("quality")?.optInt("width") ?: 0
@@ -432,7 +438,7 @@ private fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plantu
                                                 val row = JSONObject().put("id",savedId).put("annotation",JSONObject().put("part",part).put("vertices",atlasPoints(candidate.vertices)))
                                                     .put("measurements",response.value.optJSONObject("measurements"))
                                                 region = fieldRegions(JSONArray().put(row),width,height).firstOrNull()
-                                                if (region == null) message = "Boundary saved. Reopen the record to see its measurements."
+                                                if (region == null) { proposal = null; message = "Boundary saved. Reopen the record to see its measurements." }
                                                 else { proposal=null;foreground=null;background=null }
                                             }
                                         }
@@ -447,12 +453,13 @@ private fun AtlasObservation(plant: PlantupiaPlant, uri: Uri, repository: Plantu
                             if (fg != null && bg != null) Button(enabled = !busy, modifier = Modifier.fillMaxWidth(), onClick = {
                                 busy=true;scope.launch { try {
                                     val body=JSONObject().put("foreground",atlasPoints(listOf(fg))).put("background",atlasPoints(listOf(bg)))
-                                    if(evidence?.optBoolean("can_neural_suggest_region")==true) body.put("mode","neural")
+                                    if(tryNeural && evidence?.optBoolean("can_neural_suggest_region")==true) body.put("mode","neural")
                                     suggest(body)
                                     refining=proposal==null
+                                    if (proposal==null) tryNeural=false
                                 } finally {busy=false} }
                             }) { Text("Reveal this part") }
-                            TextButton(enabled = !busy, onClick = {foreground=null;background=null}) { Text("Reset selection",color=atlasMint) }
+                            TextButton(enabled = !busy, onClick = {foreground=null;background=null;tryNeural=true}) { Text("Reset selection",color=atlasMint) }
                         }
                         !busy -> {
                             if (message.isNotBlank()) Text(message,color=Color.White,style=PlantupiaText.supporting)
