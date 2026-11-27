@@ -10,11 +10,11 @@ import numpy as np
 
 
 def colmap_version():
-    output = subprocess.run(["colmap", "-h"], text=True, capture_output=True,
-                            timeout=12, check=True).stdout
-    match = re.search(r"COLMAP\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?)", output)
-    if not match:
-        raise ValueError("Cannot establish native COLMAP version.")
+    process = subprocess.run(["colmap", "-h"], text=True, capture_output=True,
+                             env=dict(os.environ, QT_QPA_PLATFORM="offscreen"), timeout=12, check=True)
+    match = re.search(r"COLMAP\s+([0-9]+\.[0-9]+(?:\.[0-9]+)?)", process.stdout + process.stderr)
+    if not match or match.group(1) not in {"3.10", "3.10.0"}:
+        raise ValueError("Native COLMAP version is not the reviewed candidate.")
     return match.group(1)
 
 
@@ -53,7 +53,10 @@ def camera_pose(q, t):
         [2*(x*y+z*w), 1-2*(x*x+z*z), 2*(y*z-x*w)],
         [2*(x*z-y*w), 2*(y*z+x*w), 1-2*(x*x+y*y)],
     ])
-    return Pose(Rotation(r), np.asarray(t, dtype=float))
+    translation = np.asarray(t, dtype=float)
+    if not np.isfinite(translation).all():
+        raise ValueError("Invalid COLMAP translation.")
+    return Pose(Rotation(r), translation)
 
 
 @dataclass
@@ -155,7 +158,9 @@ def read_model(folder, allowed_names):
             continue
         i, model, w, h, *params = line.split()
         p = np.asarray(params, dtype=float)
-        if not np.isfinite(p).all() or int(w) <= 0 or int(h) <= 0:
+        expected = {"SIMPLE_PINHOLE": 3, "PINHOLE": 4, "SIMPLE_RADIAL": 4, "RADIAL": 5, "OPENCV": 8}
+        if (not np.isfinite(p).all() or int(w) <= 0 or int(h) <= 0 or
+                (model in expected and (len(p) != expected[model] or p[0] <= 0))):
             raise ValueError("Invalid camera geometry.")
         cameras[int(i)] = Camera(model, int(w), int(h), p)
     images = {}
@@ -176,6 +181,8 @@ def read_model(folder, allowed_names):
             raise ValueError("Invalid image observations.")
         obs = [Observation(np.array([float(values[i]), float(values[i+1])]), int(values[i+2]))
                for i in range(0, len(values), 3)]
+        if not all(np.isfinite(p.xy).all() for p in obs):
+            raise ValueError("Invalid observation coordinates.")
         images[image_id] = RegisteredImage(image_id, name, cameras[int(fields[8])], pose, obs)
     points = {}
     for line in records(folder / "points3D.txt"):
@@ -192,7 +199,7 @@ def read_model(folder, allowed_names):
             raise ValueError("Invalid landmark values.")
         points[int(row[0])] = Landmark(xyz, color, error, Track(track))
     for image in images.values():
-        for index, p in enumerate(image.points2D):
+        for p in image.points2D:
             if p.has_point3D() and p.point3D_id not in points:
                 raise ValueError("Registered observation lacks its landmark.")
     for point_id, point in points.items():
