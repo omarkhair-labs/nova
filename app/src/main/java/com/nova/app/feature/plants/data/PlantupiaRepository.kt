@@ -437,6 +437,13 @@ class PlantupiaRepository(
                 method = if (data == null) "GET" else "POST", body = data, bearerToken = token)
         }
 
+    internal suspend fun alignVisits(plantId: String, earlier: String, later: String, marks: JSONObject): ApiResult<JSONObject> =
+        authorized { token ->
+            val body = JSONObject(marks.toString()).put("earlier_event_id", earlier).put("later_event_id", later)
+            api.requestJson(path = "plantupia/plants/$plantId/align-visits/", method = "POST",
+                body = body, bearerToken = token)
+        }
+
     internal suspend fun compareProjectedAreas(plantId: String, earlier: Long, later: Long): ApiResult<JSONObject> =
         authorized { token ->
             api.requestJson(path = "plantupia/plants/$plantId/compare-regions/", method = "POST",

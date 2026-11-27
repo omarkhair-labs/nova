@@ -87,6 +87,10 @@ internal fun PlantupiaPhotoIndex(
                 hasOlderPages = hasOlderPages,
                 onOpenPhoto = onOpenPhoto,
                 alignmentEnabled = alignmentEnabled,
+                automaticAlignment = if (measurementRepository != null && measurementPlantId != null) { marks ->
+                    measurementRepository.alignVisits(measurementPlantId, comparison.earlier.id, comparison.later.id, marks)
+                } else null,
+                isCurrentSession = { measurementRepository?.isCurrentSession() == true },
             )
             if (alignmentEnabled && measurementRepository != null && measurementPlantId != null) {
                 key(measurementPlantId, comparison.earlier.id, comparison.later.id, measurementRepository) {

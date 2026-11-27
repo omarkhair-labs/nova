@@ -25,6 +25,7 @@ from .living_neural_outline import METHOD as NEURAL_METHOD, neural_outline_avail
 from .living_vision import _open
 from .living_daylight import window_scenario
 from .living_temporal import compare_projected_areas
+from .living_registration import align_retained_photos, checked_box
 from .vision_evidence import MAX_BYTES, inspect_photo
 from .models import CareGuideVersion, EvidenceReview, PlantEvent, PlantUnit, RoomRevision, Space, SpaceMember, TracedRegion
 from .views import accessible_plants, accessible_spaces, can_record
@@ -475,6 +476,64 @@ class ProjectedComparisonView(ResearchView):
         later = get_object_or_404(traces, pk=fields["later_trace_id"])
         return Response(compare_projected_areas(earlier, later,
             same_part=fields["same_part"], comparable_capture=fields["comparable_capture"]))
+
+
+class VisitRegistrationInput(serializers.Serializer):
+    earlier_event_id = serializers.UUIDField()
+    later_event_id = serializers.UUIDField()
+    earlier_exclusion = serializers.ListField(child=serializers.FloatField(min_value=0, max_value=1), min_length=4, max_length=4)
+    later_exclusion = serializers.ListField(child=serializers.FloatField(min_value=0, max_value=1), min_length=4, max_length=4)
+
+    def validate(self, attrs):
+        try:
+            checked_box(attrs["earlier_exclusion"])
+            checked_box(attrs["later_exclusion"])
+        except ValueError as exc:
+            raise serializers.ValidationError(str(exc)) from exc
+        return attrs
+
+
+class VisitRegistrationThrottle(UserRateThrottle):
+    scope = "plant_visit_registration"
+    rate = "12/min"
+
+
+class VisitRegistrationView(ResearchView):
+    """Compare two authorized retained originals; never upload or write a record."""
+    http_method_names = ["post", "options"]
+    throttle_classes = [VisitRegistrationThrottle]
+
+    def post(self, request, plant_id):
+        plant = get_object_or_404(accessible_plants(request.user), pk=plant_id)
+        data = VisitRegistrationInput(data=request.data)
+        data.is_valid(raise_exception=True)
+        fields = data.validated_data
+        events = PlantEvent.objects.filter(plant=plant)
+        earlier = get_object_or_404(events, pk=fields["earlier_event_id"])
+        later = get_object_or_404(events, pk=fields["later_event_id"])
+
+        def refused(reason):
+            return Response({"status": "not_comparable", "reason": reason,
+                             "growth": "not_inferred", "health": "not_assessed"})
+
+        if earlier.pk == later.pk or earlier.observed_at >= later.observed_at:
+            return refused("distinct_ordered_visits_required")
+        if not earlier.photo or not later.photo:
+            return refused("two_saved_photos_required")
+        try:
+            raw = []
+            for event in (earlier, later):
+                with event.photo.open("rb") as source:
+                    raw.append(source.read(MAX_BYTES+1))
+            if sha256(raw[0]).digest() == sha256(raw[1]).digest():
+                return refused("different_source_photographs_required")
+            images = [_open(body, {"JPEG", "PNG", "WEBP"}) for body in raw]
+            answer = align_retained_photos(*images, fields["earlier_exclusion"], fields["later_exclusion"])
+        except VisionUnavailable as exc:
+            return Response({"detail": str(exc)}, status=503)
+        except (ValueError, OSError) as exc:
+            raise serializers.ValidationError("The retained photographs or marks could not be read.") from exc
+        return Response(answer)
 
 
 class ScenarioInput(serializers.Serializer):

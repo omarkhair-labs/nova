@@ -30,13 +30,27 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.nova.app.core.network.ApiResult
+import org.json.JSONObject
 import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.min
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun PlantupiaAlignedVisits(pair: PlantupiaLoadedPhotoPair, close: () -> Unit) {
+internal fun PlantupiaAlignedVisits(
+    pair: PlantupiaLoadedPhotoPair,
+    automaticAlignment: (suspend (JSONObject) -> ApiResult<JSONObject>)? = null,
+    isCurrentSession: () -> Boolean = { true },
+    close: () -> Unit,
+) {
+    var automatic by remember(pair) { mutableStateOf(automaticAlignment != null) }
+    if (automatic && automaticAlignment != null) {
+        PlantupiaAutoAlignedVisits(pair, automaticAlignment, isCurrentSession,
+            manual = { automatic = false }, close = close)
+        return
+    }
+    if (automaticAlignment != null) TextButton(onClick = { automatic = true }) { Text("Match background instead") }
     var earlier by remember(pair) { mutableStateOf(emptyList<VisitPoint>()) }
     var later by remember(pair) { mutableStateOf(emptyList<VisitPoint>()) }
     var opacity by remember(pair) { mutableFloatStateOf(.5f) }
@@ -46,25 +60,7 @@ internal fun PlantupiaAlignedVisits(pair: PlantupiaLoadedPhotoPair, close: () ->
     val transform = remember(earlier, later) { fitVisitAlignment(earlier, later) }
     Text("Align two visits", style = PlantupiaText.editorialHeading)
     if (transform != null) {
-        Box(Modifier.fillMaxWidth().aspectRatio(4f / 3f).clipToBounds().background(PlantupiaColors.forest)) {
-            AsyncImage(pair.earlier.photoUrl, "Earlier record", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
-            AsyncImage(
-                pair.later.photoUrl, "Aligned later record",
-                Modifier.fillMaxSize().graphicsLayer {
-                    val zoom = hypot(transform.a, transform.b).toFloat()
-                    scaleX = zoom
-                    scaleY = zoom
-                    rotationZ = Math.toDegrees(atan2(transform.b, transform.a)).toFloat()
-                    translationX = transform.x.toFloat() * size.width
-                    translationY = transform.y.toFloat() * size.width
-                    alpha = opacity
-                },
-                contentScale = ContentScale.Fit,
-            )
-        }
-        Slider(opacity, { opacity = it }, modifier = Modifier.semantics {
-            contentDescription = "Later photograph opacity"
-        })
+        VisitBlend(pair, transform, opacity, { opacity = it })
         Text("Blend the earlier and later photographs. Alignment is based on your reference marks.", style = PlantupiaText.body)
         Text("Viewpoint, light and moving foliage can still change the image.", style = PlantupiaText.supporting)
     } else {
@@ -134,4 +130,29 @@ private fun VisitReferencePhoto(url: String, marks: List<VisitPoint>, onMark: (V
         }
     }
     if (failed) Text("This record photograph could not load.", style = PlantupiaText.supporting)
+}
+
+
+/** Shared image-plane overlay. Manual marks are in viewport-width units;
+ * automatic transforms use the fitted image width in the identical frame. */
+@Composable
+internal fun VisitBlend(pair: PlantupiaLoadedPhotoPair, transform: VisitTransform,
+                        opacity: Float, onOpacity: (Float) -> Unit, imageAspect: Double? = null) {
+    Box(Modifier.fillMaxWidth().aspectRatio(4f / 3f).clipToBounds().background(PlantupiaColors.forest)) {
+        AsyncImage(pair.earlier.photoUrl, "Earlier record", Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+        AsyncImage(pair.later.photoUrl, "Aligned later record",
+            Modifier.fillMaxSize().graphicsLayer {
+                val zoom = hypot(transform.a, transform.b).toFloat()
+                val unit = imageAspect?.let { min(size.width, size.height * it.toFloat()) } ?: size.width
+                scaleX = zoom
+                scaleY = zoom
+                rotationZ = Math.toDegrees(atan2(transform.b, transform.a)).toFloat()
+                translationX = transform.x.toFloat() * unit
+                translationY = transform.y.toFloat() * unit
+                alpha = opacity
+            }, contentScale = ContentScale.Fit)
+    }
+    Slider(opacity, onOpacity, modifier = Modifier.semantics {
+        contentDescription = "Later photograph opacity"
+    })
 }

@@ -1,6 +1,6 @@
 from .room_scene_api import RoomPhotoSceneView
 from .species_recognition import SpeciesRecognitionView
-from .living_api import DaylightView, FieldEvidenceView, ProjectedComparisonView, RegionView, RegionSuggestionView, ReviewView, RoomView
+from .living_api import DaylightView, FieldEvidenceView, ProjectedComparisonView, RegionView, RegionSuggestionView, ReviewView, RoomView, VisitRegistrationView
 from django.urls import path
 from .visit_photographs import VisitPhotoView
 from .commerce_storefront_api import CommerceCatalogView, CommerceCatalogPhotoView, CommerceCartView
@@ -26,6 +26,7 @@ urlpatterns = [
     path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/photos/<int:photo_id>/", VisitPhotoView.as_view(), name="plantupia-visit-photo"),
     path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/regions/", RegionView.as_view(), name="plantupia-trace-region"),
     path("plants/<uuid:plant_id>/compare-regions/", ProjectedComparisonView.as_view(), name="plantupia-compare-regions"),
+    path("plants/<uuid:plant_id>/align-visits/", VisitRegistrationView.as_view(), name="plantupia-align-visits"),
     path("plants/<uuid:plant_id>/events/<uuid:event_id>/evidence/suggest-region/", RegionSuggestionView.as_view(), name="plantupia-suggest-region"),
     path("spaces/<uuid:space_id>/room/daylight/", DaylightView.as_view(), name="plantupia-daylight"),
     path("spaces/<uuid:space_id>/room/<int:number>/scene/", RoomPhotoSceneView.as_view(),

@@ -49,6 +49,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.nova.app.feature.plants.data.PlantupiaCareEvent
+import com.nova.app.core.network.ApiResult
+import org.json.JSONObject
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -60,11 +62,13 @@ internal fun PlantupiaPhotoTimeLens(
     hasOlderPages: Boolean,
     onOpenPhoto: (PlantupiaCareEvent) -> Unit,
     alignmentEnabled: Boolean = false,
+    automaticAlignment: (suspend (JSONObject) -> ApiResult<JSONObject>)? = null,
+    isCurrentSession: () -> Boolean = { true },
 ) {
     var align by remember(pair.earlier.id, pair.later.id) { mutableStateOf(false) }
     if (align && alignmentEnabled) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            PlantupiaAlignedVisits(pair) { align = false }
+            PlantupiaAlignedVisits(pair, automaticAlignment, isCurrentSession) { align = false }
         }
         return
     }
@@ -196,7 +200,7 @@ internal fun PlantupiaPhotoTimeLens(
             Text("Visual comparison of saved photographs, not measured growth or health.", style = PlantupiaText.supporting)
             if (alignmentEnabled) {
                 TextButton(onClick = { align = true }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                    Text("Align using reference marks")
+                    Text(if (automaticAlignment != null) "Align recorded photographs" else "Align using reference marks")
                 }
             }
             if (hasOlderPages) {

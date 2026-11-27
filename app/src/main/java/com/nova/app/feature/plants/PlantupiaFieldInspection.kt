@@ -187,7 +187,9 @@ private fun InspectionPhotoComparison(
             TextButton(onClick = { retry++ }) { Text("Retry comparison") }
         }
         visits != null -> {
-            PlantupiaPhotoTimeLens(visits, hasOlderPages = false, onOpenPhoto = { photo = it }, alignmentEnabled = true)
+            PlantupiaPhotoTimeLens(visits, hasOlderPages = false, onOpenPhoto = { photo = it }, alignmentEnabled = true,
+                automaticAlignment = { marks -> repository.alignVisits(plant.id, visits.earlier.id, visits.later.id, marks) },
+                isCurrentSession = repository::isCurrentSession)
             PlantupiaMeasuredVisits(repository, plant.id, visits)
         }
         else -> Text("No distinct photograph from an earlier day.", style = PlantupiaText.supporting)
