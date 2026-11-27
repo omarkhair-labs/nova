@@ -39,15 +39,19 @@ def prepare():
     if arch not in ("x86_64", "aarch64"):
         raise RuntimeError("Unreviewed Linux architecture: " + arch)
     full = arch == "x86_64"
+    arm_candidate = arch == "aarch64" and os.environ.get("PLANTUPIA_HOSTED_ARM_VISION_QA") == "1"
+    neural = full or arm_candidate
     # MediaPipe requires opencv-contrib-python. Install exactly one cv2 wheel.
-    # The pinned MediaPipe/PyCOLMAP wheels are x86_64 only; on ARM retain
-    # the existing GrabCut, ONNX recognition and on-device AR/room paths.
+    # The ARM candidate stays opt-in until native Linux inference/reconstruction pass.
     packages = [
-        "numpy==2.2.6", "onnxruntime==1.31.1",
-        ("opencv-contrib-python" if full else "opencv-python-headless") + "==4.11.0.86",
+        ("numpy==1.26.4" if arm_candidate else "numpy==2.2.6"), "onnxruntime==1.31.1",
+        ("opencv-contrib-python" if neural else "opencv-python-headless") + "==4.11.0.86",
     ]
     if full:
         packages += ["mediapipe==0.10.32", "matplotlib==3.10.8", "pycolmap==4.2.1"]
+    elif arm_candidate:
+        packages += ["mediapipe==0.10.18", "protobuf==4.25.8", "jax==0.4.38",
+                     "jaxlib==0.4.38", "matplotlib==3.10.8"]
     subprocess.run([sys.executable, "-m", "pip", "install", "--no-cache-dir",
                     "--only-binary=:all:", *packages], check=True)
     subprocess.run([sys.executable, "-m", "pip", "check"], check=True)
@@ -76,9 +80,14 @@ def prepare():
     assert output.size and np.isfinite(output).all()
     del session
     if full:
-        import mediapipe as mp
         import pycolmap
         assert hasattr(pycolmap, "IncrementalPipelineOptions")
+    if arm_candidate:
+        from plants.room_colmap_cli import colmap_version
+        colmap_version()
+    if neural:
+        import mediapipe as mp
+        assert mp.__version__ == ("0.10.18" if arm_candidate else "0.10.32")
         magic = ROOT / "magic_touch.tflite"
         download(magic, MAGIC_URL,
                  "e24338a717c1b7ad8d159666677ef400babb7f33b8ad60c4d96db4ecf694cd25",
@@ -90,7 +99,9 @@ def prepare():
         with mp.tasks.vision.InteractiveSegmenter.create_from_options(opts):
             pass
     MANIFEST.write_text(json.dumps({"architecture": arch, "species": True,
-                                    "neural": full, "sfm": full}))
+                                    "neural": neural, "sfm": neural,
+                                    "neural_runtime": ("0.10.18" if arm_candidate else "0.10.32") if neural else "",
+                                    "sfm_engine": "colmap-cli" if arm_candidate else "pycolmap" if full else ""}))
     print("Plantupia hosted QA image checked: " + MANIFEST.read_text(), flush=True)
 
 
@@ -135,6 +146,8 @@ def start():
         "PLANTUPIA_SPECIES_MODEL_DIR": str(ROOT / "species"),
         "PLANTUPIA_NEURAL_OUTLINE_MODEL": str(ROOT / "magic_touch.tflite") if capabilities["neural"] else "",
         "PLANTUPIA_ROOM_SFM_ENABLED": "1" if capabilities["sfm"] else "0",
+        "PLANTUPIA_ROOM_SFM_ENGINE": capabilities.get("sfm_engine", "pycolmap"),
+        "PLANTUPIA_NEURAL_RUNTIME_VERSION": capabilities.get("neural_runtime", "0.10.32"),
         "PLANTUPIA_ROOM_SFM_THREADS": "2",
         "OPENCV_FOR_THREADS_NUM": "2",
         "OMP_NUM_THREADS": "2",

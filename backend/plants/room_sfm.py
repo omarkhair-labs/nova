@@ -6,7 +6,21 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
-import pycolmap as colmap
+
+
+def selected_engine():
+    engine = os.environ.get("PLANTUPIA_ROOM_SFM_ENGINE", "pycolmap")
+    if engine not in {"pycolmap", "colmap-cli"}:
+        raise ValueError("Unsupported room reconstruction engine.")
+    return engine
+
+
+def require_engine():
+    if selected_engine() == "colmap-cli":
+        from plants.room_colmap_cli import colmap_version
+        return colmap_version()
+    import pycolmap
+    return pycolmap.__version__
 
 
 def write_scene(model, path):
@@ -53,17 +67,25 @@ def reconstruct(images, output, *, single_camera, with_surface=False):
         model_dir = work / "models"
         model_dir.mkdir()
         database = work / "matches.db"
-        extraction = colmap.FeatureExtractionOptions(max_image_size=1600, num_threads=threads, use_gpu=False)
-        matching = colmap.FeatureMatchingOptions(num_threads=threads, use_gpu=False)
-        mapping = colmap.IncrementalPipelineOptions(num_threads=threads, random_seed=42)
-        colmap.extract_features(
-            database, images, image_names=[path.name for path in files],
-            camera_mode=colmap.CameraMode.SINGLE if single_camera else colmap.CameraMode.AUTO,
-            extraction_options=extraction, device=colmap.Device.cpu,
-        )
-        colmap.match_exhaustive(database, matching_options=matching, device=colmap.Device.cpu)
-        models = colmap.incremental_mapping(database, images, model_dir, options=mapping)
-        best = max(models.values(), key=lambda m: (m.num_reg_images(), m.num_points3D()), default=None)
+        if selected_engine() == "colmap-cli":
+            from plants.room_colmap_cli import reconstruct_models
+            version, models = reconstruct_models(images, work, files, single_camera=single_camera, threads=threads)
+            best = max(models, key=lambda m: (m.num_reg_images(), m.num_points3D()), default=None)
+            version_name = "COLMAP CLI " + version
+        else:
+            import pycolmap as colmap
+            extraction = colmap.FeatureExtractionOptions(max_image_size=1600, num_threads=threads, use_gpu=False)
+            matching = colmap.FeatureMatchingOptions(num_threads=threads, use_gpu=False)
+            mapping = colmap.IncrementalPipelineOptions(num_threads=threads, random_seed=42)
+            colmap.extract_features(
+                database, images, image_names=[path.name for path in files],
+                camera_mode=colmap.CameraMode.SINGLE if single_camera else colmap.CameraMode.AUTO,
+                extraction_options=extraction, device=colmap.Device.cpu,
+            )
+            colmap.match_exhaustive(database, matching_options=matching, device=colmap.Device.cpu)
+            models = colmap.incremental_mapping(database, images, model_dir, options=mapping)
+            best = max(models.values(), key=lambda m: (m.num_reg_images(), m.num_points3D()), default=None)
+            version_name = colmap.__version__
         if best is None or best.num_reg_images() < max(5, .65 * len(files)):
             raise ValueError("Too few views registered together. Add overlap and keep the scene still.")
         surface_count = 0
@@ -77,7 +99,8 @@ def reconstruct(images, output, *, single_camera, with_surface=False):
         with output.open("rb") as stream:
             sha256 = file_digest(stream, "sha256").hexdigest()
         info = dict(
-            algorithm="COLMAP incremental structure from motion", pycolmap=colmap.__version__,
+            algorithm="COLMAP incremental structure from motion", pycolmap=version_name,
+            engine=selected_engine(),
             surface_method=surface.get("method", "tracked_patches") if with_surface else "none",
             surface_faces=surface_count, supplied_views=len(files), registered_views=best.num_reg_images(), all_sparse_points=best.num_points3D(),
             points_with_three_views_and_error_up_to_two_px=eligible, exported_points=exported,

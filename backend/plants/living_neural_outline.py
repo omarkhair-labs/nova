@@ -3,6 +3,8 @@ from functools import lru_cache
 from hashlib import sha256
 from importlib.util import find_spec
 from pathlib import Path
+import os
+import platform
 from threading import Lock
 
 from PIL import Image
@@ -34,7 +36,9 @@ def load_neural_engine(model_path):
         if len(body) != MODEL_BYTES or sha256(body).hexdigest() != MODEL_SHA256:
             raise VisionUnavailable("The configured neural model does not match the reviewed artifact.")
         import mediapipe as mp
-        if mp.__version__ != RUNTIME_VERSION:
+        expected_runtime = ("0.10.18" if platform.machine() == "aarch64" and
+                            os.environ.get("PLANTUPIA_NEURAL_RUNTIME_VERSION") == "0.10.18" else RUNTIME_VERSION)
+        if mp.__version__ != expected_runtime:
             raise VisionUnavailable("The configured neural runtime has not been reviewed.")
         vision = mp.tasks.vision
         options = vision.InteractiveSegmenterOptions(

@@ -65,8 +65,9 @@ class Command(BaseCommand):
         if not settings.PLANTUPIA_LIVING_SYSTEMS_ENABLED or not settings.PLANTUPIA_ROOM_SFM_ENABLED:
             raise CommandError("Enable living systems and room SfM on this backend.")
         try:
-            import pycolmap  # noqa: F401
-        except ImportError as exc:
+            from plants.room_sfm import require_engine
+            require_engine()
+        except (ImportError, OSError, ValueError, subprocess.SubprocessError) as exc:
             raise CommandError("Install the room reconstruction requirements first.") from exc
         while True:
             if not process_one():
