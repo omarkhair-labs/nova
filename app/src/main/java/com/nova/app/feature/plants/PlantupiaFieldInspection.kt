@@ -15,11 +15,13 @@ import org.json.JSONObject
 import java.util.UUID
 
 @Composable
-internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: PlantupiaPlant, event: PlantupiaCareEvent) =
+internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: PlantupiaPlant, event: PlantupiaCareEvent,
+    directClose: (() -> Unit)? = null, focusOutline: Boolean = false,
+) =
     key(repository, plant.id, event.id) {
         var expanded by remember { mutableStateOf(false) }
-        PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Photo, title = "Inspect this record", detail = "Private evidence · visible observations", onClick = { expanded = true })
-        if (expanded) {
+        if (directClose == null) PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Photo, title = "Inspect this record", detail = "Private evidence · visible observations", onClick = { expanded = true })
+        if (expanded || directClose != null) {
             val scope = rememberCoroutineScope()
             var record by remember { mutableStateOf<JSONObject?>(null) }
             var feedback by remember { mutableStateOf("") }
@@ -46,7 +48,10 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                     busy = false
                 }
             }
-            PlantupiaLivingWorkspace("FIELD NOTES", plant.name, "Recorded " + event.observedAt.take(10), busy, { expanded = false }) {
+            PlantupiaLivingWorkspace(if (focusOutline) "LIVING LENS" else "FIELD NOTES",
+                if (focusOutline) "Look closer" else plant.name,
+                (if (focusOutline) plant.name + " · " else "") + "Recorded " + event.observedAt.take(10),
+                busy, { if (directClose != null) directClose() else expanded = false }) {
                 if (feedback.isNotBlank()) Text(feedback, color = MaterialTheme.colorScheme.error)
                 if (record == null) {
                     if (feedback.isBlank()) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -72,19 +77,6 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                         Text(if (label == null) "Plant type awaiting identification"
                             else "$label · " + identity.optString("scientific_name"), style = PlantupiaText.itemTitle)
                     }
-                    data.optJSONArray("visit_photos")?.let { photos ->
-                        PlantupiaVisitPhotographs(repository, plant, event, photos, busy,
-                            onBusy = { busy = it }, onSaved = { generation++ })
-                        if (data.optBoolean("photo_identification_enabled") &&
-                            photos.length() + (if (event.photoUrl.isBlank()) 0 else 1) >= 2) {
-                            key(event.id, photos.length()) {
-                                PlantupiaSpeciesReview(
-                                    analyse = { repository.demoPost("plants/${plant.id}/events/${event.id}/evidence/identify/", JSONObject()) },
-                                    current = repository::isCurrentSession,
-                                )
-                            }
-                        }
-                    }
                     val quality = data.optJSONObject("quality")
                     val width = quality?.optInt("width") ?: 0
                     val height = quality?.optInt("height") ?: 0
@@ -101,6 +93,7 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                                 canNeuralSuggest = data.optBoolean("can_neural_suggest_region"),
                                 busy = busy,
                                 revision = generation,
+                                initialAutoOutline = focusOutline,
                                 suggest = { body, result -> submit("suggest-region/", body, result) },
                                 inspectOutline = { traceId, result ->
                                     submit("", JSONObject().put("symptom", "uncertain").put("trace_id", traceId), result)
@@ -115,6 +108,19 @@ internal fun PlantupiaFieldInspection(repository: PlantupiaRepository, plant: Pl
                     }
                     if (event.photoUrl.isNotBlank()) {
                         InspectionPhotoComparison(repository, plant, event)
+                    }
+                    data.optJSONArray("visit_photos")?.let { photos ->
+                        PlantupiaVisitPhotographs(repository, plant, event, photos, busy,
+                            onBusy = { busy = it }, onSaved = { generation++ })
+                        if (data.optBoolean("photo_identification_enabled") &&
+                            photos.length() + (if (event.photoUrl.isBlank()) 0 else 1) >= 2) {
+                            key(event.id, photos.length()) {
+                                PlantupiaSpeciesReview(
+                                    analyse = { repository.demoPost("plants/${plant.id}/events/${event.id}/evidence/identify/", JSONObject()) },
+                                    current = repository::isCurrentSession,
+                                )
+                            }
+                        }
                     }
                     Text("A photograph alone does not establish a diagnosis.", style = PlantupiaText.supporting)
                     val reviews = data.optJSONArray("reviews") ?: JSONArray()

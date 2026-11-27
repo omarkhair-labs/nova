@@ -48,13 +48,14 @@ internal fun PlantupiaPhotoIdentification(repository: PlantupiaRepository, whole
 
 @Composable
 internal fun PlantupiaSpeciesReview(analyse: suspend () -> ApiResult<JSONObject>, current: () -> Boolean,
-                                   onChoose: ((String, String) -> Unit)? = null) {
+                                   onChoose: ((String, String) -> Unit)? = null,
+                                   prominent: Boolean = false) {
     val scope = rememberCoroutineScope()
     var running by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
     var match by remember { mutableStateOf<Pair<String, String>?>(null) }
     var related by remember { mutableStateOf(emptyList<Pair<String, String>>()) }
-    TextButton(enabled = !running, onClick = {
+    val compare: () -> Unit = {
         running = true
         match = null
         related = emptyList()
@@ -84,10 +85,15 @@ internal fun PlantupiaSpeciesReview(analyse: suspend () -> ApiResult<JSONObject>
                 }
             } finally { running = false }
         }
-    }) { Text(if (running) "Comparing both views…" else "Compare two private photos") }
-    if (message.isNotBlank()) Text(message, style = PlantupiaText.supporting)
+    }
+    val action = if (running) "Comparing both views…" else if (prominent) "Identify this plant" else "Compare two private photos"
+    if (prominent) Button(enabled = !running, onClick = compare, modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text(action) }
+    else TextButton(enabled = !running, onClick = compare) { Text(action) }
+    if (running && prominent) LinearProgressIndicator(Modifier.fillMaxWidth())
+    if (message.isNotBlank()) Text(message, style = if (prominent) PlantupiaText.body else PlantupiaText.supporting)
     match?.let { (key, name) ->
-        Text("Suggested plant type · $name", style = PlantupiaText.itemTitle)
+        Text(if (prominent) name else "Suggested plant type · $name", style = if (prominent) PlantupiaText.display else PlantupiaText.itemTitle)
+        if (prominent) Text("Suggested type, not a verified identification.", style = PlantupiaText.supporting)
         if (onChoose != null && key.isNotBlank()) TextButton(onClick = { onChoose(key, name) }) { Text("Use as my selection") }
         else if (onChoose != null) Text("No published care guide for this match.", style = PlantupiaText.supporting)
     }

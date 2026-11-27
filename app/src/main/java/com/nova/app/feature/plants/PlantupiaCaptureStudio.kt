@@ -72,7 +72,7 @@ import java.util.concurrent.atomic.AtomicReference
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.delay
 
-private enum class CaptureView(val title: String, val guidance: String, val frameWidth: Float, val frameHeight: Float) {
+internal enum class CaptureView(val title: String, val guidance: String, val frameWidth: Float, val frameHeight: Float) {
     WHOLE("Whole plant", "Include the whole plant and pot. For a future comparison, repeat this view at the same height.", .72f, .80f),
     LEAF("Leaf detail", "Keep one leaf still and include its edges. Tap the leaf in the preview to focus.", .68f, .56f),
     STEM("Stem", "Frame a section of stem with one node. Hold the camera level with that section.", .40f, .78f),
@@ -90,13 +90,16 @@ internal fun PlantupiaCaptureStudio(
     reference: com.nova.app.feature.plants.data.PlantupiaCareEvent? = null,
     saveAsPortrait: Boolean = false,
     onVisitPart: ((String) -> Unit)? = null,
+    initialView: CaptureView = CaptureView.WHOLE,
+    captureActionLabel: String? = null,
+    captureDescription: String? = null,
 ) {
     val context = LocalContext.current
     var permission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
     }
     val requestPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { permission = it }
-    var view by remember { mutableStateOf(CaptureView.WHOLE) }
+    var view by remember { mutableStateOf(initialView) }
     var writing by remember { mutableStateOf(false) }
     var candidate by remember { mutableStateOf<Uri?>(null) }
     var rejected by remember { mutableStateOf(false) }
@@ -154,13 +157,13 @@ internal fun PlantupiaCaptureStudio(
                     rejected = true
                 }
             }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text(if (saveAsPortrait) "Save private portrait" else "Use photograph")
+                Text(captureActionLabel ?: if (saveAsPortrait) "Save private portrait" else "Use photograph")
             }
             OutlinedButton(onClick = { discard() }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 Text(if (fromCamera) "Retake" else "Choose another photograph")
             }
             TextButton(onClick = { discard(); onClose() }) { Text("Cancel photograph") }
-            Text(if (saveAsPortrait) "Saving updates this plant’s private portrait."
+            Text(captureDescription ?: if (saveAsPortrait) "Saving updates this plant’s private portrait."
                 else if (onVisitPart != null) "Review and save this view in the visit."
                 else "This photo will be attached when you save the plant or care record.", style = PlantupiaText.supporting)
         } else if (!permission) {

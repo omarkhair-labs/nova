@@ -159,6 +159,8 @@ private fun PhotoSceneBody(subject: String, path: String, manager: Boolean, curr
                         } finally { saving = false }
                     }
                 }) { Text(if (saving) "Sending views…" else "Build scene · ${views.size}/8 photos") }
+            } else if (manager && currentLayout) {
+                Text("New photo reconstruction is not available on this server. Saved room plans and AR surveys remain accessible.", style = PlantupiaText.body)
             } else if (state == "empty") Text("No photo reconstruction recorded for this layout.", style = PlantupiaText.supporting)
         }
     }

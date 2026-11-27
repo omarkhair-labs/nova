@@ -26,6 +26,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -145,10 +146,14 @@ internal fun PlantupiaRegionStudy(
     revision: Int,
     suggest: (JSONObject, (JSONObject) -> Unit) -> Unit,
     inspectOutline: ((Long, (JSONObject) -> Unit) -> Unit)? = null,
+    initialAutoOutline: Boolean = false,
     save: (JSONObject) -> Unit,
 ) {
     var tracing by remember(revision, url) { mutableStateOf(false) }
-    var assisting by remember(revision, url) { mutableStateOf(false) }
+    var autoRequested by remember(url) { mutableStateOf(false) }
+    var assisting by remember(revision, url) {
+        mutableStateOf(initialAutoOutline && canTrace && canSuggest && !autoRequested)
+    }
     var neural by remember(revision, url, assisting, canNeuralSuggest) { mutableStateOf(false) }
     var selected by remember(revision, url) { mutableStateOf<Long?>(null) }
     var points by remember(revision, tracing, url) { mutableStateOf(emptyList<IntOffset>()) }
@@ -209,6 +214,29 @@ internal fun PlantupiaRegionStudy(
     }
     val photoAnchor = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
+    fun findOutline(request: JSONObject) {
+        resetProposal()
+        suggest(request) { response ->
+            proposal = parseOutlineProposal(response, width, height)
+            feedback = if (proposal != null) "Outline ready. Check the highlighted region." else
+                response.optString("reason").take(240).ifBlank { "No usable outline. Tap the object and background to refine it." }
+            scope.launch { photoAnchor.bringIntoView() }
+        }
+    }
+    fun acceptProposal(candidate: OutlineProposal) {
+        val body = JSONObject().put("submission_id", submission)
+            .put("vertices", pointArray(candidate.vertices)).put("part", part)
+            .put("suggestion_token", candidate.token).put("outline_method", candidate.method)
+        scalePayload?.let { body.put("point_reference", it) }
+        if (useMarkers) body.put("marker_edge_cm", markerCm)
+        save(body)
+    }
+    LaunchedEffect(loaded, busy, assisting, canSuggest, initialAutoOutline) {
+        if (initialAutoOutline && loaded && !busy && assisting && canSuggest && !autoRequested) {
+            autoRequested = true
+            findOutline(JSONObject().put("mode", "automatic"))
+        }
+    }
     Box(Modifier.fillMaxWidth().height(300.dp).bringIntoViewRequester(photoAnchor)) {
         PlantupiaEvidencePhoto(
             url, "Original recorded plant photograph", Modifier.fillMaxSize(), cornerRadius = 4.dp,
@@ -249,8 +277,9 @@ internal fun PlantupiaRegionStudy(
                         for (point in projected.drop(1)) lineTo(point.x, point.y)
                         if (projected.size >= 3) close()
                     }
-                    if (projected.size >= 3 && active) drawPath(path, ink.copy(alpha = .28f))
-                    drawPath(path, ink.copy(alpha = if (active) 1f else .65f),
+                    val edgeInk = if (initialAutoOutline && active) Color(0xFFB9FF84) else ink
+                    if (projected.size >= 3 && active) drawPath(path, edgeInk.copy(alpha = .26f))
+                    drawPath(path, edgeInk.copy(alpha = if (active) 1f else .65f),
                         style = Stroke(if (active) 4.dp.toPx() else 2.5.dp.toPx()))
                     drawPath(path, paper.copy(alpha = if (active) 1f else .8f),
                         style = Stroke(1.5.dp.toPx()))
@@ -288,6 +317,23 @@ internal fun PlantupiaRegionStudy(
                             drawLine(paper, center - Offset(radius, 0f), center + Offset(radius, 0f), 2.dp.toPx())
                             if (isIncluded) drawLine(paper, center - Offset(0f, radius), center + Offset(0f, radius), 2.dp.toPx())
                         }
+                    }
+                }
+            }
+        }
+    }
+    if (initialAutoOutline && assisting) {
+        Surface(color = PlantupiaColors.softSage, shape = PlantupiaShapes.inset, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(if (busy) "Reading the photograph…" else if (proposal != null) "Your outline" else "Focus on one part",
+                    style = PlantupiaText.editorialHeading)
+                if (busy) androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
+                if (!busy) Text(if (proposal != null) "The highlighted boundary is a suggestion. Confirm it or refine it with a tap."
+                    else feedback.ifBlank { "Tap inside the object, then outside it to refine the selection." }, style = PlantupiaText.supporting)
+                proposal?.let { candidate ->
+                    Button(enabled = assistingEnabled && scaleReady && !calibrating,
+                        onClick = { acceptProposal(candidate) }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text("Keep this outline")
                     }
                 }
             }
@@ -374,22 +420,11 @@ internal fun PlantupiaRegionStudy(
             (if (neural) foreground.isNotEmpty() && background.isNotEmpty()
                 else foreground.isEmpty() == background.isEmpty()),
             onClick = {
-                resetProposal()
                 val request = if (foreground.isEmpty()) JSONObject().put("mode", "automatic")
                     else JSONObject().put("foreground", pointArray(foreground))
                     .put("background", pointArray(background))
                 if (neural) request.put("mode", "neural")
-                suggest(request) { response ->
-                    proposal = parseOutlineProposal(response, width, height)
-                    feedback = if (proposal != null) {
-                        if (proposal?.method == "reviewed-magic-touch-point-v1") "Inspect the neural proposal. It is not a verified plant part."
-                        else "Inspect the proposed boundary on the photo."
-                    }
-                        else response.optString("reason").take(240).ifBlank {
-                            "No usable outline was returned. Change the points or trace manually."
-                        }
-                    scope.launch { photoAnchor.bringIntoView() }
-                }
+                findOutline(request)
             }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             Text(if (busy) "Looking at the photograph…" else if (neural) "Find neural outline"
                 else if (foreground.isEmpty()) "Find foreground outline" else "Find outline")
@@ -406,16 +441,8 @@ internal fun PlantupiaRegionStudy(
                     calibrating = it
                     if (it) scope.launch { photoAnchor.bringIntoView() }
                 }, onChange = { scaleDraft = it }, onLocate = { scope.launch { photoAnchor.bringIntoView() } })
-            Button(enabled = assistingEnabled && scaleReady, onClick = {
-                val body = JSONObject().put("submission_id", submission)
-                    .put("vertices", pointArray(candidate.vertices)).put("part", part)
-                    .put("suggestion_token", candidate.token).put("outline_method", candidate.method)
-                scalePayload?.let { body.put("point_reference", it) }
-                if (useMarkers) body.put("marker_edge_cm", markerCm)
-                save(body)
-            }, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
-                Text("Accept and save outline")
-            }
+            Button(enabled = assistingEnabled && scaleReady, onClick = { acceptProposal(candidate) },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("Accept and save outline") }
         }
         OutlinedButton(enabled = !busy, onClick = { assisting = false; tracing = true },
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {

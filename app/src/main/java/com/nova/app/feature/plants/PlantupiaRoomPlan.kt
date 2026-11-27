@@ -27,15 +27,28 @@ internal fun PlantupiaRoomPlan(
     openPlant: (PlantupiaPlant) -> Unit,
 ) = key(space.id, repository) {
     var expanded by remember { mutableStateOf(false) }
-    PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Home, title = "Explore this place", detail = "Recorded room and living collection", onClick = { expanded = true })
+    var entryTask by remember { mutableStateOf(PlaceTask.EXPLORE) }
+    var entrySpatial by remember { mutableStateOf(false) }
+    var entrySurvey by remember { mutableStateOf(false) }
+    fun enter(task: PlaceTask, spatial: Boolean = false, survey: Boolean = false) {
+        entryTask = task; entrySpatial = spatial; entrySurvey = survey; expanded = true
+    }
+    Text("Living Place", style = PlantupiaText.editorialHeading)
+    Text("Understand your room, its light and the plants inside it.", style = PlantupiaText.supporting)
+    PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Home, title = "Explore this place", detail = "Interactive plan and recorded plant positions", onClick = { enter(PlaceTask.EXPLORE) })
+    if (space.canAddPlant) PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Photo, title = "Measure my room", detail = "Use the AR camera or enter measured dimensions", onClick = { enter(PlaceTask.EDIT, survey = true) })
+    PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Home, title = "Explore sunlight", detail = "See where direct sunlight falls", onClick = { enter(PlaceTask.LIGHT) })
+    PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Home, title = "View in 3D", detail = "Recorded geometry and plant placements", onClick = { enter(PlaceTask.EXPLORE, spatial = true) })
+    PlantupiaActionRow(icon = com.nova.app.ui.icons.NovaIconAsset.Photo, title = "Build from photographs", detail = "Reconstruct overlapping views when available", onClick = { enter(PlaceTask.SOURCE) })
     if (expanded) {
         var room by remember { mutableStateOf<PlantupiaRoom?>(null) }
         var generation by remember { mutableIntStateOf(0) }
         var revision by remember { mutableStateOf<Int?>(null) }
         var message by remember { mutableStateOf("") }
         var saving by remember { mutableStateOf(false) }
-        var task by remember { mutableStateOf(PlaceTask.EXPLORE) }
-        var spatialPlan by remember { mutableStateOf(false) }
+        var task by remember { mutableStateOf(entryTask) }
+        var spatialPlan by remember { mutableStateOf(entrySpatial) }
+        var launchSurvey by remember { mutableStateOf(entrySurvey) }
         var focusedId by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
         fun returnToPlan() {
@@ -80,12 +93,16 @@ internal fun PlantupiaRoomPlan(
             },
             navigationKey = listOf(revision, generation, task),
         ) {
-            if (task == PlaceTask.SOURCE && repository.isCurrentSession()) {
+            if (task == PlaceTask.SOURCE && repository.isCurrentSession() && room != null) {
                 val layout = room
                 if (layout != null && layout.revision > 0) {
                     key(layout.revision) {
                         PlantupiaRoomPhotoScene(space, layout, plants, focusedId, repository)
                     }
+                }
+                if (layout == null || layout.revision <= 0) {
+                    Text("Record the room dimensions first to connect a reconstruction to this place.", style = PlantupiaText.body)
+                    if (space.canAddPlant) Button(onClick = { task = PlaceTask.EDIT }) { Text("Record room dimensions") }
                 }
                 PlantupiaSpatialViewer(space.name) { returnToPlan() }
                 return@PlantupiaLivingWorkspace
@@ -100,7 +117,7 @@ internal fun PlantupiaRoomPlan(
             if (task == PlaceTask.EDIT && space.canAddPlant && !current.historical) {
                 Text("Record this room", style = PlantupiaText.editorialHeading)
                 TextButton(enabled = !saving, onClick = { returnToPlan() }) { Text("Cancel edit") }
-                RoomEditor(current, plants, focusedId, saving, repository::isCurrentSession) { w, l, h, positions, openings, scan, source ->
+                RoomEditor(current, plants, focusedId, saving, repository::isCurrentSession, launchSurvey, { launchSurvey = false }) { w, l, h, positions, openings, scan, source ->
                     saving = true
                     scope.launch {
                         when (val result = repository.saveRoom(space.id, current.submission(w, l, positions, openings, h, scan, source))) {
@@ -114,6 +131,13 @@ internal fun PlantupiaRoomPlan(
             }
             val width = current.width
             val length = current.length
+            if (task == PlaceTask.LIGHT && (width == null || length == null || current.windows.isEmpty())) {
+                Text("Where does the light enter?", style = PlantupiaText.editorialHeading)
+                Text("Record room dimensions and at least one window centre to study direct sunlight.", style = PlantupiaText.body)
+                if (space.canAddPlant && !current.historical) Button(onClick = { task = PlaceTask.EDIT }) { Text("Set up this room") }
+                TextButton(onClick = { returnToPlan() }) { Text("Return to place") }
+                return@PlantupiaLivingWorkspace
+            }
             if (width != null && length != null) {
                 if (task == PlaceTask.LIGHT) {
                     TextButton(enabled = !saving, onClick = { returnToPlan() }) { Text("Return to placements") }
@@ -250,6 +274,8 @@ private fun LayoutRevisionPicker(room: PlantupiaRoom, saving: Boolean, onSelect:
 private fun RoomEditor(
     room: PlantupiaRoom, plants: List<PlantupiaPlant>, initialPlantId: String?, saving: Boolean,
     sessionCurrent: () -> Boolean,
+    launchSurvey: Boolean = false,
+    onSurveyLaunched: () -> Unit = {},
     save: (Double, Double, Double?, List<RoomPlant>, List<RoomWindow>, List<Float>, String) -> Unit,
 ) {
     var width by remember(room) { mutableStateOf(room.width?.toString().orEmpty()) }
@@ -283,6 +309,12 @@ private fun RoomEditor(
                 attachSurvey = false
                 showSurveyPoints = false
             }
+        }
+    }
+    LaunchedEffect(launchSurvey) {
+        if (launchSurvey && sessionCurrent()) {
+            onSurveyLaunched()
+            surveyLauncher.launch(Intent(context, PlantupiaFloorSurveyActivity::class.java))
         }
     }
     val prior = room.plants.find { it.id == selected?.id }

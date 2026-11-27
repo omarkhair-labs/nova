@@ -804,6 +804,7 @@ private fun PlantupiaAccountClientSection(
                 )
                 val featured = resolveFocusedSpace(spaces, focusedSpaceId) ?: spaces.first()
                 val focusedPlants = plants.filter { it.spaceId == featured.id && it.active }
+                if (featured.livingSystemsEnabled) PlantupiaLensEntry(focusedPlants, repository) { scope.launch { refresh() } }
                 // Separate authentic plant media from the identity of its private place.
                 val heroPlant = focusedPlants.firstOrNull { it.coverPhoto.isNotBlank() }
                 val heroPhoto = heroPlant?.coverPhoto.orEmpty()
@@ -1196,6 +1197,11 @@ private fun PlantupiaAccountClientSection(
                 qa = BuildConfig.BUILD_TYPE == "qa",
             )
             if (openDetailMode != PlantupiaCreateMode.QUESTION) {
+                if (spaces.any { it.id == selectedPlant.spaceId && it.livingSystemsEnabled } && selectedPlant.active) {
+                    PlantupiaLensEntry(listOf(selectedPlant), repository) {
+                        scope.launch { if (currentPlantId == selectedPlant.id && lifetime.isCurrent()) reloadPlantRecords(selectedPlant.id) }
+                    }
+                }
                 if (selectedPlant.canRecord) {
                     Button(
                         modifier = Modifier.fillMaxWidth().heightIn(min = 50.dp),
