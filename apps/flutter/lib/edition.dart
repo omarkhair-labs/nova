@@ -174,11 +174,16 @@ class EditionPage extends StatelessWidget {
   final List<Widget> children;
   final Widget? action;
   final bool scroll;
-  const EditionPage({super.key,required this.label,required this.children,this.action,this.scroll=true});
+  final Widget? footer;
+  const EditionPage({super.key,required this.label,required this.children,this.action,this.scroll=true,this.footer});
   @override Widget build(BuildContext context)=>Scaffold(
     appBar:AppBar(title:Eyebrow(label),actions:action==null?null:[action!]),
-    body:SafeArea(top:false,child:scroll?ListView(padding:const EdgeInsets.fromLTRB(22,10,22,32),children:children):
-      Column(children:children)));
+    body:SafeArea(top:false,child:Column(children:[
+      Expanded(child:scroll?ListView(padding:const EdgeInsets.fromLTRB(22,10,22,24),children:children):
+        Column(children:children)),
+      if(footer!=null) ...[const Rule(),Padding(padding:const EdgeInsets.fromLTRB(22,10,22,12),
+        child:SizedBox(width:double.infinity,child:footer!))],
+    ])));
 }
 class AccountTop extends StatelessWidget {
   final VoidCallback onMenu;
