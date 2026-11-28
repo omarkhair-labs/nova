@@ -185,12 +185,12 @@ class _EditionNav extends StatelessWidget {
     const labels=['Today','Plants','Shop','Ask'];
     const symbols=[Icons.wb_sunny_outlined,Icons.spa_outlined,Icons.shopping_bag_outlined,Icons.auto_awesome_outlined];
     return Row(children:List.generate(labels.length,(i)=>Expanded(child:Semantics(
-      button:true,selected:i==selected,child:InkWell(onTap:()=>onSelect(i),child:
+      button:true,label:labels[i],selected:i==selected,child:InkWell(onTap:()=>onSelect(i),child:
         Padding(padding:const EdgeInsets.symmetric(vertical:9,horizontal:2),child:Column(mainAxisSize:MainAxisSize.min,children:[
           AnimatedContainer(duration:const Duration(milliseconds:180),height:2,width:i==selected?32:0,color:forest),
           const SizedBox(height:7),Icon(symbols[i],size:23,color:i==selected?forest:muted),
-          const SizedBox(height:4),Text(labels[i],style:TextStyle(fontSize:12,fontWeight:i==selected?FontWeight.w600:FontWeight.w400,
-            color:i==selected?forest:muted),textAlign:TextAlign.center),
+          if(MediaQuery.textScalerOf(context).scale(12)<20) ...[const SizedBox(height:4),Text(labels[i],style:TextStyle(fontSize:12,fontWeight:i==selected?FontWeight.w600:FontWeight.w400,
+            color:i==selected?forest:muted),textAlign:TextAlign.center)],
         ])))))));
   }
 }
@@ -217,7 +217,7 @@ class TodayEdition extends StatelessWidget {
         const SizedBox(height:16),Text('A little attention makes a place yours.',
           style:TextStyle(fontSize:15,color:muted)),
         const SizedBox(height:22),const Rule(),
-        ActionLine(due.isEmpty?'Nothing due today':'${due.length} plants to check',
+        ActionLine(due.isEmpty?'Nothing due today':due.length==1?'One plant to check':'${due.length} plants to check',
           detail:due.isEmpty?'Your next check-in will appear here.':plantName(due.first)+' · recorded check-in',
           onTap:due.isEmpty?onCollection:()=>onPlant(due.first),
           icon:Icons.arrow_forward),const Rule(),const SizedBox(height:23),
