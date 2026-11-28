@@ -1,0 +1,76 @@
+name: Plantupia Flutter independent review
+
+on:
+  push:
+    branches:
+      - design/plantupia-flutter-edition-20261128
+    paths:
+      - apps/flutter/**
+      - .github/workflows/plantupia-flutter-review.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  flutter-review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/flutter
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.35.7'
+          channel: stable
+          cache: true
+      - name: Generate isolated Android shell
+        run: |
+          set -euo pipefail
+          flutter create --platforms=android --org com.omarkhair70.nova --project-name flutterqa --no-pub "$RUNNER_TEMP/plantupia-flutter-scaffold"
+          cp -R "$RUNNER_TEMP/plantupia-flutter-scaffold/android" .
+          cp "$RUNNER_TEMP/plantupia-flutter-scaffold/.metadata" .
+          python3 - <<'PY'
+          import pathlib, xml.etree.ElementTree as ET
+          manifest = pathlib.Path('android/app/src/main/AndroidManifest.xml')
+          ns = 'http://schemas.android.com/apk/res/android'
+          ET.register_namespace('android', ns)
+          tree = ET.parse(manifest)
+          root = tree.getroot()
+          root.insert(0, ET.Element('uses-permission', {'{'+ns+'}name': 'android.permission.INTERNET'}))
+          app = root.find('application')
+          app.set('{'+ns+'}label', 'Plantupia Flutter Review')
+          app.set('{'+ns+'}usesCleartextTraffic', 'false')
+          tree.write(manifest, encoding='unicode', xml_declaration=True)
+          gradle = pathlib.Path('android/app/build.gradle.kts').read_text()
+          assert 'applicationId = "com.omarkhair70.nova.flutterqa"' in gradle
+          PY
+      - name: Resolve Flutter dependencies
+        run: flutter pub get
+      - name: Analyze the authored app
+        run: flutter analyze --no-fatal-infos
+      - name: Verify actual Flutter widget journeys and capture synthetic review frames
+        run: flutter test --dart-define=CAPTURE_REVIEW=true --update-goldens
+      - name: Build isolated Android debug APK
+        run: |
+          flutter build apk --debug --dart-define=PLANTUPIA_QA_API=https://253.zpjunyusgmug0hgsm8ebwhkn.158.101.254.30.sslip.io/api/v1/
+          test -s build/app/outputs/flutter-apk/app-debug.apk
+      - name: Retain the review APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantupia-flutter-review-apk
+          path: apps/flutter/build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+      - name: Retain synthetic widget screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: plantupia-flutter-widget-review
+          path: apps/flutter/test/goldens/*.png
+          if-no-files-found: ignore
