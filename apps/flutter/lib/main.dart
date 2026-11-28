@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/painting.dart';
 import 'gateway.dart';
 import 'edition.dart';
 import 'plant_pages.dart';
@@ -112,7 +111,7 @@ class _ArrivalState extends State<Arrival> {
                 onPressed:()=>setState(()=>form=true),child:const Row(children:[
                   Expanded(child:Text('Enter your space')),Icon(Icons.arrow_forward,size:19)]))),
             ])),
-        ])))));
+        ]))))));
   }
 }
 
@@ -192,7 +191,7 @@ class _EditionNav extends StatelessWidget {
           const SizedBox(height:7),Icon(symbols[i],size:23,color:i==selected?forest:muted),
           const SizedBox(height:4),Text(labels[i],style:TextStyle(fontSize:12,fontWeight:i==selected?FontWeight.w600:FontWeight.w400,
             color:i==selected?forest:muted),textAlign:TextAlign.center),
-        ]))))));
+        ])))))));
   }
 }
 class TodayEdition extends StatelessWidget {
@@ -217,7 +216,11 @@ class TodayEdition extends StatelessWidget {
         const SizedBox(height:18),const TitleText('Living with\nnature.',size:46),
         const SizedBox(height:16),Text('A little attention makes a place yours.',
           style:TextStyle(fontSize:15,color:muted)),
-        const SizedBox(height:25),
+        const SizedBox(height:22),const Rule(),
+        ActionLine(due.isEmpty?'Nothing due today':'${due.length} plants to check',
+          detail:due.isEmpty?'Your next check-in will appear here.':plantName(due.first)+' · recorded check-in',
+          onTap:due.isEmpty?onCollection:()=>onPlant(due.first),
+          icon:Icons.arrow_forward),const Rule(),const SizedBox(height:23),
         if(feature!=null) ...[
           InkWell(onTap:()=>onPlant(feature),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
             SizedBox(height:280,child:Stack(fit:StackFit.expand,children:[
