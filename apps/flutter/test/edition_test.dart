@@ -73,7 +73,11 @@ void main(){
     await tester.ensureVisible(action);await tester.tap(action);await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).last,'A private fixture observation.');
     final save=find.text('Save private record');
-    await tester.ensureVisible(save);await tester.tap(save);await tester.pumpAndSettle();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(save);await tester.pumpAndSettle();
+    expect(save.hitTestable(),findsOneWidget);
+    await tester.tap(save);await tester.pumpAndSettle();
     expect(fixture.calls.length,1);
     expect(fixture.calls.single.path,'plantupia/plants/fixture-plant/event-submissions/');
     expect(fixture.calls.single.body['kind'],'observation');
@@ -85,7 +89,7 @@ void main(){
   testWidgets('a compact large-text edition retains the real daily entry',(tester)async{
     viewport(tester,width:320,scale:2);
     final fixture=Fixture();await showReview(tester,fixture);
-    expect(find.text('One plant to check'),findsOneWidget);
+    expect(find.text('One plant to check').hitTestable(),findsOneWidget);
     expect(tester.takeException(),isNull);
     if(const bool.fromEnvironment('CAPTURE_REVIEW')){
       await expectLater(find.byKey(const ValueKey('review-frame')),matchesGoldenFile('goldens/today-compact-fixture.png'));
