@@ -73,7 +73,7 @@ class _AskEditionState extends State<AskEdition>{
       final selected=plants.any((p)=>p['id']==plantId)?plantId:'';
       return Column(crossAxisAlignment:CrossAxisAlignment.stretch,children:[
         if(plants.isNotEmpty)...[
-          DropdownButtonFormField<String>(value:selected,isExpanded:true,
+          DropdownButtonFormField<String>(initialValue:selected,isExpanded:true,
             decoration:const InputDecoration(labelText:'Optional plant'),
             items:[const DropdownMenuItem(value:'',child:Text('General question')),
               for(final p in plants)DropdownMenuItem(value:field(p,'id'),child:Text(plantName(p),overflow:TextOverflow.ellipsis))],
