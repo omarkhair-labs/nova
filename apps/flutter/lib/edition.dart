@@ -185,9 +185,12 @@ class AccountTop extends StatelessWidget {
   final VoidCallback onMenu;
   const AccountTop({super.key,required this.onMenu});
   @override Widget build(BuildContext context)=>Padding(padding:const EdgeInsets.fromLTRB(22,3,14,4),child:
-    Row(children:[const Expanded(child:Text('Plantupia',style:TextStyle(fontFamily:'serif',fontSize:25,
-      color:ink,letterSpacing:-.8))),const Eyebrow('Living edition'),const SizedBox(width:8),
-      IconButton(tooltip:'Your account and more',onPressed:onMenu,icon:const Icon(Icons.add,size:26))]));
+    LayoutBuilder(builder:(context,box)=>Row(children:[
+      const Expanded(child:Text('Plantupia',style:TextStyle(fontFamily:'serif',fontSize:25,
+        color:ink,letterSpacing:-.8),maxLines:1,overflow:TextOverflow.ellipsis)),
+      if(box.maxWidth>=320 && MediaQuery.textScalerOf(context).scale(12)<=15)
+        const Eyebrow('Living edition'),const SizedBox(width:8),
+      IconButton(tooltip:'Your account and more',onPressed:onMenu,icon:const Icon(Icons.add,size:26))])));
 }
 void configureSystemBars()=>SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
   statusBarColor:paper,statusBarIconBrightness:Brightness.dark,
