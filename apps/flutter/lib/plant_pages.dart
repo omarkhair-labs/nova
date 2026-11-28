@@ -226,7 +226,9 @@ class _RecordEditionState extends State<RecordEdition>{
     onPopInvokedWithResult:(didPop,result)async{
       if(didPop)return;
       if(await mayLeave()&&context.mounted)Navigator.of(context).pop(true);
-    },child:EditionPage(label:'Private moment',children:[
+    },child:EditionPage(label:'Private moment',
+      footer:FilledButton(onPressed:busy?null:save,child:Text(busy?'Saving…':frozen!=null?'Retry this record':'Save private record')),
+      children:[
       const Eyebrow('Only you and authorized members'),const SizedBox(height:16),
       TitleText('A moment with\n${plantName(widget.plant)}.',size:36),
       const SizedBox(height:18),const Text('Record a real observation or action. Nothing is published to the community.'),
@@ -246,6 +248,6 @@ class _RecordEditionState extends State<RecordEdition>{
       if(error.isNotEmpty)Notice('Not confirmed',error),
       if(frozen!=null&&!busy)const Text('Retry keeps the original note, date and submission identity.',
         style:TextStyle(color:muted,fontSize:12)),
-      const SizedBox(height:18),FilledButton(onPressed:busy?null:save,child:Text(busy?'Saving…':frozen!=null?'Retry this record':'Save private record')),
+      const SizedBox(height:12),
     ]));
 }
