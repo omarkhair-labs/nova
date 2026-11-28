@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'gateway.dart';
@@ -100,7 +99,7 @@ class Loading extends StatelessWidget {
 class BotanicalPlate extends StatelessWidget {
   final Color background, stroke;
   final String caption;
-  const BotanicalPlate({super.key,this.background=Color(0xffe6e9dc),this.stroke=muted,
+  const BotanicalPlate({super.key,this.background=const Color(0xffe6e9dc),this.stroke=const Color(0xff53685b),
     this.caption='No photograph saved'});
   @override Widget build(BuildContext context) => ColoredBox(color:background,child:Stack(
     fit:StackFit.expand,children:[
