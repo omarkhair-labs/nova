@@ -73,8 +73,13 @@ class OracleReviewGateway implements Gateway {
     request.headers.set('Accept', 'application/json, image/*');
     if (bearer != null && bearer.isNotEmpty) request.headers.set('Authorization', 'Bearer $bearer');
     if (body != null) {
+      // The existing QA ingress does not reliably preserve chunked JSON bodies.
+      // Set the byte length explicitly (not the Dart string length), so Arabic
+      // notes and other Unicode payloads survive the same transport as login.
+      final payload = utf8.encode(jsonEncode(body));
       request.headers.contentType = ContentType.json;
-      request.write(jsonEncode(body));
+      request.contentLength = payload.length;
+      request.add(payload);
     }
     final response = await request.close().timeout(const Duration(seconds: 30));
     if (response.contentLength > maxBytes) {
